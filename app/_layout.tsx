@@ -6,15 +6,17 @@ import { Stack } from 'expo-router';
 import { theme } from '../theme/theme';
 import { FeatherIconsPack } from '../icons/FeatherIconsPack';
 import { IoniconsIconsPack } from '../icons/IoniconsIconsPack';
-export default function App() {
+import { MaterialCommunityIconsPack } from '../icons/MaterialCommunityIconsPack';
+export default function App()
+{
   return (
     <>
-      <IconRegistry icons={[EvaIconsPack,FeatherIconsPack,IoniconsIconsPack]} />
-      <ApplicationProvider {...eva} theme={{ ...eva.dark, ...theme }}>
+      <IconRegistry icons={[EvaIconsPack, FeatherIconsPack, IoniconsIconsPack, MaterialCommunityIconsPack]} />
+      <ApplicationProvider {...eva} theme={{ ...eva.light, ...theme }}>
         <Stack>
           <Stack.Screen name="index" options={{ headerShown: false }} />
           <Stack.Screen name='(tabs)' options={{ headerShown: false }} />
-          <Stack.Screen name="+not-found" options={{headerShown: false}} />
+          <Stack.Screen name="+not-found" options={{ headerShown: false }} />
         </Stack>
       </ApplicationProvider>
     </>

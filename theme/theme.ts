@@ -20,4 +20,12 @@ export const theme = {
     'color-success-700': '#1F9933',
     'color-success-800': '#14801A',
     'color-success-900': '#0A6600',
+    'color-dark-100': '#FCFCFB',
+    'color-dark-200': '#F9F8F8',
+    'color-dark-300': '#EFEDED',
+    'color-dark-400': '#DFDDDD',
+    'color-purple-100': '#F1DBFE',
+    'color-purple-200': '#E0B7FE',
+    'color-purple-300': '#CB93FC',
+    'color-purple-400': '#984cf8',
 };

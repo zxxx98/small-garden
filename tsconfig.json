@@ -3,6 +3,9 @@
   "compilerOptions": {
     "esModuleInterop": true,
     "strict": true,
+    "experimentalDecorators": true, // 必须为 true
+    "emitDecoratorMetadata": true,   // 可选，如需反射元数据
+    "strictPropertyInitialization" :false,
     "paths": {
       "@/*": [
         "./*"
