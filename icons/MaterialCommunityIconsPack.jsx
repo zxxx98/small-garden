@@ -6,9 +6,11 @@ export const MaterialCommunityIconsPack = {
   icons: createIconsMap(),
 };
 
-function createIconsMap() {
+function createIconsMap()
+{
   return new Proxy({}, {
-    get(target, name) {
+    get(target, name)
+    {
       return IconProvider(name);
     },
   });
@@ -18,7 +20,9 @@ const IconProvider = (name) => ({
   toReactElement: (props) => MaterialCommunityIcon({ name, ...props }),
 });
 
-function MaterialCommunityIcon({ name, style }) {
+function MaterialCommunityIcon({ name, style })
+{
+  console.log(style)
   const { height, tintColor, ...iconStyle } = StyleSheet.flatten(style);
   return (
     <MaterialCommunityIcons

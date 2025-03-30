@@ -98,6 +98,23 @@ export class ActionManager
             .fetch();
         return records.map(record => record.toJSON() as Action);
     }
+
+    static async getActionsByTimeRange(startTime: number, endTime: number): Promise<Action[]>
+    {
+        if (Platform.OS === 'web') {
+            return mockActions.filter(item => item.time >= startTime && item.time <= endTime);
+        }
+        const records = await database.get<WatermelonAction>('actions')
+            .query(
+                Q.and(
+                    Q.where('time', Q.gte(startTime)),
+                    Q.where('time', Q.lte(endTime))
+                )
+            )
+            .fetch();
+        return records.map(record => record.toJSON() as Action);
+    }
+
 }
 
 const mockActions: Action[] = [

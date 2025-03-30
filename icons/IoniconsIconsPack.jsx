@@ -6,9 +6,11 @@ export const IoniconsIconsPack = {
   icons: createIconsMap(),
 };
 
-function createIconsMap() {
+function createIconsMap()
+{
   return new Proxy({}, {
-    get(target, name) {
+    get(target, name)
+    {
       return IconProvider(name);
     },
   });
@@ -18,7 +20,8 @@ const IconProvider = (name) => ({
   toReactElement: (props) => IoniconsIcon({ name, ...props }),
 });
 
-function IoniconsIcon({ name, style }) {
+function IoniconsIcon({ name, style })
+{
   const { height, tintColor, ...iconStyle } = StyleSheet.flatten(style);
   return (
     <Ionicons
