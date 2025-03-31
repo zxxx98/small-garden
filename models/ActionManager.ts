@@ -124,7 +124,7 @@ const mockActions: Action[] = [
         plantId: '3', // 绿萝
         time: 1672531200000, // 2023-01-01
         remark: '土壤干燥，浇透水',
-        imgs: [''],
+        imgs: ['https://cdn.pixabay.com/photo/2025/03/23/14/08/azaleas-9488835_1280.jpg', 'https://cdn.pixabay.com/photo/2025/03/25/14/21/kenroku-en-garden-9492642_1280.jpg', 'https://cdn.pixabay.com/photo/2025/03/23/14/08/azaleas-9488835_1280.jpg', 'https://cdn.pixabay.com/photo/2025/03/23/14/08/azaleas-9488835_1280.jpg'],
         done: true,
     },
     {

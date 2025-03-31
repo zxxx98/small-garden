@@ -7,6 +7,7 @@ import { theme } from '../theme/theme';
 import { FeatherIconsPack } from '../icons/FeatherIconsPack';
 import { IoniconsIconsPack } from '../icons/IoniconsIconsPack';
 import { MaterialCommunityIconsPack } from '../icons/MaterialCommunityIconsPack';
+
 export default function App()
 {
   return (

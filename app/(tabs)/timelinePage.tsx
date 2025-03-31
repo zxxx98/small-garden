@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { FlatList, Image, StyleSheet, View } from 'react-native';
+import { FlatList, Image, StyleSheet, View, Dimensions } from 'react-native';
 import { Layout, Text, Card, Icon, RangeCalendar, CalendarRange, Button, Modal } from '@ui-kitten/components';
 import ContentLoader from 'react-content-loader';
 import Timeline from '../../components/Timeline';
@@ -10,7 +10,8 @@ import { PlantManager } from '@/models/PlantManager';
 import { Plant } from '@/types/plant';
 import { ActionManager } from '@/models/ActionManager';
 
-function getRangeLabel(startDate?: Date, endDate?: Date) {
+function getRangeLabel(startDate?: Date, endDate?: Date)
+{
     if (!startDate || !endDate) {
         return '';
     }
@@ -24,7 +25,11 @@ function getRangeLabel(startDate?: Date, endDate?: Date) {
 }
 
 
-const Detail = ({ action, plant }: { action?: Action, plant?: Plant }) => {
+const Detail = ({ action, plant }: { action?: Action, plant?: Plant }) =>
+{
+    const screenHeight = Dimensions.get('window').height;
+    const imageHeight = screenHeight * 0.5 * 0.3; // 取较小值，确保在小屏幕上不会太大
+
     let content = null;
     if (action && plant) {
         const date = new Date(Number(action.time));
@@ -32,9 +37,22 @@ const Detail = ({ action, plant }: { action?: Action, plant?: Plant }) => {
             <Text category='h5' style={styles.detailDate}>
                 {date.toLocaleDateString()}
             </Text>
+            <View style={styles.detailActionContainer}>
+                <Text category='p1' style={styles.detailAction}>
+                    给
+                </Text>
+                <Text category='h6' style={[styles.detailAction, styles.boldText, { color: theme['color-primary-600'] }]}>
+                    {plant?.name}
+                </Text>
+                <Text category='h6' style={[styles.detailAction, styles.boldText, { color: theme['color-purple-200'] }]}>
+                    {action?.name}
+                </Text>
+                <Text category='p1' style={styles.detailAction}>
+                    完成！！！
+                </Text>
+            </View>
             <Text category='p1' style={styles.detailAction}>
-                给{plant?.name}{action?.name}
-                {`\n`}完成！！！，给自己点个赞吧
+                给自己点个赞吧👍
             </Text>
             {action?.remark && (
                 <Text category='s1' style={styles.detailRemark}>
@@ -44,19 +62,19 @@ const Detail = ({ action, plant }: { action?: Action, plant?: Plant }) => {
             {action?.imgs && action.imgs.length > 0 && (
                 <View style={styles.imageContainer}>
                     <FlatList
+                        style={{ width: '100%' }}
                         data={action.imgs}
                         horizontal
                         showsHorizontalScrollIndicator={false}
                         renderItem={({ item }) => (
                             <Image
                                 source={{ uri: item }}
-                                style={styles.detailImage}
+                                style={[styles.detailImage, { height: imageHeight }]}
                                 resizeMode="contain"
                             />
                         )}
                         keyExtractor={(item, index) => index.toString()}
-                        ItemSeparatorComponent={() => <View style={{ width: 10 }} />
-                        }
+                        ItemSeparatorComponent={() => <View style={{ width: 5 }} />}
                     />
                 </View>
             )}
@@ -69,23 +87,28 @@ const Detail = ({ action, plant }: { action?: Action, plant?: Plant }) => {
     );
 }
 
-const TimelinePage = () => {
+const TimelinePage = () =>
+{
     const [timelineData, setTimelineData] = React.useState<Action[]>([]);
     const [showCalendar, setShowCalendar] = React.useState(false);
     const [rangeDate, setRangeDate] = React.useState<CalendarRange<Date>>({ startDate: new Date(), endDate: new Date() });
     const [selectRangeDate, setSelectRangeDate] = React.useState<CalendarRange<Date>>({ startDate: new Date(), endDate: new Date() });
     const [detailInfo, setDetailInfo] = React.useState<{ show: boolean, action?: Action, plant?: Plant }>({ show: false });
-    React.useEffect(() => {
-        ActionManager.getAllActions().then((actions) => {
+    React.useEffect(() =>
+    {
+        ActionManager.getAllActions().then((actions) =>
+        {
             setTimelineData(actions);
         });
     }, []);
 
-    const onCntentClick = (action: Action, plant: Plant) => {
+    const onCntentClick = (action: Action, plant: Plant) =>
+    {
         setDetailInfo({ show: true, action, plant });
     }
 
-    const renderCustomTime = (data: Action) => {
+    const renderCustomTime = (data: Action) =>
+    {
         const date = new Date(Number(data.time));
         const dayOfMonth = date.getDate(); // 获取日期（1-31）
         const weekDays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
@@ -99,14 +122,18 @@ const TimelinePage = () => {
         );
     };
 
-    const renderCustomContent = (data: Action) => {
+    const renderCustomContent = (data: Action) =>
+    {
         const [plant, setPlant] = React.useState<Plant | null>(null);
-        React.useEffect(() => {
-            PlantManager.getPlant(data.plantId).then((plant) => {
+        React.useEffect(() =>
+        {
+            PlantManager.getPlant(data.plantId).then((plant) =>
+            {
                 setPlant(plant);
             });
         })
-        return <Card style={styles.customContent} onPress={() => {
+        return <Card style={styles.customContent} onPress={() =>
+        {
             if (plant) {
                 onCntentClick(data, plant);
             }
@@ -126,19 +153,22 @@ const TimelinePage = () => {
         </Card>;
     };
 
-    const renderCustomIcon = (data: Action) => {
+    const renderCustomIcon = (data: Action) =>
+    {
         const iconData = getIconAndColor(data.name);
         return <Icon name={iconData.iconName} style={styles.customIcon} fill={iconData.color} pack={iconData.pack} />
     }
 
-    const onCalendarSelect = (range: CalendarRange<Date>) => {
+    const onCalendarSelect = (range: CalendarRange<Date>) =>
+    {
         if (range.startDate && range.endDate) {
             setShowCalendar(false);
         }
         setSelectRangeDate(range);
     }
 
-    React.useEffect(() => {
+    React.useEffect(() =>
+    {
         if (selectRangeDate.startDate && selectRangeDate.endDate) {
             setRangeDate(selectRangeDate);
         }
@@ -155,9 +185,12 @@ const TimelinePage = () => {
             >
                 {getRangeLabel(rangeDate.startDate, rangeDate.endDate)}
             </Button>
+            <Modal visible={showCalendar} style={{ width: "100%", height: "50%" }} backdropStyle={styles.detailBackground} onBackdropPress={() =>
             {
-                showCalendar ? <RangeCalendar style={styles.calendar} range={selectRangeDate} onSelect={onCalendarSelect} /> : null
-            }
+                setShowCalendar(false);
+            }}>
+                <RangeCalendar style={styles.calendar} range={selectRangeDate} onSelect={onCalendarSelect} />
+            </Modal>
             <Timeline
                 data={timelineData}
                 renderTime={renderCustomTime}
@@ -167,7 +200,8 @@ const TimelinePage = () => {
                 isDashed={true}
             />
             {/**当前点击的时间线卡片的详细信息 */}
-            <Modal visible={detailInfo.show} backdropStyle={styles.detailBackground} onBackdropPress={() => {
+            <Modal visible={detailInfo.show} style={{ width: "100%", height: "50%" }} backdropStyle={styles.detailBackground} onBackdropPress={() =>
+            {
                 setDetailInfo({ show: false });
             }}>
                 <Detail action={detailInfo.action} plant={detailInfo.plant} />
@@ -223,9 +257,7 @@ const styles = StyleSheet.create({
         marginTop: 10,
     },
     calendar: {
-        marginTop: 10,
-        position: 'absolute',
-        top: 100,
+
         alignSelf: 'center',
         backgroundColor: theme['color-primary-500'],
         borderRadius: 30,
@@ -241,12 +273,13 @@ const styles = StyleSheet.create({
         zIndex: 1000,
     },
     detailCard: {
-        height: '80%',
-        width: '90%',
+        height: '100%',
+        width: '80%',
         alignSelf: 'center',
         backgroundColor: theme['color-basic-100'],
         borderRadius: 20,
         elevation: 4,
+        overflow: 'hidden',
     },
     detailContent: {
         flex: 1,
@@ -255,24 +288,30 @@ const styles = StyleSheet.create({
         gap: 15,
     },
     detailDate: {
-        color: theme['color-primary-500'],
+        color: theme['color-primary-400'],
         fontWeight: 'bold',
+    },
+    detailActionContainer: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        alignItems: 'center',
+        gap: 4,
     },
     detailAction: {
         fontSize: 16,
         lineHeight: 24,
     },
+    boldText: {
+        fontWeight: 'bold',
+        fontSize: 18,
+    },
     detailRemark: {
         color: theme['color-dark-400'],
     },
-    detailImage: {
-        width: 300,
-        height: 200,
-        borderRadius: 10,
-    },
     imageContainer: {
-        marginHorizontal: -20,
-        paddingHorizontal: 20,
+    },
+    detailImage: {
+        width: 80,
     },
     detailBackground: {
         flex: 1,
@@ -280,7 +319,8 @@ const styles = StyleSheet.create({
     },
 });
 
-const PlantLoader = () => {
+const PlantLoader = () =>
+{
     return (
         <ContentLoader
             height={90}
