@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { FlatList, Image, StyleSheet, View, Dimensions } from 'react-native';
-import { Layout, Text, Card, Icon, RangeCalendar, CalendarRange, Button, Modal } from '@ui-kitten/components';
+import { Layout, Text, Card, Icon, RangeCalendar, CalendarRange, Button, Modal, IconProps } from '@ui-kitten/components';
+import { LinearGradient } from 'expo-linear-gradient';
 import ContentLoader from 'react-content-loader';
 import Timeline from '../../components/Timeline';
 import { theme } from '@/theme/theme';
@@ -86,6 +87,8 @@ const Detail = ({ action, plant }: { action?: Action, plant?: Plant }) =>
         </Card>
     );
 }
+
+const CalendarIcon = (props: IconProps) => <Icon {...props} name="calendar-outline" />;
 
 const TimelinePage = () =>
 {
@@ -175,38 +178,52 @@ const TimelinePage = () =>
     }, [selectRangeDate]);
 
     return (
-        <Layout style={styles.container}>
-            <Button
-                style={styles.title}
-                size='large'
-                appearance='ghost'
-                status='primary'
-                onPress={() => setShowCalendar(!showCalendar)}
+        <LinearGradient
+            colors={['#F5F5F5', '#E3F2FD', '#F5F5F5']}
+            style={styles.container}
+        >
+            <Layout style={styles.header}>
+                <Text category="h1">时间线</Text>
+                <Button
+                    size="small"
+                    accessoryLeft={CalendarIcon}
+                    onPress={() => setShowCalendar(true)}
+                />
+            </Layout>
+
+            <Layout style={styles.content}>
+                <Timeline
+                    data={timelineData}
+                    renderTime={renderCustomTime}
+                    renderContent={renderCustomContent}
+                    renderIcon={renderCustomIcon}
+                />
+            </Layout>
+
+            <Modal
+                visible={showCalendar}
+                backdropStyle={styles.backdrop}
+                onBackdropPress={() => setShowCalendar(false)}
             >
-                {getRangeLabel(rangeDate.startDate, rangeDate.endDate)}
-            </Button>
-            <Modal visible={showCalendar} style={{ width: "100%", height: "50%" }} backdropStyle={styles.detailBackground} onBackdropPress={() =>
-            {
-                setShowCalendar(false);
-            }}>
-                <RangeCalendar style={styles.calendar} range={selectRangeDate} onSelect={onCalendarSelect} />
+                <Card disabled style={styles.modalCard}>
+                    <Text category="h6" style={styles.modalTitle}>选择日期范围</Text>
+                    <RangeCalendar
+                        range={rangeDate}
+                        onSelect={onCalendarSelect}
+                        style={styles.calendar}
+                    />
+                    <Button onPress={() => setShowCalendar(false)}>确定</Button>
+                </Card>
             </Modal>
-            <Timeline
-                data={timelineData}
-                renderTime={renderCustomTime}
-                renderContent={renderCustomContent}
-                renderIcon={renderCustomIcon}
-                lineColor={theme['color-dark-400']}
-                isDashed={true}
-            />
-            {/**当前点击的时间线卡片的详细信息 */}
-            <Modal visible={detailInfo.show} style={{ width: "100%", height: "50%" }} backdropStyle={styles.detailBackground} onBackdropPress={() =>
-            {
-                setDetailInfo({ show: false });
-            }}>
+
+            <Modal
+                visible={detailInfo.show}
+                backdropStyle={styles.backdrop}
+                onBackdropPress={() => setDetailInfo({ show: false })}
+            >
                 <Detail action={detailInfo.action} plant={detailInfo.plant} />
             </Modal>
-        </Layout>
+        </LinearGradient>
     );
 };
 
@@ -214,12 +231,43 @@ const TimelinePage = () =>
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        paddingTop: 20,
     },
-    title: {
-        marginBottom: 10,
-        width: '60%',
-        alignSelf: 'center',
+    header: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingHorizontal: 16,
+        paddingTop: 16,
+        paddingBottom: 8,
+        backgroundColor: 'transparent',
+    },
+    content: {
+        flex: 1,
+        backgroundColor: 'transparent',
+    },
+    backdrop: {
+        backgroundColor: 'rgba(0, 0, 0, 0.4)',
+        backdropFilter: 'blur(8px)',
+    },
+    modalCard: {
+        width: Dimensions.get('window').width * 0.9,
+        maxWidth: 400,
+        padding: 24,
+        borderRadius: 20,
+        backgroundColor: 'rgba(255, 255, 255, 0.98)',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 12,
+        elevation: 5,
+    },
+    modalTitle: {
+        marginBottom: 20,
+        textAlign: 'center',
+        color: '#2C3E50',
+    },
+    calendar: {
+        marginBottom: 16,
     },
     customTime: {
         width: 48,
@@ -255,22 +303,6 @@ const styles = StyleSheet.create({
         height: 20,
         zIndex: 1, // 确保点在线的上面
         marginTop: 10,
-    },
-    calendar: {
-
-        alignSelf: 'center',
-        backgroundColor: theme['color-primary-500'],
-        borderRadius: 30,
-        padding: 15,
-        elevation: 5,
-        shadowColor: '#000',
-        shadowOffset: {
-            width: 0,
-            height: 2,
-        },
-        shadowOpacity: 0.25,
-        shadowRadius: 3.84,
-        zIndex: 1000,
     },
     detailCard: {
         height: '100%',
@@ -312,10 +344,6 @@ const styles = StyleSheet.create({
     },
     detailImage: {
         width: 80,
-    },
-    detailBackground: {
-        flex: 1,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
     },
 });
 

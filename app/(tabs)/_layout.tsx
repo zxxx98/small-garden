@@ -4,7 +4,8 @@ import { StyleSheet } from 'react-native';
 import React from 'react';
 
 // 定义标签数据接口
-interface TabDataItem {
+interface TabDataItem
+{
     name: string;
     title: string;
     iconName: string;
@@ -19,7 +20,8 @@ const tabData: TabDataItem[] = [
     { name: 'settingsPage', title: '设置', iconName: 'settings-2-outline' }
 ];
 
-export default function TabLayout() {
+export default function TabLayout()
+{
     return (
         <Tabs
             screenOptions={{
@@ -29,7 +31,8 @@ export default function TabLayout() {
             tabBar={props => (
                 <BottomNavigation
                     selectedIndex={props.state.index}
-                    onSelect={index => {
+                    onSelect={index =>
+                    {
                         console.log(props.state.routeNames[index]);
                         props.navigation.navigate(props.state.routeNames[index]);
                     }}
@@ -37,19 +40,19 @@ export default function TabLayout() {
                     style={{ height: 60 }}
                 >
                     {tabData.map((tab, index) => (
-                        <BottomNavigationTab 
-                        key={tab.name}
-                        icon={(props) => (
-                            <Icon 
-                                {...props}
-                                pack={tab.iconPack || 'eva'} 
-                                name={tab.iconName}
-                                animation={'pulse'} // 使用UI Kitten内置的animation属性
-                            />
-                        )} 
-                        title={tab.title}
-                        style={props.state.index === index ? styles.activeTab : styles.inactiveTab}
-                    />
+                        <BottomNavigationTab
+                            key={tab.name}
+                            icon={(props) => (
+                                <Icon
+                                    {...props}
+                                    pack={tab.iconPack || 'eva'}
+                                    name={tab.iconName}
+                                    animation={'pulse'} // 使用UI Kitten内置的animation属性
+                                />
+                            )}
+                            title={tab.title}
+                            style={props.state.index === index ? styles.activeTab : styles.inactiveTab}
+                        />
                     ))}
                 </BottomNavigation>
             )}

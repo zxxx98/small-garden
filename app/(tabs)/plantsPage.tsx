@@ -1,18 +1,19 @@
 import * as React from 'react';
 import { StyleSheet, Image, TouchableOpacity, Dimensions, Alert, Platform, View } from 'react-native';
 import { Layout, Text, Card, Button, Modal, Input, Select, SelectItem, Icon, IconProps, IndexPath } from '@ui-kitten/components';
-import { BlurView } from 'expo-blur';
-import DraggableFlatList, { 
-  ScaleDecorator, 
+import { LinearGradient } from 'expo-linear-gradient';
+import DraggableFlatList, {
+  ScaleDecorator,
   RenderItemParams,
   OpacityDecorator
 } from 'react-native-draggable-flatlist';
-import Animated, { 
-  useAnimatedStyle, 
-  useSharedValue, 
-  withTiming, 
-  withSpring 
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+  withSpring
 } from 'react-native-reanimated';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import FlowerIcon from '@/assets/svgs/flower1.svg';
 
 type PlantItem = {
@@ -43,11 +44,12 @@ const TrashIcon = (props: IconProps) => <Icon {...props} name="trash-2-outline" 
 const PlantIcon = (props: IconProps) => <Icon {...props} name="award-outline" />;
 
 // Calculate days ago/from now
-const formatTimeDistance = (date: Date) => {
+const formatTimeDistance = (date: Date) =>
+{
   const now = new Date();
   const diffTime = Math.abs(date.getTime() - now.getTime());
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  
+
   if (date < now) {
     return `${diffDays}天前`;
   } else {
@@ -55,14 +57,15 @@ const formatTimeDistance = (date: Date) => {
   }
 };
 
-const PlantsPage = () => {
+const PlantsPage = () =>
+{
   const [plants, setPlants] = React.useState<PlantItem[]>(initialPlants);
   const [categories, setCategories] = React.useState(initialCategories);
   const [visible, setVisible] = React.useState(false);
   const [addCategoryVisible, setAddCategoryVisible] = React.useState(false);
   const [editingPlant, setEditingPlant] = React.useState<PlantItem | null>(null);
   const [isInDeleteZone, setIsInDeleteZone] = React.useState(false);
-  
+
   // New plant form state
   const [plantName, setPlantName] = React.useState('');
   const [scientificName, setScientificName] = React.useState('');
@@ -74,14 +77,36 @@ const PlantsPage = () => {
   const deleteZoneScale = useSharedValue(1);
   const deleteZoneOpacity = useSharedValue(0);
 
-  const deleteZoneAnimatedStyle = useAnimatedStyle(() => {
+  const deleteZoneAnimatedStyle = useAnimatedStyle(() =>
+  {
     return {
       transform: [{ scale: deleteZoneScale.value }],
       opacity: deleteZoneOpacity.value,
     };
   });
 
-  const resetForm = () => {
+  const showDeleteZone = () =>
+  {
+    'worklet';
+    deleteZoneOpacity.value = withTiming(1, { duration: 200 });
+    deleteZoneScale.value = withSpring(1);
+  };
+
+  const hideDeleteZone = () =>
+  {
+    'worklet';
+    deleteZoneOpacity.value = withTiming(0, { duration: 200 });
+    deleteZoneScale.value = withSpring(1);
+  };
+
+  const updateDeleteZoneScale = (scale: number) =>
+  {
+    'worklet';
+    deleteZoneScale.value = withSpring(scale);
+  };
+
+  const resetForm = () =>
+  {
     setPlantName('');
     setScientificName('');
     setSelectedCategory(null);
@@ -89,7 +114,8 @@ const PlantsPage = () => {
     setEditingPlant(null);
   };
 
-  const handleAddPlant = () => {
+  const handleAddPlant = () =>
+  {
     if (!plantName.trim()) {
       Alert.alert('错误', '请输入植物名称');
       return;
@@ -115,16 +141,18 @@ const PlantsPage = () => {
     resetForm();
   };
 
-  const handleDeletePlant = (id: string) => {
+  const handleDeletePlant = (id: string) =>
+  {
     Alert.alert(
       '确认删除',
       '确定要删除这个植物吗？',
       [
         { text: '取消', style: 'cancel' },
-        { 
-          text: '删除', 
+        {
+          text: '删除',
           style: 'destructive',
-          onPress: () => {
+          onPress: () =>
+          {
             setPlants(plants.filter(plant => plant.id !== id));
           }
         }
@@ -132,21 +160,23 @@ const PlantsPage = () => {
     );
   };
 
-  const handleEditPlant = (plant: PlantItem) => {
+  const handleEditPlant = (plant: PlantItem) =>
+  {
     setEditingPlant(plant);
     setPlantName(plant.name);
     setScientificName(plant.scientificName);
-    
+
     const categoryIndex = categories.findIndex(c => c.name === plant.category);
     if (categoryIndex !== -1) {
       setSelectedCategory(categories[categoryIndex]);
       setSelectedIndex(new IndexPath(categoryIndex));
     }
-    
+
     setVisible(true);
   };
 
-  const handleAddCategory = () => {
+  const handleAddCategory = () =>
+  {
     if (!newCategory.trim()) {
       Alert.alert('错误', '请输入类别名称');
       return;
@@ -167,7 +197,8 @@ const PlantsPage = () => {
     <Modal
       visible={addCategoryVisible}
       backdropStyle={styles.backdrop}
-      onBackdropPress={() => setAddCategoryVisible(false)}>
+      onBackdropPress={() => setAddCategoryVisible(false)}
+    >
       <Card disabled style={styles.modalCard}>
         <Text category="h6" style={styles.modalTitle}>添加新类别</Text>
         <Input
@@ -185,10 +216,12 @@ const PlantsPage = () => {
     <Modal
       visible={visible}
       backdropStyle={styles.backdrop}
-      onBackdropPress={() => {
+      onBackdropPress={() =>
+      {
         setVisible(false);
         resetForm();
-      }}>
+      }}
+    >
       <Card disabled style={styles.modalCard}>
         <Text category="h6" style={styles.modalTitle}>
           {editingPlant ? '编辑植物' : '添加植物'}
@@ -196,7 +229,8 @@ const PlantsPage = () => {
         <Input
           placeholder="植物名称"
           value={plantName}
-          onChangeText={text => {
+          onChangeText={text =>
+          {
             setPlantName(text);
             if (!scientificName) {
               setScientificName(text);
@@ -214,7 +248,8 @@ const PlantsPage = () => {
           placeholder="选择类别"
           value={selectedCategory?.name}
           selectedIndex={selectedIndex}
-          onSelect={(index) => {
+          onSelect={(index) =>
+          {
             setSelectedIndex(index as IndexPath);
             if ((index as IndexPath).row !== undefined) {
               setSelectedCategory(categories[(index as IndexPath).row]);
@@ -225,9 +260,9 @@ const PlantsPage = () => {
             <SelectItem key={category.id} title={category.name} />
           ))}
         </Select>
-        <Button 
-          appearance="ghost" 
-          status="basic" 
+        <Button
+          appearance="ghost"
+          status="basic"
           style={styles.addCategoryButton}
           onPress={() => setAddCategoryVisible(true)}>
           + 添加新类别
@@ -251,22 +286,22 @@ const PlantsPage = () => {
   const [isDragging, setIsDragging] = React.useState(false);
   const [draggedItemIndex, setDraggedItemIndex] = React.useState<number | null>(null);
 
-  const checkIfInDeleteZone = (y: number) => {
+  const checkIfInDeleteZone = (y: number) =>
+  {
     const windowHeight = Dimensions.get('window').height;
     const deleteZoneThreshold = windowHeight * 0.85; // Bottom 15% of screen is delete zone
     return y > deleteZoneThreshold;
   };
 
-  const handleDragStart = (index: number) => {
-    // Show delete zone when dragging starts
-    deleteZoneOpacity.value = withTiming(1, { duration: 200 });
-    deleteZoneScale.value = withSpring(1);
+  const handleDragStart = (index: number) =>
+  {
+    showDeleteZone();
     setIsDragging(true);
     setDraggedItemIndex(index);
   };
 
-  // Use onDragEnd to handle both reordering and deletion
-  const handleDragEnd = ({ data, from }: { data: any[], from: number, to: number }) => {
+  const handleDragEnd = ({ data, from }: { data: any[], from: number, to: number }) =>
+  {
     // Check if we should delete
     if (isInDeleteZone && draggedItemIndex !== null) {
       const plantToDelete = plants[from];
@@ -275,41 +310,46 @@ const PlantsPage = () => {
       // Otherwise just update order
       setPlants(data);
     }
-    
+
     // Reset state
     setIsDragging(false);
     setDraggedItemIndex(null);
-    deleteZoneOpacity.value = withTiming(0, { duration: 200 });
+    hideDeleteZone();
     setIsInDeleteZone(false);
   };
 
   // This is a simpler method to track position during dragging using pan responder
-  React.useEffect(() => {
+  React.useEffect(() =>
+  {
     if (!isDragging) return;
-    
-    const handleMove = (e: any) => {
+
+    const handleMove = (e: any) =>
+    {
       if (e && e.nativeEvent && e.nativeEvent.pageY) {
         const isInZone = checkIfInDeleteZone(e.nativeEvent.pageY);
         if (isInZone !== isInDeleteZone) {
           setIsInDeleteZone(isInZone);
-          deleteZoneScale.value = withSpring(isInZone ? 1.1 : 1);
+          updateDeleteZoneScale(isInZone ? 1.1 : 1);
         }
       }
     };
-    
+
     // In a real implementation, you would add an actual event listener instead
     // This is a simplified approach for the example
-    const intervalId = setInterval(() => {
+    const intervalId = setInterval(() =>
+    {
       // Simulate checking position during drag
       // In practice, we would need to integrate with gesture system
     }, 100);
-    
+
     return () => clearInterval(intervalId);
   }, [isDragging, isInDeleteZone]);
 
   // Render each plant item with drag handle
-  const renderItem = ({ item, drag, isActive, getIndex }: RenderItemParams<any>) => {
-    React.useEffect(() => {
+  const renderItem = ({ item, drag, isActive, getIndex }: RenderItemParams<any>) =>
+  {
+    React.useEffect(() =>
+    {
       // Track active state for better UX
       if (isActive && getIndex) {
         const index = getIndex();
@@ -354,68 +394,77 @@ const PlantsPage = () => {
   };
 
   return (
-    <Layout style={styles.container}>
-      <Layout style={styles.header}>
-        <Text category="h1">花园</Text>
-        <Button
-          size="small"
-          accessoryLeft={PlusIcon}
-          onPress={() => {
-            resetForm();
-            setVisible(true);
-          }}
-        />
-      </Layout>
-      
-      {plants.length > 0 ? (
-        <>
-          <DraggableFlatList
-            data={plants}
-            onDragBegin={handleDragStart}
-            onDragEnd={handleDragEnd}
-            keyExtractor={(item) => item.id}
-            renderItem={renderItem}
-            contentContainerStyle={[styles.list, { paddingBottom: 120 }]}
-            autoscrollSpeed={100}
-            autoscrollThreshold={50}
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <LinearGradient
+        colors={['#F5F5F5', '#E8F5E9', '#F5F5F5']}
+        style={styles.container}
+      >
+        <Layout style={styles.header}>
+          <Text category="h1">花园</Text>
+          <Button
+            size="small"
+            accessoryLeft={PlusIcon}
+            onPress={() =>
+            {
+              resetForm();
+              setVisible(true);
+            }}
           />
-          
-          {/* Delete zone at bottom - rendered conditionally with animation */}
-          <Animated.View style={[
-            styles.deleteZone,
-            deleteZoneAnimatedStyle,
-            isInDeleteZone ? styles.deleteZoneActive : {}
-          ]}>
-            <Icon
-              name="trash-2-outline"
-              fill="#ffffff"
-              style={styles.deleteZoneIcon}
+        </Layout>
+
+        {plants.length > 0 ? (
+          <Layout style={styles.contentContainer}>
+            <DraggableFlatList
+              data={plants}
+              onDragBegin={handleDragStart}
+              onDragEnd={handleDragEnd}
+              keyExtractor={(item) => item.id}
+              renderItem={renderItem}
+              contentContainerStyle={[styles.list]}
+              autoscrollSpeed={100}
+              autoscrollThreshold={50}
+              dragHitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             />
-            <Text style={styles.deleteZoneText}>拖动到此处删除</Text>
-          </Animated.View>
-        </>
-      ) : (
-        <TouchableOpacity
-          style={styles.emptyStateContainer}
-          onPress={() => {
-            resetForm();
-            setVisible(true);
-          }}
-          activeOpacity={0.7}
-        >
-          {renderEmptyState()}
-        </TouchableOpacity>
-      )}
-      
-      {renderAddEditModal()}
-      {renderAddCategoryModal()}
-    </Layout>
+
+            {/* Delete zone at bottom - rendered conditionally with animation */}
+            <Animated.View style={[
+              styles.deleteZone,
+              deleteZoneAnimatedStyle,
+              isInDeleteZone ? styles.deleteZoneActive : {}
+            ]}>
+              <Icon
+                name="trash-2-outline"
+                fill="#ffffff"
+                style={styles.deleteZoneIcon}
+              />
+              <Text style={styles.deleteZoneText}>拖动到此处删除</Text>
+            </Animated.View>
+          </Layout>
+        ) : (
+          <TouchableOpacity
+            style={styles.emptyStateContainer}
+            onPress={() =>
+            {
+              resetForm();
+              setVisible(true);
+            }}
+            activeOpacity={0.7}
+          >
+            {renderEmptyState()}
+          </TouchableOpacity>
+        )}
+
+        {renderAddEditModal()}
+        {renderAddCategoryModal()}
+      </LinearGradient>
+    </GestureHandlerRootView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#F5F5F5',
   },
   header: {
     flexDirection: 'row',
@@ -424,42 +473,51 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 16,
     paddingBottom: 8,
+    backgroundColor: 'transparent',
+  },
+  contentContainer: {
+    flex: 1,
+    position: 'relative',
   },
   list: {
     padding: 16,
+    paddingBottom: 120,
   },
   itemContainer: {
     marginBottom: 16,
-    borderRadius: 8,
+    borderRadius: 16,
     overflow: 'visible',
     position: 'relative',
   },
   itemAnimatedContainer: {
     width: '100%',
-    borderRadius: 8,
-    backgroundColor: '#fff',
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.03)',
   },
   itemContent: {
     flexDirection: 'row',
-    padding: 12,
+    padding: 16,
   },
   plantImage: {
     width: 80,
     height: 80,
-    borderRadius: 8,
-    marginRight: 12,
+    borderRadius: 12,
+    marginRight: 16,
+    backgroundColor: 'rgba(0, 0, 0, 0.02)',
   },
   plantInfo: {
     flex: 1,
     justifyContent: 'space-between',
   },
   plantActions: {
-    marginTop: 4,
+    marginTop: 8,
   },
   deleteZone: {
     position: 'absolute',
@@ -469,13 +527,14 @@ const styles = StyleSheet.create({
     height: 100,
     justifyContent: 'center',
     alignItems: 'center',
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    backgroundColor: 'rgba(255,0,0,0.3)',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    backgroundColor: 'rgba(255,0,0,0.2)',
     zIndex: 500,
+    backdropFilter: 'blur(10px)',
   },
   deleteZoneActive: {
-    backgroundColor: 'rgba(255,0,0,0.7)',
+    backgroundColor: 'rgba(255,0,0,0.6)',
   },
   deleteZoneIcon: {
     width: 32,
@@ -485,39 +544,53 @@ const styles = StyleSheet.create({
   deleteZoneText: {
     color: 'white',
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: '600',
     marginBottom: 16,
   },
   backdrop: {
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    backdropFilter: 'blur(8px)',
   },
   modalCard: {
     width: Dimensions.get('window').width * 0.9,
     maxWidth: 400,
-    padding: 16,
+    padding: 24,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.98)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 5,
   },
   modalTitle: {
-    marginBottom: 16,
+    marginBottom: 20,
     textAlign: 'center',
+    color: '#2C3E50',
   },
   input: {
-    marginBottom: 12,
+    marginBottom: 16,
+    backgroundColor: 'rgba(0, 0, 0, 0.02)',
   },
   addCategoryButton: {
-    marginBottom: 12,
+    marginBottom: 16,
   },
   emptyContainer: {
-    alignItems: 'center',
+    flex: 1,
     justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'transparent',
+  },
+  emptyText: {
+    textAlign: 'center',
+    marginTop: 20,
+    color: '#2C3E50',
+    fontSize: 16,
   },
   emptyStateContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  emptyText: {
-    textAlign: 'center',
-    marginTop: 16,
   },
 });
 
