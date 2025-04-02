@@ -10,9 +10,10 @@ import { IoniconsIconsPack } from '../icons/IoniconsIconsPack';
 import { MaterialCommunityIconsPack } from '../icons/MaterialCommunityIconsPack';
 
 // Create theme-aware app component
-const ThemedApp = () => {
+const ThemedApp = () =>
+{
   const { theme } = useTheme();
-  
+
   return (
     <ApplicationProvider {...eva} theme={theme}>
       <CategoryProvider>
@@ -26,7 +27,8 @@ const ThemedApp = () => {
   );
 }
 
-export default function App() {
+export default function App()
+{
   return (
     <>
       <IconRegistry icons={[EvaIconsPack, FeatherIconsPack, IoniconsIconsPack, MaterialCommunityIconsPack]} />

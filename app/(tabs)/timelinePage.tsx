@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { FlatList, Image, StyleSheet, View, Dimensions } from 'react-native';
+import { FlatList, Image, StyleSheet, View, Dimensions, TouchableOpacity } from 'react-native';
 import { Layout, Text, Card, Icon, RangeCalendar, CalendarRange, Button, Modal, IconProps } from '@ui-kitten/components';
 import { LinearGradient } from 'expo-linear-gradient';
 import ContentLoader from 'react-content-loader';
@@ -25,11 +25,71 @@ function getRangeLabel(startDate?: Date, endDate?: Date)
     return `${startDate.toLocaleDateString()} - ${endDate.toLocaleDateString()}`;
 }
 
+// Define interface for ImageViewer props
+interface ImageViewerProps
+{
+    visible: boolean;
+    imageUri: string;
+    onClose: () => void;
+}
+
+// Image viewer for full-screen display with rotation
+const ImageViewer = ({ visible, imageUri, onClose }: ImageViewerProps) =>
+{
+    const [rotation, setRotation] = React.useState(0);
+
+    const rotateLeft = () =>
+    {
+        setRotation((prev) => (prev - 90) % 360);
+    };
+
+    const rotateRight = () =>
+    {
+        setRotation((prev) => (prev + 90) % 360);
+    };
+
+    return (
+        <Modal
+            visible={visible}
+            backdropStyle={styles.backdrop}
+            onBackdropPress={onClose}
+        >
+            <View style={styles.imageViewerContainer}>
+                <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+                    <Icon name="close-outline" style={{ width: 24, height: 24, tintColor: '#fff' }} />
+                </TouchableOpacity>
+
+                <View style={styles.rotationButtonsContainer}>
+                    <TouchableOpacity style={styles.rotateButton} onPress={rotateLeft}>
+                        <Icon name="arrow-undo" pack='ionicons' style={{ width: 28, height: 28, tintColor: '#fff' }} />
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.rotateButton} onPress={rotateRight}>
+                        <Icon name="arrow-redo" pack='ionicons' style={{ width: 28, height: 28, tintColor: '#fff' }} />
+                    </TouchableOpacity>
+                </View>
+
+                <View style={styles.fullScreenImageContainer}>
+                    <Image
+                        source={{ uri: imageUri }}
+                        style={[
+                            styles.fullScreenImage,
+                            { transform: [{ rotate: `${rotation}deg` }] }
+                        ]}
+                        resizeMode="contain"
+                    />
+                </View>
+            </View>
+        </Modal>
+    );
+};
 
 const Detail = ({ action, plant }: { action?: Action, plant?: Plant }) =>
 {
     const screenHeight = Dimensions.get('window').height;
-    const imageHeight = screenHeight * 0.5 * 0.3; // 取较小值，确保在小屏幕上不会太大
+    const screenWidth = Dimensions.get('window').width;
+    const imageHeight = screenHeight * 0.5 * 0.3;
+    const [selectedImage, setSelectedImage] = React.useState('');
+    const [showImageViewer, setShowImageViewer] = React.useState(false);
 
     let content = null;
     if (action && plant) {
@@ -68,21 +128,35 @@ const Detail = ({ action, plant }: { action?: Action, plant?: Plant }) =>
                         horizontal
                         showsHorizontalScrollIndicator={false}
                         renderItem={({ item }) => (
-                            <Image
-                                source={{ uri: item }}
-                                style={[styles.detailImage, { height: imageHeight }]}
-                                resizeMode="contain"
-                            />
+                            <TouchableOpacity
+                                onPress={() =>
+                                {
+                                    setSelectedImage(item);
+                                    setShowImageViewer(true);
+                                }}
+                            >
+                                <Image
+                                    source={{ uri: item }}
+                                    style={[styles.thumbnailImage]}
+                                    resizeMode="cover"
+                                />
+                            </TouchableOpacity>
                         )}
                         keyExtractor={(item, index) => index.toString()}
                         ItemSeparatorComponent={() => <View style={{ width: 5 }} />}
                     />
                 </View>
             )}
+
+            <ImageViewer
+                visible={showImageViewer}
+                imageUri={selectedImage}
+                onClose={() => setShowImageViewer(false)}
+            />
         </View>)
     }
     return (
-        <Card style={styles.detailCard}>
+        <Card style={[styles.detailCard, { width: screenWidth * 0.7 }]}>
             {content}
         </Card>
     );
@@ -95,8 +169,9 @@ const TimelinePage = () =>
     const [timelineData, setTimelineData] = React.useState<Action[]>([]);
     const [showCalendar, setShowCalendar] = React.useState(false);
     const [rangeDate, setRangeDate] = React.useState<CalendarRange<Date>>({ startDate: new Date(), endDate: new Date() });
-    const [selectRangeDate, setSelectRangeDate] = React.useState<CalendarRange<Date>>({ startDate: new Date(), endDate: new Date() });
     const [detailInfo, setDetailInfo] = React.useState<{ show: boolean, action?: Action, plant?: Plant }>({ show: false });
+    const calendarButtonRef = React.useRef(null);
+
     React.useEffect(() =>
     {
         ActionManager.getAllActions().then((actions) =>
@@ -165,17 +240,9 @@ const TimelinePage = () =>
     const onCalendarSelect = (range: CalendarRange<Date>) =>
     {
         if (range.startDate && range.endDate) {
-            setShowCalendar(false);
+            setRangeDate(range);
         }
-        setSelectRangeDate(range);
     }
-
-    React.useEffect(() =>
-    {
-        if (selectRangeDate.startDate && selectRangeDate.endDate) {
-            setRangeDate(selectRangeDate);
-        }
-    }, [selectRangeDate]);
 
     return (
         <LinearGradient
@@ -184,11 +251,22 @@ const TimelinePage = () =>
         >
             <Layout style={styles.header}>
                 <Text category="h1">时间线</Text>
-                <Button
-                    size="small"
-                    accessoryLeft={CalendarIcon}
-                    onPress={() => setShowCalendar(true)}
-                />
+                <View style={styles.calendarButtonContainer}>
+                    <Button
+                        ref={calendarButtonRef}
+                        size="small"
+                        accessoryLeft={CalendarIcon}
+                        onPress={() => setShowCalendar(!showCalendar)}
+                    />
+
+                    {showCalendar && (
+                        <RangeCalendar
+                            range={rangeDate}
+                            onSelect={onCalendarSelect}
+                            style={styles.calendar}
+                        />
+                    )}
+                </View>
             </Layout>
 
             <Layout style={styles.content}>
@@ -199,22 +277,6 @@ const TimelinePage = () =>
                     renderIcon={renderCustomIcon}
                 />
             </Layout>
-
-            <Modal
-                visible={showCalendar}
-                backdropStyle={styles.backdrop}
-                onBackdropPress={() => setShowCalendar(false)}
-            >
-                <Card disabled style={styles.modalCard}>
-                    <Text category="h6" style={styles.modalTitle}>选择日期范围</Text>
-                    <RangeCalendar
-                        range={rangeDate}
-                        onSelect={onCalendarSelect}
-                        style={styles.calendar}
-                    />
-                    <Button onPress={() => setShowCalendar(false)}>确定</Button>
-                </Card>
-            </Modal>
 
             <Modal
                 visible={detailInfo.show}
@@ -240,6 +302,7 @@ const styles = StyleSheet.create({
         paddingTop: 16,
         paddingBottom: 8,
         backgroundColor: 'transparent',
+        zIndex: 2,
     },
     content: {
         flex: 1,
@@ -249,25 +312,36 @@ const styles = StyleSheet.create({
         backgroundColor: 'rgba(0, 0, 0, 0.4)',
         backdropFilter: 'blur(8px)',
     },
-    modalCard: {
-        width: Dimensions.get('window').width * 0.9,
-        maxWidth: 400,
-        padding: 24,
-        borderRadius: 20,
-        backgroundColor: 'rgba(255, 255, 255, 0.98)',
+    calendarCard: {
+        margin: 8,
+        borderRadius: 16,
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
+        shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.1,
-        shadowRadius: 12,
-        elevation: 5,
+        shadowRadius: 4,
+        elevation: 3,
+        zIndex: 1,
     },
     modalTitle: {
         marginBottom: 20,
         textAlign: 'center',
-        color: '#2C3E50',
+        color: '#2C3E50'
+    },
+    calendarButtonContainer: {
+        position: 'relative',
     },
     calendar: {
-        marginBottom: 16,
+        position: 'absolute',
+        top: '100%',
+        right: 0,
+        zIndex: 99,
+        backgroundColor: theme['color-basic-100'],
+        borderRadius: 10,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.1,
+        shadowRadius: 5,
+        elevation: 5,
     },
     customTime: {
         width: 48,
@@ -305,8 +379,7 @@ const styles = StyleSheet.create({
         marginTop: 10,
     },
     detailCard: {
-        height: '100%',
-        width: '80%',
+        height: '80%',
         alignSelf: 'center',
         backgroundColor: theme['color-basic-100'],
         borderRadius: 20,
@@ -341,9 +414,53 @@ const styles = StyleSheet.create({
         color: theme['color-dark-400'],
     },
     imageContainer: {
+        marginTop: 10,
     },
-    detailImage: {
+    thumbnailImage: {
         width: 80,
+        height: 80,
+        borderRadius: 8,
+    },
+    imageViewerContainer: {
+        width: Dimensions.get('window').width,
+        height: Dimensions.get('window').height,
+        backgroundColor: 'rgba(0, 0, 0, 0.9)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        position: 'relative',
+    },
+    fullScreenImageContainer: {
+        width: '100%',
+        height: '100%',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    fullScreenImage: {
+        width: '100%',
+        height: '100%',
+    },
+    closeButton: {
+        position: 'absolute',
+        top: 40,
+        right: 20,
+        zIndex: 10,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        borderRadius: 20,
+        padding: 8,
+    },
+    rotationButtonsContainer: {
+        position: 'absolute',
+        bottom: 40,
+        alignSelf: 'center',
+        flexDirection: 'row',
+        zIndex: 10,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        borderRadius: 20,
+        padding: 4,
+    },
+    rotateButton: {
+        padding: 8,
+        marginHorizontal: 10,
     },
 });
 

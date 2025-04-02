@@ -1,5 +1,20 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { ActionNameKey, ThemeModeKey } from '../types/config';
+import { ActionNameKey, ThemeModeKey, CategoriesKey } from '../types/config';
+import { Category } from '../context/CategoryContext';
+
+// Default categories
+const defaultCategories: Category[] = [
+    { id: '1', name: '多肉' },
+    { id: '2', name: '玫瑰' },
+    { id: '3', name: '月季' },
+    { id: '4', name: '蔷薇' },
+    { id: '5', name: '绣球' },
+    { id: '6', name: '百合' },
+    { id: '7', name: '郁金香' },
+    { id: '8', name: '风信子' },
+    { id: '9', name: '水仙' },
+    { id: '10', name: '其他' },
+];
 
 export class ConfigManager
 {
@@ -50,6 +65,32 @@ export class ConfigManager
             await AsyncStorage.setItem(ThemeModeKey, value);
         } catch (error) {
             console.error('Failed to set theme mode:', error);
+        }
+    }
+
+    public async getCategories(): Promise<Category[]>
+    {
+        try {
+            const storedCategories = await AsyncStorage.getItem(CategoriesKey);
+            if (storedCategories) {
+                return JSON.parse(storedCategories);
+            }
+            // If no categories stored, use and save default categories
+            await this.saveCategories(defaultCategories);
+            return defaultCategories;
+        } catch (error) {
+            console.error('Failed to get categories:', error);
+            throw new Error('Failed to load categories');
+        }
+    }
+
+    public async saveCategories(categories: Category[]): Promise<void>
+    {
+        try {
+            await AsyncStorage.setItem(CategoriesKey, JSON.stringify(categories));
+        } catch (error) {
+            console.error('Failed to save categories:', error);
+            throw new Error('Failed to save categories');
         }
     }
 }

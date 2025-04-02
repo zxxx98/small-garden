@@ -22,6 +22,7 @@ const IconProvider = (name) => ({
 
 function IoniconsIcon({ name, style })
 {
+  console.log(style)
   const { height, tintColor, ...iconStyle } = StyleSheet.flatten(style);
   return (
     <Ionicons

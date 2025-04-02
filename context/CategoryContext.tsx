@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { ConfigManager } from '../models/ConfigManager';
 
 // Category type definition
 export type Category = {
@@ -17,47 +17,33 @@ type CategoryContextType = {
   error: string | null;
 };
 
-// Default categories - same as in plantsPage
-const defaultCategories: Category[] = [
-  { id: '1', name: '多肉' },
-  { id: '2', name: '观叶植物' },
-  { id: '3', name: '果蔬' },
-  { id: '4', name: '草本' },
-];
-
 // Create the category context
 const CategoryContext = createContext<CategoryContextType>({
   categories: [],
   addCategory: async () => ({ id: '', name: '' }),
-  updateCategory: async () => {},
-  deleteCategory: async () => {},
+  updateCategory: async () => { },
+  deleteCategory: async () => { },
   loading: false,
   error: null,
 });
 
-// Storage key
-const STORAGE_KEY = 'plant_categories';
-
 // Category provider component
-export const CategoryProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const CategoryProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =>
+{
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const configManager = ConfigManager.getInstance();
 
   // Load categories from storage
-  useEffect(() => {
-    const loadCategories = async () => {
+  useEffect(() =>
+  {
+    const loadCategories = async () =>
+    {
       try {
         setLoading(true);
-        const storedCategories = await AsyncStorage.getItem(STORAGE_KEY);
-        
-        if (storedCategories) {
-          setCategories(JSON.parse(storedCategories));
-        } else {
-          // If no categories stored, use default categories
-          setCategories(defaultCategories);
-          await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(defaultCategories));
-        }
+        const loadedCategories = await configManager.getCategories();
+        setCategories(loadedCategories);
       } catch (err) {
         setError('Failed to load categories');
         console.error('Error loading categories:', err);
@@ -69,29 +55,19 @@ export const CategoryProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     loadCategories();
   }, []);
 
-  // Save categories to storage
-  const saveCategories = async (updatedCategories: Category[]) => {
-    try {
-      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updatedCategories));
-    } catch (err) {
-      setError('Failed to save categories');
-      console.error('Error saving categories:', err);
-      throw err;
-    }
-  };
-
   // Add a new category
-  const addCategory = async (name: string): Promise<Category> => {
+  const addCategory = async (name: string): Promise<Category> =>
+  {
     try {
       const newCategory = {
         id: Date.now().toString(),
         name: name.trim(),
       };
-      
+
       const updatedCategories = [...categories, newCategory];
       setCategories(updatedCategories);
-      await saveCategories(updatedCategories);
-      
+      await configManager.saveCategories(updatedCategories);
+
       return newCategory;
     } catch (err) {
       setError('Failed to add category');
@@ -101,14 +77,15 @@ export const CategoryProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   };
 
   // Update an existing category
-  const updateCategory = async (id: string, name: string): Promise<void> => {
+  const updateCategory = async (id: string, name: string): Promise<void> =>
+  {
     try {
       const updatedCategories = categories.map(category =>
         category.id === id ? { ...category, name: name.trim() } : category
       );
-      
+
       setCategories(updatedCategories);
-      await saveCategories(updatedCategories);
+      await configManager.saveCategories(updatedCategories);
     } catch (err) {
       setError('Failed to update category');
       console.error('Error updating category:', err);
@@ -117,11 +94,12 @@ export const CategoryProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   };
 
   // Delete a category
-  const deleteCategory = async (id: string): Promise<void> => {
+  const deleteCategory = async (id: string): Promise<void> =>
+  {
     try {
       const updatedCategories = categories.filter(category => category.id !== id);
       setCategories(updatedCategories);
-      await saveCategories(updatedCategories);
+      await configManager.saveCategories(updatedCategories);
     } catch (err) {
       setError('Failed to delete category');
       console.error('Error deleting category:', err);

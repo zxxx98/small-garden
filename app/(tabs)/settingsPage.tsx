@@ -1,21 +1,22 @@
 import * as React from 'react';
 import { StyleSheet, TouchableOpacity, ScrollView, Alert, View, Dimensions } from 'react-native';
-import { 
-  Layout, 
-  Text, 
-  Toggle, 
-  Divider, 
-  List, 
-  ListItem, 
-  Icon, 
-  IconProps, 
-  Button, 
-  Card, 
-  Modal, 
-  Input,
-  TopNavigation,
-  TopNavigationAction
-} from '@ui-kitten/components';
+import
+  {
+    Layout,
+    Text,
+    Toggle,
+    Divider,
+    List,
+    ListItem,
+    Icon,
+    IconProps,
+    Button,
+    Card,
+    Modal,
+    Input,
+    TopNavigation,
+    TopNavigationAction
+  } from '@ui-kitten/components';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../../theme/themeContext';
 import { useCategories, Category } from '../../context/CategoryContext';
@@ -29,29 +30,32 @@ const PlusIcon = (props: IconProps) => <Icon {...props} name="plus-outline" />;
 const CategoryIcon = (props: IconProps) => <Icon {...props} name="folder-outline" />;
 const BackIcon = (props: IconProps) => <Icon {...props} name="arrow-back-outline" />;
 
-const SettingsPage = () => {
+const SettingsPage = () =>
+{
   // Theme context
   const { themeMode, toggleTheme } = useTheme();
-  
+
   // Categories context
   const { categories, addCategory, updateCategory, deleteCategory, loading } = useCategories();
-  
+
   // State for category management
   const [categoryModalVisible, setCategoryModalVisible] = React.useState(false);
   const [editingCategory, setEditingCategory] = React.useState<Category | null>(null);
   const [categoryName, setCategoryName] = React.useState('');
-  
+
   // State for section management
   const [activeSection, setActiveSection] = React.useState<'main' | 'categories'>('main');
-  
+
   // Reset category form
-  const resetCategoryForm = () => {
+  const resetCategoryForm = () =>
+  {
     setEditingCategory(null);
     setCategoryName('');
   };
-  
+
   // Handle showing add/edit category modal
-  const handleShowCategoryModal = (category?: Category) => {
+  const handleShowCategoryModal = (category?: Category) =>
+  {
     if (category) {
       setEditingCategory(category);
       setCategoryName(category.name);
@@ -60,14 +64,15 @@ const SettingsPage = () => {
     }
     setCategoryModalVisible(true);
   };
-  
+
   // Handle adding/editing category
-  const handleSaveCategory = async () => {
+  const handleSaveCategory = async () =>
+  {
     if (!categoryName.trim()) {
       Alert.alert('错误', '请输入类别名称');
       return;
     }
-    
+
     try {
       if (editingCategory) {
         await updateCategory(editingCategory.id, categoryName);
@@ -80,18 +85,20 @@ const SettingsPage = () => {
       Alert.alert('错误', '保存类别失败');
     }
   };
-  
+
   // Handle deleting category
-  const handleDeleteCategory = (category: Category) => {
+  const handleDeleteCategory = (category: Category) =>
+  {
     Alert.alert(
       '确认删除',
       `确定要删除 "${category.name}" 类别吗？这可能会影响已经分配到该类别的植物。`,
       [
         { text: '取消', style: 'cancel' },
-        { 
-          text: '删除', 
+        {
+          text: '删除',
           style: 'destructive',
-          onPress: async () => {
+          onPress: async () =>
+          {
             try {
               await deleteCategory(category.id);
             } catch (error) {
@@ -102,7 +109,7 @@ const SettingsPage = () => {
       ]
     );
   };
-  
+
   // Render category item
   const renderCategoryItem = ({ item }: { item: Category }) => (
     <ListItem
@@ -110,13 +117,13 @@ const SettingsPage = () => {
       accessoryLeft={(props) => <CategoryIcon {...props} />}
       accessoryRight={() => (
         <View style={styles.categoryItemActions}>
-          <TouchableOpacity 
-            style={styles.categoryActionButton} 
+          <TouchableOpacity
+            style={styles.categoryActionButton}
             onPress={() => handleShowCategoryModal(item)}
           >
             <EditIcon fill="#8F9BB3" width={20} height={20} />
           </TouchableOpacity>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.categoryActionButton}
             onPress={() => handleDeleteCategory(item)}
           >
@@ -126,13 +133,14 @@ const SettingsPage = () => {
       )}
     />
   );
-  
+
   // Render category management modal
   const renderCategoryModal = () => (
     <Modal
       visible={categoryModalVisible}
       backdropStyle={styles.backdrop}
-      onBackdropPress={() => {
+      onBackdropPress={() =>
+      {
         setCategoryModalVisible(false);
         resetCategoryForm();
       }}
@@ -153,7 +161,7 @@ const SettingsPage = () => {
       </Card>
     </Modal>
   );
-  
+
   // Render main settings section
   const renderMainSection = () => (
     <>
@@ -171,9 +179,9 @@ const SettingsPage = () => {
           />
         </Layout>
       </Layout>
-      
+
       <Divider />
-      
+
       <Layout style={styles.section}>
         <Text category="h6" style={styles.sectionTitle}>内容管理</Text>
         <TouchableOpacity
@@ -190,9 +198,9 @@ const SettingsPage = () => {
           </Layout>
         </TouchableOpacity>
       </Layout>
-      
+
       <Divider />
-      
+
       <Layout style={styles.section}>
         <Text category="h6" style={styles.sectionTitle}>关于</Text>
         <Layout style={styles.aboutContent}>
@@ -203,7 +211,7 @@ const SettingsPage = () => {
       </Layout>
     </>
   );
-  
+
   // Render categories management section
   const renderCategoriesSection = () => (
     <>
@@ -211,21 +219,21 @@ const SettingsPage = () => {
         title="管理植物类别"
         alignment="center"
         accessoryLeft={() => (
-          <TopNavigationAction 
-            icon={BackIcon} 
+          <TopNavigationAction
+            icon={BackIcon}
             onPress={() => setActiveSection('main')}
           />
         )}
         accessoryRight={() => (
-          <TopNavigationAction 
-            icon={PlusIcon} 
+          <TopNavigationAction
+            icon={PlusIcon}
             onPress={() => handleShowCategoryModal()}
           />
         )}
       />
-      
+
       <Divider />
-      
+
       {loading ? (
         <Layout style={styles.loadingContainer}>
           <Text appearance="hint">加载中...</Text>
@@ -245,12 +253,12 @@ const SettingsPage = () => {
       )}
     </>
   );
-  
+
   // Determine background colors based on theme
-  const gradientColors = themeMode === 'light' 
-    ? ['#F5F5F5', '#F3E5F5', '#F5F5F5'] 
+  const gradientColors = themeMode === 'light'
+    ? ['#F5F5F5', '#F3E5F5', '#F5F5F5']
     : ['#222B45', '#1A2138', '#222B45'];
-  
+
   return (
     <LinearGradient
       colors={gradientColors}
@@ -270,7 +278,7 @@ const SettingsPage = () => {
           {renderCategoriesSection()}
         </Layout>
       )}
-      
+
       {renderCategoryModal()}
     </LinearGradient>
   );

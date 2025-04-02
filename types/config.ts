@@ -2,3 +2,5 @@
 export const ActionNameKey = "ActionName";
 //主题模式储存Key
 export const ThemeModeKey = "ThemeMode";
+//植物类别储存Key
+export const CategoriesKey = "plant_categories";
