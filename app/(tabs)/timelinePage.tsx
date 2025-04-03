@@ -168,17 +168,23 @@ const TimelinePage = () =>
 {
     const [timelineData, setTimelineData] = React.useState<Action[]>([]);
     const [showCalendar, setShowCalendar] = React.useState(false);
+    //当前时间线的时间戳范围
+    const [curTimeRange, setCurTimeRange] = React.useState<{start:number,end:number}>({
+        start: new Date(new Date().getFullYear(), new Date().getMonth(), 1, 0, 0, 0, 0).getTime(),
+        end: new Date(new Date().setHours(23,59,59,999)).getTime()
+    });
+    //当前日期选择器的数据
     const [rangeDate, setRangeDate] = React.useState<CalendarRange<Date>>({ startDate: new Date(), endDate: new Date() });
     const [detailInfo, setDetailInfo] = React.useState<{ show: boolean, action?: Action, plant?: Plant }>({ show: false });
     const calendarButtonRef = React.useRef(null);
 
     React.useEffect(() =>
     {
-        ActionManager.getAllActions().then((actions) =>
+        ActionManager.getActionsByTimeRange(curTimeRange.start, curTimeRange.end).then((actions) =>
         {
             setTimelineData(actions);
         });
-    }, []);
+    }, [curTimeRange]);
 
     const onCntentClick = (action: Action, plant: Plant) =>
     {
@@ -239,8 +245,13 @@ const TimelinePage = () =>
 
     const onCalendarSelect = (range: CalendarRange<Date>) =>
     {
+        setRangeDate(range);
         if (range.startDate && range.endDate) {
-            setRangeDate(range);
+            setCurTimeRange({
+                start: range.startDate.getTime(),
+                end: range.endDate.getTime()
+            });
+            setShowCalendar(false);
         }
     }
 

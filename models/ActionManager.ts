@@ -207,5 +207,14 @@ const mockActions: Action[] = [
         remark: '包裹防寒布过冬',
         imgs: [''],
         done: false,
+    },
+    {
+        id: 11,
+        name: '冬季防护',
+        plantId: '9', // 竹子
+        time: 1743655492378, // 2023-01-10
+        remark: '包裹防寒布过冬',
+        imgs: [''],
+        done: false,
     }
 ];
