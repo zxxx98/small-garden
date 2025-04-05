@@ -2,17 +2,6 @@ import * as React from 'react';
 import { StyleSheet, Image, TouchableOpacity, Dimensions, Alert, View, FlatList } from 'react-native';
 import { Layout, Text, Card, Button, Modal, Input, Select, SelectItem, Icon, IconProps, IndexPath, CheckBox, Spinner } from '@ui-kitten/components';
 import { LinearGradient } from 'expo-linear-gradient';
-import DraggableFlatList, {
-  ScaleDecorator,
-  RenderItemParams,
-  OpacityDecorator
-} from 'react-native-draggable-flatlist';
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withTiming,
-  withSpring
-} from 'react-native-reanimated';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import FlowerIcon from '@/assets/svgs/flower1.svg';
 import { PlantManager } from '@/models/PlantManager';
@@ -745,26 +734,12 @@ const PlantsPage = () =>
   );
 
   // Render each plant item
-  const renderItem = ({ item, drag }: RenderItemParams<PlantItem>) =>
+  const renderItem = ({ item }: { item: PlantItem }) =>
   {
     // Skip dead plants
     if (item.isDead) return null;
 
     const isSelected = selectedPlants.includes(item.id);
-    const scale = useSharedValue(1);
-
-    React.useEffect(() =>
-    {
-      scale.value = withTiming(isSelected ? 0.98 : 1, { duration: 200 });
-    }, [isSelected]);
-
-    const animatedStyle = useAnimatedStyle(() =>
-    {
-      return {
-        transform: [{ scale: scale.value }],
-        opacity: scale.value,
-      };
-    });
 
     // Get shadow properties based on theme
     const shadowProps = themeMode === 'light'
@@ -780,68 +755,70 @@ const PlantsPage = () =>
       };
 
     return (
-      <ScaleDecorator>
-        <OpacityDecorator activeOpacity={0.7}>
-          <TouchableOpacity
-            style={styles.itemContainer}
-            onLongPress={editMode ? undefined : drag}
-            disabled={editMode}
-            delayLongPress={150}
-            onPress={() =>
-            {
-              if (editMode) {
-                toggleSelectPlant(item.id);
-              } else {
-                handleEditPlant(item);
-              }
-            }}
-          >
-            <Animated.View style={[
-              styles.itemAnimatedContainer,
-              animatedStyle,
-              { backgroundColor: itemBackgroundColor },
-              shadowProps
-            ]}>
-              {editMode && (
-                <Layout style={styles.checkboxContainer}>
-                  <CheckBox
-                    checked={selectedPlants.includes(item.id)}
-                    onChange={() => toggleSelectPlant(item.id)}
-                  />
-                </Layout>
-              )}
-              <Layout style={styles.itemContent}>
+      <TouchableOpacity
+        style={styles.itemContainer}
+        onPress={() =>
+        {
+          if (editMode) {
+            toggleSelectPlant(item.id);
+          } else {
+            handleEditPlant(item);
+          }
+        }}
+        activeOpacity={0.5}
+      >
+        <View style={[
+          styles.itemAnimatedContainer,
+          {
+            backgroundColor: itemBackgroundColor,
+            borderWidth: isSelected ? 2 : 1,
+            borderColor: isSelected
+              ? (themeMode === 'light' ? '#3366FF' : '#5E92F3')
+              : (themeMode === 'light' ? 'rgba(0, 0, 0, 0.03)' : 'rgba(255, 255, 255, 0.05)')
+          },
+          shadowProps
+        ]}>
+          <Layout style={[styles.itemContent, { backgroundColor: 'transparent' }]}>
+            {editMode ? (
+              <View style={styles.editModeRow}>
+                <CheckBox
+                  checked={selectedPlants.includes(item.id)}
+                  onChange={() => toggleSelectPlant(item.id)}
+                  style={styles.checkbox}
+                />
                 <Image source={{ uri: item.image }} style={styles.plantImage} />
-                <Layout style={styles.plantInfo}>
-                  <Text category="h6">{item.name}</Text>
-                  <Text category="s1">{item.scientificName}</Text>
-                  <Text category="c1">{item.category}</Text>
-                  <Layout style={styles.plantActions}>
-                    {item.actionsLoading ? (
-                      <>
-                        <Text category="p2" status="basic" appearance="hint">加载中...</Text>
-                      </>
-                    ) : (
-                      <>
-                        {item.lastAction && (
-                          <Text category="p2" status="info">
-                            {item.lastAction.type}: {formatTimeDistance(item.lastAction.date)}
-                          </Text>
-                        )}
-                        {item.nextAction && (
-                          <Text category="p2" status="warning">
-                            {item.nextAction.type}: {formatTimeDistance(item.nextAction.date)}
-                          </Text>
-                        )}
-                      </>
+              </View>
+            ) : (
+              <Image source={{ uri: item.image }} style={styles.plantImage} />
+            )}
+            <Layout style={[styles.plantInfo, { backgroundColor: 'transparent' }]}>
+              <Text category="h6">{item.name}</Text>
+              <Text category="s1">{item.scientificName}</Text>
+              <Text category="c1">{item.category}</Text>
+              <Layout style={[styles.plantActions, { backgroundColor: 'transparent' }]}>
+                {item.actionsLoading ? (
+                  <>
+                    <Text category="p2" status="basic" appearance="hint">加载中...</Text>
+                  </>
+                ) : (
+                  <>
+                    {item.lastAction && (
+                      <Text category="p2" status="info">
+                        {item.lastAction.type}: {formatTimeDistance(item.lastAction.date)}
+                      </Text>
                     )}
-                  </Layout>
-                </Layout>
+                    {item.nextAction && (
+                      <Text category="p2" status="warning">
+                        {item.nextAction.type}: {formatTimeDistance(item.nextAction.date)}
+                      </Text>
+                    )}
+                  </>
+                )}
               </Layout>
-            </Animated.View>
-          </TouchableOpacity>
-        </OpacityDecorator>
-      </ScaleDecorator>
+            </Layout>
+          </Layout>
+        </View>
+      </TouchableOpacity>
     );
   };
 
@@ -853,10 +830,10 @@ const PlantsPage = () =>
           : ['#222B45', '#1A2138', '#222B45']}
         style={styles.container}
       >
-        <Layout style={styles.header}>
+        <Layout style={[styles.header, { backgroundColor: 'transparent' }]}>
           <Text category="h1">花园</Text>
           {editMode ? (
-            <Layout style={styles.editModeButtons}>
+            <Layout style={[styles.editModeButtons, { backgroundColor: 'transparent' }]}>
               <TouchableOpacity
                 style={styles.iconButton}
                 onPress={toggleEditMode}
@@ -875,7 +852,7 @@ const PlantsPage = () =>
               </TouchableOpacity>
             </Layout>
           ) : (
-            <Layout style={styles.headerButtonsContainer}>
+            <Layout style={[styles.headerButtonsContainer, { backgroundColor: 'transparent' }]}>
               <TouchableOpacity
                 style={styles.iconButton}
                 onPress={toggleEditMode}
@@ -897,7 +874,7 @@ const PlantsPage = () =>
         </Layout>
 
         {editMode && selectedPlants.length > 0 && (
-          <Layout style={styles.batchActionBar}>
+          <Layout style={[styles.batchActionBar, { backgroundColor: 'transparent' }]}>
             <TouchableOpacity
               style={[styles.batchActionButton, styles.dangerButton]}
               onPress={handleBatchDelete}
@@ -916,18 +893,13 @@ const PlantsPage = () =>
         )}
 
         {plants.length > 0 ? (
-          <Layout style={styles.contentContainer}>
-            <DraggableFlatList
+          <Layout style={[styles.contentContainer, { backgroundColor: 'transparent' }]}>
+            <FlatList
               data={plants.filter(plant => !plant.isDead)}
               keyExtractor={(item) => item.id}
               renderItem={renderItem}
               contentContainerStyle={[styles.list]}
-              onDragEnd={({ data }) =>
-              {
-                // We need to merge the filtered data back with dead plants
-                const deadPlants = plants.filter(plant => plant.isDead);
-                setPlants([...data, ...deadPlants]);
-              }}
+              style={{ backgroundColor: 'transparent' }}
             />
           </Layout>
         ) : (
@@ -968,6 +940,7 @@ const styles = StyleSheet.create({
   contentContainer: {
     flex: 1,
     position: 'relative',
+    backgroundColor: 'transparent',
   },
   list: {
     padding: 16,
@@ -987,7 +960,6 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 8,
-    elevation: 3,
     borderWidth: 1,
     borderColor: 'rgba(0, 0, 0, 0.03)',
   },
@@ -1057,12 +1029,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  checkboxContainer: {
-    position: 'absolute',
-    top: 16,
-    left: 16,
-    zIndex: 10,
   },
   iconButton: {
     width: 40,
@@ -1185,6 +1151,13 @@ const styles = StyleSheet.create({
   rotateButton: {
     padding: 8,
     marginHorizontal: 10,
+  },
+  editModeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  checkbox: {
+    marginRight: 8,
   },
 });
 

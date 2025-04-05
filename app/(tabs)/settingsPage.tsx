@@ -266,7 +266,8 @@ const SettingsPage = () =>
       )}
       accessoryRight={() => (
         <View style={styles.categoryItemActions}>
-          <TouchableOpacity
+          {/**禁用复活功能 */}
+          {/* <TouchableOpacity
             style={styles.categoryActionButton}
             onPress={() =>
             {
@@ -275,7 +276,7 @@ const SettingsPage = () =>
             }}
           >
             <ResurrectIcon fill="#3366FF" width={20} height={20} />
-          </TouchableOpacity>
+          </TouchableOpacity> */}
           <TouchableOpacity
             style={styles.categoryActionButton}
             onPress={() => handlePermanentlyDeletePlant(item)}
