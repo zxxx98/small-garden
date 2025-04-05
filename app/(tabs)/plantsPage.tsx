@@ -1,6 +1,6 @@
 import * as React from 'react';
-import { StyleSheet, Image, TouchableOpacity, Dimensions, Alert, View } from 'react-native';
-import { Layout, Text, Card, Button, Modal, Input, Select, SelectItem, Icon, IconProps, IndexPath, CheckBox } from '@ui-kitten/components';
+import { StyleSheet, Image, TouchableOpacity, Dimensions, Alert, View, FlatList } from 'react-native';
+import { Layout, Text, Card, Button, Modal, Input, Select, SelectItem, Icon, IconProps, IndexPath, CheckBox, Spinner } from '@ui-kitten/components';
 import { LinearGradient } from 'expo-linear-gradient';
 import DraggableFlatList, {
   ScaleDecorator,
@@ -21,6 +21,66 @@ import { ActionManager } from '@/models/ActionManager';
 import { generateId } from '@/utils/uuid';
 import { ConfigManager } from '@/models/ConfigManager';
 import { useTheme } from '../../theme/themeContext';
+import * as ImagePicker from 'expo-image-picker';
+import { fileManager } from '@/models/FileManager';
+
+// Define interface for ImageViewer props
+interface ImageViewerProps
+{
+  visible: boolean;
+  imageUri: string;
+  onClose: () => void;
+}
+
+// Image viewer for full-screen display with rotation
+const ImageViewer = ({ visible, imageUri, onClose }: ImageViewerProps) =>
+{
+  const [rotation, setRotation] = React.useState(0);
+
+  const rotateLeft = () =>
+  {
+    setRotation((prev) => (prev - 90) % 360);
+  };
+
+  const rotateRight = () =>
+  {
+    setRotation((prev) => (prev + 90) % 360);
+  };
+
+  return (
+    <Modal
+      visible={visible}
+      backdropStyle={styles.backdrop}
+      onBackdropPress={onClose}
+    >
+      <View style={styles.imageViewerContainer}>
+        <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+          <Icon name="close-outline" style={{ width: 24, height: 24, tintColor: '#fff' }} />
+        </TouchableOpacity>
+
+        <View style={styles.rotationButtonsContainer}>
+          <TouchableOpacity style={styles.rotateButton} onPress={rotateLeft}>
+            <Icon name="arrow-undo" pack='ionicons' style={{ width: 28, height: 28, tintColor: '#fff' }} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.rotateButton} onPress={rotateRight}>
+            <Icon name="arrow-redo" pack='ionicons' style={{ width: 28, height: 28, tintColor: '#fff' }} />
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.fullScreenImageContainer}>
+          <Image
+            source={{ uri: imageUri }}
+            style={[
+              styles.fullScreenImage,
+              { transform: [{ rotate: `${rotation}deg` }] }
+            ]}
+            resizeMode="contain"
+          />
+        </View>
+      </View>
+    </Modal>
+  );
+};
 
 type PlantItem = {
   id: string;
@@ -88,6 +148,12 @@ const PlantsPage = () =>
   const [selectedCategory, setSelectedCategory] = React.useState<any>(null);
   const [selectedIndex, setSelectedIndex] = React.useState<IndexPath>();
   const [newCategory, setNewCategory] = React.useState('');
+
+  // Image handling state
+  const [plantImage, setPlantImage] = React.useState('');
+  const [imageLoading, setImageLoading] = React.useState(false);
+  const [selectedImage, setSelectedImage] = React.useState('');
+  const [showImageViewer, setShowImageViewer] = React.useState(false);
 
   // Get the appropriate item background color based on theme
   const itemBackgroundColor = themeMode === 'light'
@@ -165,6 +231,7 @@ const PlantsPage = () =>
     setSelectedCategory(null);
     setSelectedIndex(undefined);
     setEditingPlant(null);
+    setPlantImage('');
   };
 
   const toggleEditMode = () =>
@@ -301,7 +368,7 @@ const PlantsPage = () =>
       name: plantName,
       scientificName: scientificName || plantName,
       category: selectedCategory?.name || '未分类',
-      image: 'https://via.placeholder.com/150', // In a real app, handle image upload
+      image: plantImage || 'https://via.placeholder.com/150', // Use the selected image or a placeholder
       isDead: false,
       lastAction: { type: '添加', date: new Date() },
       nextAction: { type: '浇水', date: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000) },
@@ -310,8 +377,42 @@ const PlantsPage = () =>
 
     if (editingPlant) {
       setPlants(plants.map(p => p.id === editingPlant.id ? { ...p, ...newPlant, id: p.id } : p));
+
+      // Update in database
+      const plantToUpdate: Plant = {
+        id: editingPlant.id,
+        name: plantName,
+        type: selectedCategory?.name || '未分类',
+        scientificName: scientificName || plantName,
+        remark: '',
+        img: plantImage || editingPlant.image, // Use new image or keep existing
+        isDead: false
+      };
+
+      PlantManager.updatePlant(plantToUpdate).catch(error =>
+      {
+        console.error('Failed to update plant:', error);
+        Alert.alert('错误', '更新植物失败');
+      });
     } else {
       setPlants([...plants, newPlant]);
+
+      // Add to database
+      const plantToAdd: Plant = {
+        id: newPlant.id,
+        name: plantName,
+        type: selectedCategory?.name || '未分类',
+        scientificName: scientificName || plantName,
+        remark: '',
+        img: plantImage || 'https://via.placeholder.com/150',
+        isDead: false
+      };
+
+      PlantManager.addPlant(plantToAdd).catch(error =>
+      {
+        console.error('Failed to add plant:', error);
+        Alert.alert('错误', '添加植物失败');
+      });
     }
 
     setVisible(false);
@@ -386,6 +487,7 @@ const PlantsPage = () =>
     setEditingPlant(plant);
     setPlantName(plant.name);
     setScientificName(plant.scientificName);
+    setPlantImage(plant.image);
 
     const categoryIndex = categories.findIndex(c => c.name === plant.category);
     if (categoryIndex !== -1) {
@@ -412,6 +514,84 @@ const PlantsPage = () =>
     setSelectedCategory(newCategoryObj);
     setNewCategory('');
     setAddCategoryVisible(false);
+  };
+
+  // Image picking function
+  const pickImage = async () =>
+  {
+    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permissionResult.granted) {
+      Alert.alert("需要权限", "需要访问相册权限才能选择图片");
+      return;
+    }
+
+    try {
+      setImageLoading(true);
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        // Save the image using FileManager and get the stored URL
+        const imageUri = result.assets[0].uri;
+        const savedImageUrl = await fileManager.saveImage(imageUri);
+        setPlantImage(savedImageUrl);
+      }
+    } catch (error) {
+      console.error("Error saving image:", error);
+      Alert.alert("错误", "保存图片失败，请重试");
+    } finally {
+      setImageLoading(false);
+    }
+  };
+
+  // Camera function
+  const takePhoto = async () =>
+  {
+    const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
+    if (!permissionResult.granted) {
+      Alert.alert("需要权限", "需要访问相机权限才能拍照");
+      return;
+    }
+
+    try {
+      setImageLoading(true);
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        // Save the image using FileManager and get the stored URL
+        const imageUri = result.assets[0].uri;
+        const savedImageUrl = await fileManager.saveImage(imageUri);
+        setPlantImage(savedImageUrl);
+      }
+    } catch (error) {
+      console.error("Error taking photo:", error);
+      Alert.alert("错误", "拍照失败，请重试");
+    } finally {
+      setImageLoading(false);
+    }
+  };
+
+  // Show image action sheet
+  const showImageOptions = () =>
+  {
+    Alert.alert(
+      "选择图片来源",
+      "请选择图片来源",
+      [
+        { text: "取消", style: "cancel" },
+        { text: "相册", onPress: () => pickImage() },
+        { text: "相机", onPress: () => takePhoto() }
+      ]
+    );
   };
 
   const renderAddCategoryModal = () => (
@@ -457,6 +637,46 @@ const PlantsPage = () =>
         <Text category="h6" style={styles.modalTitle}>
           {editingPlant ? '编辑植物' : '添加植物'}
         </Text>
+
+        {/* Image Picker */}
+        <View style={styles.imagePickerContainer}>
+          {plantImage ? (
+            <TouchableOpacity
+              onPress={() =>
+              {
+                setSelectedImage(plantImage);
+                setShowImageViewer(true);
+              }}
+            >
+              <Image
+                source={{ uri: plantImage }}
+                style={styles.plantImagePreview}
+                resizeMode="cover"
+              />
+              <View style={styles.imageOverlay}>
+                <Icon name="edit-2-outline" fill="#FFFFFF" width={24} height={24} />
+              </View>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              style={styles.addImageButton}
+              onPress={showImageOptions}
+              disabled={imageLoading}
+            >
+              {imageLoading ? (
+                <Spinner size="medium" />
+              ) : (
+                <>
+                  <Icon name="camera-outline" fill="#8F9BB3" width={32} height={32} />
+                  <Text category="c1" style={{ marginTop: 8, textAlign: 'center' }}>
+                    添加图片
+                  </Text>
+                </>
+              )}
+            </TouchableOpacity>
+          )}
+        </View>
+
         <Input
           placeholder="植物名称"
           value={plantName}
@@ -501,6 +721,13 @@ const PlantsPage = () =>
         <Button onPress={handleAddPlant}>
           {editingPlant ? '保存' : '添加'}
         </Button>
+
+        {/* Image Viewer */}
+        <ImageViewer
+          visible={showImageViewer}
+          imageUri={selectedImage}
+          onClose={() => setShowImageViewer(false)}
+        />
       </Card>
     </Modal>
   );
@@ -888,6 +1115,76 @@ const styles = StyleSheet.create({
     color: 'white',
     marginLeft: 8,
     fontWeight: 'bold',
+  },
+  imagePickerContainer: {
+    marginBottom: 16,
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  plantImagePreview: {
+    width: '100%',
+    height: 200,
+    borderRadius: 16,
+  },
+  imageOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    borderRadius: 16,
+  },
+  addImageButton: {
+    width: '100%',
+    height: 200,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+  },
+  imageViewerContainer: {
+    width: Dimensions.get('window').width,
+    height: Dimensions.get('window').height,
+    backgroundColor: 'rgba(0, 0, 0, 0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
+  },
+  fullScreenImageContainer: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fullScreenImage: {
+    width: '100%',
+    height: '100%',
+  },
+  closeButton: {
+    position: 'absolute',
+    top: 40,
+    right: 20,
+    zIndex: 10,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    borderRadius: 20,
+    padding: 8,
+  },
+  rotationButtonsContainer: {
+    position: 'absolute',
+    bottom: 40,
+    alignSelf: 'center',
+    flexDirection: 'row',
+    zIndex: 10,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    borderRadius: 20,
+    padding: 4,
+  },
+  rotateButton: {
+    padding: 8,
+    marginHorizontal: 10,
   },
 });
 

@@ -30,10 +30,22 @@
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
         }
-      ]
+      ],
+      "expo-asset"
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "a5d368f3-1023-475a-b43f-30a832747b64"
+      }
+    },
+    "android": {
+      "package": "com.xiaodibao.smallgarden"
     }
   }
 }

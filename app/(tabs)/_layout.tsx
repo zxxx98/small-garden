@@ -28,7 +28,7 @@ export default function TabLayout()
                 headerShown: false,
             }}
             initialRouteName="timelinePage"
-            tabBar={props => (
+            tabBar={(props: any) => (
                 <BottomNavigation
                     selectedIndex={props.state.index}
                     onSelect={index =>
