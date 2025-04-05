@@ -1,6 +1,6 @@
 import * as React from 'react';
-import { StyleSheet, Image, TouchableOpacity, Dimensions, Alert, Platform, View } from 'react-native';
-import { Layout, Text, Card, Button, Modal, Input, Select, SelectItem, Icon, IconProps, IndexPath } from '@ui-kitten/components';
+import { StyleSheet, Image, TouchableOpacity, Dimensions, Alert, View } from 'react-native';
+import { Layout, Text, Card, Button, Modal, Input, Select, SelectItem, Icon, IconProps, IndexPath, CheckBox } from '@ui-kitten/components';
 import { LinearGradient } from 'expo-linear-gradient';
 import DraggableFlatList, {
   ScaleDecorator,
@@ -15,6 +15,12 @@ import Animated, {
 } from 'react-native-reanimated';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import FlowerIcon from '@/assets/svgs/flower1.svg';
+import { PlantManager } from '@/models/PlantManager';
+import { Plant } from '@/types/plant';
+import { ActionManager } from '@/models/ActionManager';
+import { generateId } from '@/utils/uuid';
+import { ConfigManager } from '@/models/ConfigManager';
+import { useTheme } from '../../theme/themeContext';
 
 type PlantItem = {
   id: string;
@@ -22,26 +28,18 @@ type PlantItem = {
   scientificName: string;
   category: string;
   image: string;
+  isDead?: boolean;
   lastAction?: { type: string; date: Date };
   nextAction?: { type: string; date: Date };
+  actionsLoading: boolean;
+  selected?: boolean; // For multi-select mode
 }
 
-// Mock data for plants - replace with actual data source later
-const initialPlants: PlantItem[] = [
-
-];
-
-// Mock categories - replace with actual data source later
-const initialCategories = [
-  { id: '1', name: '多肉' },
-  { id: '2', name: '观叶植物' },
-  { id: '3', name: '果蔬' },
-  { id: '4', name: '草本' },
-];
-
 const PlusIcon = (props: IconProps) => <Icon {...props} name="plus-outline" />;
-const TrashIcon = (props: IconProps) => <Icon {...props} name="trash-2-outline" />;
-const PlantIcon = (props: IconProps) => <Icon {...props} name="award-outline" />;
+const DeleteIcon = (props: IconProps) => <Icon {...props} name="trash-2-outline" fill="#FF3D71" width={24} height={24} />;
+const CemeteryIcon = (props: IconProps) => <Icon {...props} name="alert-triangle-outline" fill="#FFAA00" width={24} height={24} />;
+const EditIcon = (props: IconProps) => <Icon {...props} name="edit-outline" fill="#3366FF" width={24} height={24} />;
+const CloseIcon = (props: IconProps) => <Icon {...props} name="close-outline" fill="#8F9BB3" width={24} height={24} />;
 
 // Calculate days ago/from now
 const formatTimeDistance = (date: Date) =>
@@ -57,14 +55,32 @@ const formatTimeDistance = (date: Date) =>
   }
 };
 
+const getPlantItem = (plant: Plant): PlantItem =>
+{
+  return {
+    id: plant.id,
+    name: plant.name,
+    scientificName: plant.scientificName || plant.name,
+    category: plant.type,
+    image: plant.img,
+    isDead: plant.isDead,
+    lastAction: undefined,
+    nextAction: undefined,
+    actionsLoading: true,
+  };
+};
+
 const PlantsPage = () =>
 {
-  const [plants, setPlants] = React.useState<PlantItem[]>(initialPlants);
-  const [categories, setCategories] = React.useState(initialCategories);
+  const [plants, setPlants] = React.useState<PlantItem[]>([]);
+  const [categories, setCategories] = React.useState<{ id: string; name: string }[]>([]);
   const [visible, setVisible] = React.useState(false);
   const [addCategoryVisible, setAddCategoryVisible] = React.useState(false);
   const [editingPlant, setEditingPlant] = React.useState<PlantItem | null>(null);
-  const [isInDeleteZone, setIsInDeleteZone] = React.useState(false);
+  const [editMode, setEditMode] = React.useState(false);
+  const [selectedPlants, setSelectedPlants] = React.useState<string[]>([]);
+  const [isAllSelected, setIsAllSelected] = React.useState(false);
+  const { themeMode } = useTheme();
 
   // New plant form state
   const [plantName, setPlantName] = React.useState('');
@@ -73,37 +89,74 @@ const PlantsPage = () =>
   const [selectedIndex, setSelectedIndex] = React.useState<IndexPath>();
   const [newCategory, setNewCategory] = React.useState('');
 
-  // Delete zone animation
-  const deleteZoneScale = useSharedValue(1);
-  const deleteZoneOpacity = useSharedValue(0);
+  // Get the appropriate item background color based on theme
+  const itemBackgroundColor = themeMode === 'light'
+    ? 'rgba(255, 255, 255, 0.95)'
+    : 'rgba(43, 50, 65, 0.95)';
 
-  const deleteZoneAnimatedStyle = useAnimatedStyle(() =>
+  React.useEffect(() =>
   {
-    return {
-      transform: [{ scale: deleteZoneScale.value }],
-      opacity: deleteZoneOpacity.value,
-    };
-  });
+    PlantManager.getAllPlants().then((plants) =>
+    {
+      const plantItems = plants.map(getPlantItem);
+      setPlants(plantItems);
 
-  const showDeleteZone = () =>
-  {
-    'worklet';
-    deleteZoneOpacity.value = withTiming(1, { duration: 200 });
-    deleteZoneScale.value = withSpring(1);
-  };
+      // Load actions for each plant
+      plantItems.forEach(plant =>
+      {
+        ActionManager.getLastAndNextAction(plant.id)
+          .then(actionData =>
+          {
+            // Process the action data and update the plant
+            setPlants(prevPlants =>
+            {
+              return prevPlants.map(p =>
+              {
+                if (p.id === plant.id) {
+                  // Create a new plant object with updated data
+                  const updatedPlant: PlantItem = {
+                    ...p,
+                    actionsLoading: false
+                  };
 
-  const hideDeleteZone = () =>
-  {
-    'worklet';
-    deleteZoneOpacity.value = withTiming(0, { duration: 200 });
-    deleteZoneScale.value = withSpring(1);
-  };
+                  // Handle last action if available
+                  if (actionData.lastAction) {
+                    updatedPlant.lastAction = {
+                      type: actionData.lastAction.name,
+                      date: new Date(actionData.lastAction.time)
+                    };
+                  }
 
-  const updateDeleteZoneScale = (scale: number) =>
-  {
-    'worklet';
-    deleteZoneScale.value = withSpring(scale);
-  };
+                  // Handle next action if available
+                  if (actionData.nextAction) {
+                    updatedPlant.nextAction = {
+                      type: actionData.nextAction.name,
+                      date: new Date(actionData.nextAction.time)
+                    };
+                  }
+
+                  return updatedPlant;
+                }
+                return p;
+              });
+            });
+          })
+          .catch(error =>
+          {
+            console.error(`Failed to load actions for plant ${plant.id}:`, error);
+            setPlants(prevPlants =>
+              prevPlants.map(p =>
+                p.id === plant.id ? { ...p, actionsLoading: false } : p
+              )
+            );
+          });
+      });
+    });
+    ConfigManager.getInstance().getCategories().then(categories =>
+    {
+      setCategories(categories);
+    });
+  }, []);
 
   const resetForm = () =>
   {
@@ -114,6 +167,128 @@ const PlantsPage = () =>
     setEditingPlant(null);
   };
 
+  const toggleEditMode = () =>
+  {
+    setEditMode(!editMode);
+    // Clear selections when toggling edit mode
+    setSelectedPlants([]);
+    setIsAllSelected(false);
+  };
+
+  const toggleSelectAll = () =>
+  {
+    if (isAllSelected) {
+      // Deselect all
+      setSelectedPlants([]);
+    } else {
+      // Select all non-dead plants
+      const allIds = plants
+        .filter(plant => !plant.isDead)
+        .map(plant => plant.id);
+      setSelectedPlants(allIds);
+    }
+    setIsAllSelected(!isAllSelected);
+  };
+
+  const toggleSelectPlant = (id: string) =>
+  {
+    setSelectedPlants(prev =>
+    {
+      if (prev.includes(id)) {
+        // Remove if already selected
+        setIsAllSelected(false);
+        return prev.filter(plantId => plantId !== id);
+      } else {
+        // Add if not selected
+        const newSelected = [...prev, id];
+        // Check if all plants are now selected
+        const allNonDeadPlants = plants.filter(plant => !plant.isDead).length;
+        if (newSelected.length === allNonDeadPlants) {
+          setIsAllSelected(true);
+        }
+        return newSelected;
+      }
+    });
+  };
+
+  const handleBatchDelete = () =>
+  {
+    if (selectedPlants.length === 0) return;
+
+    Alert.alert(
+      '确认删除',
+      `确定要删除这${selectedPlants.length}个植物吗？`,
+      [
+        { text: '取消', style: 'cancel' },
+        {
+          text: '删除',
+          style: 'destructive',
+          onPress: () =>
+          {
+            setPlants(plants.filter(plant => !selectedPlants.includes(plant.id)));
+            setSelectedPlants([]);
+            setIsAllSelected(false);
+          }
+        }
+      ]
+    );
+  };
+
+  const handleBatchMoveToCemetery = () =>
+  {
+    if (selectedPlants.length === 0) return;
+
+    Alert.alert(
+      '确认移入墓地',
+      `确定要将这${selectedPlants.length}个植物移入墓地吗？`,
+      [
+        { text: '取消', style: 'cancel' },
+        {
+          text: '确定',
+          onPress: async () =>
+          {
+            try {
+              // Update plants in the database
+              const updatedPlants = await Promise.all(
+                selectedPlants.map(async (id) =>
+                {
+                  const plant = plants.find(p => p.id === id);
+                  if (plant) {
+                    const updatedPlant = {
+                      id: plant.id,
+                      name: plant.name,
+                      type: plant.category,
+                      scientificName: plant.scientificName,
+                      remark: '',
+                      img: plant.image,
+                      isDead: true
+                    };
+
+                    // Update in database
+                    await PlantManager.updatePlant(updatedPlant);
+                    return id;
+                  }
+                  return null;
+                })
+              );
+
+              // Update local state
+              setPlants(plants.map(p =>
+                selectedPlants.includes(p.id) ? { ...p, isDead: true } : p
+              ));
+
+              setSelectedPlants([]);
+              setIsAllSelected(false);
+            } catch (error) {
+              console.error('Failed to move plants to cemetery:', error);
+              Alert.alert('错误', '移入墓地失败');
+            }
+          }
+        }
+      ]
+    );
+  };
+
   const handleAddPlant = () =>
   {
     if (!plantName.trim()) {
@@ -121,14 +296,16 @@ const PlantsPage = () =>
       return;
     }
 
-    const newPlant = {
-      id: Date.now().toString(),
+    const newPlant: PlantItem = {
+      id: generateId(),
       name: plantName,
       scientificName: scientificName || plantName,
       category: selectedCategory?.name || '未分类',
       image: 'https://via.placeholder.com/150', // In a real app, handle image upload
+      isDead: false,
       lastAction: { type: '添加', date: new Date() },
       nextAction: { type: '浇水', date: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000) },
+      actionsLoading: false,
     };
 
     if (editingPlant) {
@@ -154,6 +331,50 @@ const PlantsPage = () =>
           onPress: () =>
           {
             setPlants(plants.filter(plant => plant.id !== id));
+            setIsAllSelected(false);
+          }
+        }
+      ]
+    );
+  };
+
+  const handleMoveToCemetery = (id: string) =>
+  {
+    Alert.alert(
+      '确认移入墓地',
+      '确定要将这个植物移入墓地吗？',
+      [
+        { text: '取消', style: 'cancel' },
+        {
+          text: '确定',
+          onPress: async () =>
+          {
+            try {
+              // Update the plant in database
+              const plant = plants.find(p => p.id === id);
+              if (plant) {
+                const updatedPlant = {
+                  id: plant.id,
+                  name: plant.name,
+                  type: plant.category,
+                  scientificName: plant.scientificName,
+                  remark: '',
+                  img: plant.image,
+                  isDead: true
+                };
+
+                // Update in database
+                await PlantManager.updatePlant(updatedPlant);
+
+                // Update local state
+                setPlants(plants.map(p =>
+                  p.id === id ? { ...p, isDead: true } : p
+                ));
+              }
+            } catch (error) {
+              console.error('Failed to move plant to cemetery:', error);
+              Alert.alert('错误', '移入墓地失败');
+            }
           }
         }
       ]
@@ -183,7 +404,7 @@ const PlantsPage = () =>
     }
 
     const newCategoryObj = {
-      id: Date.now().toString(),
+      id: generateId(),
       name: newCategory
     };
 
@@ -199,7 +420,12 @@ const PlantsPage = () =>
       backdropStyle={styles.backdrop}
       onBackdropPress={() => setAddCategoryVisible(false)}
     >
-      <Card disabled style={styles.modalCard}>
+      <Card
+        style={[
+          styles.modalCard,
+          { backgroundColor: themeMode === 'light' ? 'rgba(255, 255, 255, 0.98)' : 'rgba(43, 50, 65, 0.98)' }
+        ]}
+      >
         <Text category="h6" style={styles.modalTitle}>添加新类别</Text>
         <Input
           placeholder="输入类别名称"
@@ -218,11 +444,16 @@ const PlantsPage = () =>
       backdropStyle={styles.backdrop}
       onBackdropPress={() =>
       {
-        setVisible(false);
         resetForm();
+        setVisible(false);
       }}
     >
-      <Card disabled style={styles.modalCard}>
+      <Card
+        style={[
+          styles.modalCard,
+          { backgroundColor: themeMode === 'light' ? 'rgba(255, 255, 255, 0.98)' : 'rgba(43, 50, 65, 0.98)' }
+        ]}
+      >
         <Text category="h6" style={styles.modalTitle}>
           {editingPlant ? '编辑植物' : '添加植物'}
         </Text>
@@ -277,99 +508,81 @@ const PlantsPage = () =>
   const renderEmptyState = () => (
     <Layout style={styles.emptyContainer}>
       <FlowerIcon width={100} height={100} />
-      <Text category="h6" style={styles.emptyText}>
-        一棵植物都还没有哦，点击屏幕添加吧
+      <Text category="h5" style={[styles.emptyText, { color: themeMode === 'light' ? '#2C3E50' : '#E4E9F2' }]}>
+        您的花园还是空的
+      </Text>
+      <Text category="p1" style={[styles.emptyText, { color: themeMode === 'light' ? '#2C3E50' : '#E4E9F2', marginTop: 8 }]}>
+        点击添加您的第一株植物吧！
       </Text>
     </Layout>
   );
 
-  const [isDragging, setIsDragging] = React.useState(false);
-  const [draggedItemIndex, setDraggedItemIndex] = React.useState<number | null>(null);
-
-  const checkIfInDeleteZone = (y: number) =>
+  // Render each plant item
+  const renderItem = ({ item, drag }: RenderItemParams<PlantItem>) =>
   {
-    const windowHeight = Dimensions.get('window').height;
-    const deleteZoneThreshold = windowHeight * 0.85; // Bottom 15% of screen is delete zone
-    return y > deleteZoneThreshold;
-  };
+    // Skip dead plants
+    if (item.isDead) return null;
 
-  const handleDragStart = (index: number) =>
-  {
-    showDeleteZone();
-    setIsDragging(true);
-    setDraggedItemIndex(index);
-  };
+    const isSelected = selectedPlants.includes(item.id);
+    const scale = useSharedValue(1);
 
-  const handleDragEnd = ({ data, from }: { data: any[], from: number, to: number }) =>
-  {
-    // Check if we should delete
-    if (isInDeleteZone && draggedItemIndex !== null) {
-      const plantToDelete = plants[from];
-      handleDeletePlant(plantToDelete.id);
-    } else {
-      // Otherwise just update order
-      setPlants(data);
-    }
-
-    // Reset state
-    setIsDragging(false);
-    setDraggedItemIndex(null);
-    hideDeleteZone();
-    setIsInDeleteZone(false);
-  };
-
-  // This is a simpler method to track position during dragging using pan responder
-  React.useEffect(() =>
-  {
-    if (!isDragging) return;
-
-    const handleMove = (e: any) =>
-    {
-      if (e && e.nativeEvent && e.nativeEvent.pageY) {
-        const isInZone = checkIfInDeleteZone(e.nativeEvent.pageY);
-        if (isInZone !== isInDeleteZone) {
-          setIsInDeleteZone(isInZone);
-          updateDeleteZoneScale(isInZone ? 1.1 : 1);
-        }
-      }
-    };
-
-    // In a real implementation, you would add an actual event listener instead
-    // This is a simplified approach for the example
-    const intervalId = setInterval(() =>
-    {
-      // Simulate checking position during drag
-      // In practice, we would need to integrate with gesture system
-    }, 100);
-
-    return () => clearInterval(intervalId);
-  }, [isDragging, isInDeleteZone]);
-
-  // Render each plant item with drag handle
-  const renderItem = ({ item, drag, isActive, getIndex }: RenderItemParams<any>) =>
-  {
     React.useEffect(() =>
     {
-      // Track active state for better UX
-      if (isActive && getIndex) {
-        const index = getIndex();
-        if (index !== null && index !== undefined) {
-          setDraggedItemIndex(index);
-        }
+      scale.value = withTiming(isSelected ? 0.98 : 1, { duration: 200 });
+    }, [isSelected]);
+
+    const animatedStyle = useAnimatedStyle(() =>
+    {
+      return {
+        transform: [{ scale: scale.value }],
+        opacity: scale.value,
+      };
+    });
+
+    // Get shadow properties based on theme
+    const shadowProps = themeMode === 'light'
+      ? {
+        shadowColor: '#000',
+        shadowOpacity: 0.08,
+        borderColor: 'rgba(0, 0, 0, 0.03)',
       }
-    }, [isActive]);
+      : {
+        shadowColor: '#000',
+        shadowOpacity: 0.2,
+        borderColor: 'rgba(255, 255, 255, 0.05)',
+      };
 
     return (
-      <ScaleDecorator key={item.id} activeScale={1.05}>
-        <OpacityDecorator activeOpacity={1}>
+      <ScaleDecorator>
+        <OpacityDecorator activeOpacity={0.7}>
           <TouchableOpacity
-            onLongPress={drag}
-            delayLongPress={200}
-            onPress={() => !isActive && handleEditPlant(item)}
             style={styles.itemContainer}
-            activeOpacity={0.7}
+            onLongPress={editMode ? undefined : drag}
+            disabled={editMode}
+            delayLongPress={150}
+            onPress={() =>
+            {
+              if (editMode) {
+                toggleSelectPlant(item.id);
+              } else {
+                handleEditPlant(item);
+              }
+            }}
           >
-            <Layout style={styles.itemAnimatedContainer}>
+            <Animated.View style={[
+              styles.itemAnimatedContainer,
+              animatedStyle,
+              { backgroundColor: itemBackgroundColor },
+              shadowProps
+            ]}>
+              {editMode && (
+                <Layout style={styles.checkboxContainer}>
+                  <CheckBox
+                    checked={selectedPlants.includes(item.id)}
+                    onChange={() => toggleSelectPlant(item.id)}
+                  />
+                </Layout>
+              )}
               <Layout style={styles.itemContent}>
                 <Image source={{ uri: item.image }} style={styles.plantImage} />
                 <Layout style={styles.plantInfo}>
@@ -377,16 +590,28 @@ const PlantsPage = () =>
                   <Text category="s1">{item.scientificName}</Text>
                   <Text category="c1">{item.category}</Text>
                   <Layout style={styles.plantActions}>
-                    <Text category="p2" status="info">
-                      {item.lastAction.type}: {formatTimeDistance(item.lastAction.date)}
-                    </Text>
-                    <Text category="p2" status="warning">
-                      {item.nextAction.type}: {formatTimeDistance(item.nextAction.date)}
-                    </Text>
+                    {item.actionsLoading ? (
+                      <>
+                        <Text category="p2" status="basic" appearance="hint">加载中...</Text>
+                      </>
+                    ) : (
+                      <>
+                        {item.lastAction && (
+                          <Text category="p2" status="info">
+                            {item.lastAction.type}: {formatTimeDistance(item.lastAction.date)}
+                          </Text>
+                        )}
+                        {item.nextAction && (
+                          <Text category="p2" status="warning">
+                            {item.nextAction.type}: {formatTimeDistance(item.nextAction.date)}
+                          </Text>
+                        )}
+                      </>
+                    )}
                   </Layout>
                 </Layout>
               </Layout>
-            </Layout>
+            </Animated.View>
           </TouchableOpacity>
         </OpacityDecorator>
       </ScaleDecorator>
@@ -396,49 +621,87 @@ const PlantsPage = () =>
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <LinearGradient
-        colors={['#F5F5F5', '#E8F5E9', '#F5F5F5']}
+        colors={themeMode === 'light'
+          ? ['#F5F5F5', '#E8F5E9', '#F5F5F5']
+          : ['#222B45', '#1A2138', '#222B45']}
         style={styles.container}
       >
         <Layout style={styles.header}>
           <Text category="h1">花园</Text>
-          <Button
-            size="small"
-            accessoryLeft={PlusIcon}
-            onPress={() =>
-            {
-              resetForm();
-              setVisible(true);
-            }}
-          />
+          {editMode ? (
+            <Layout style={styles.editModeButtons}>
+              <TouchableOpacity
+                style={styles.iconButton}
+                onPress={toggleEditMode}
+              >
+                <CloseIcon fill="#8F9BB3" width={24} height={24} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.selectAllContainer}
+                onPress={toggleSelectAll}
+              >
+                <CheckBox
+                  checked={isAllSelected}
+                  onChange={toggleSelectAll}
+                />
+                <Text category="c1" style={styles.selectAllText}>全选</Text>
+              </TouchableOpacity>
+            </Layout>
+          ) : (
+            <Layout style={styles.headerButtonsContainer}>
+              <TouchableOpacity
+                style={styles.iconButton}
+                onPress={toggleEditMode}
+              >
+                <EditIcon fill="#3366FF" width={24} height={24} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.iconButton}
+                onPress={() =>
+                {
+                  resetForm();
+                  setVisible(true);
+                }}
+              >
+                <PlusIcon fill="#3366FF" width={24} height={24} />
+              </TouchableOpacity>
+            </Layout>
+          )}
         </Layout>
+
+        {editMode && selectedPlants.length > 0 && (
+          <Layout style={styles.batchActionBar}>
+            <TouchableOpacity
+              style={[styles.batchActionButton, styles.dangerButton]}
+              onPress={handleBatchDelete}
+            >
+              <DeleteIcon fill="#FFFFFF" width={24} height={24} />
+              <Text style={styles.actionButtonText}>删除 ({selectedPlants.length})</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.batchActionButton, styles.warningButton]}
+              onPress={handleBatchMoveToCemetery}
+            >
+              <CemeteryIcon fill="#FFFFFF" width={24} height={24} />
+              <Text style={styles.actionButtonText}>移入墓地 ({selectedPlants.length})</Text>
+            </TouchableOpacity>
+          </Layout>
+        )}
 
         {plants.length > 0 ? (
           <Layout style={styles.contentContainer}>
             <DraggableFlatList
-              data={plants}
-              onDragBegin={handleDragStart}
-              onDragEnd={handleDragEnd}
+              data={plants.filter(plant => !plant.isDead)}
               keyExtractor={(item) => item.id}
               renderItem={renderItem}
               contentContainerStyle={[styles.list]}
-              autoscrollSpeed={100}
-              autoscrollThreshold={50}
-              dragHitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              onDragEnd={({ data }) =>
+              {
+                // We need to merge the filtered data back with dead plants
+                const deadPlants = plants.filter(plant => plant.isDead);
+                setPlants([...data, ...deadPlants]);
+              }}
             />
-
-            {/* Delete zone at bottom - rendered conditionally with animation */}
-            <Animated.View style={[
-              styles.deleteZone,
-              deleteZoneAnimatedStyle,
-              isInDeleteZone ? styles.deleteZoneActive : {}
-            ]}>
-              <Icon
-                name="trash-2-outline"
-                fill="#ffffff"
-                style={styles.deleteZoneIcon}
-              />
-              <Text style={styles.deleteZoneText}>拖动到此处删除</Text>
-            </Animated.View>
           </Layout>
         ) : (
           <TouchableOpacity
@@ -454,9 +717,9 @@ const PlantsPage = () =>
           </TouchableOpacity>
         )}
 
-        {renderAddEditModal()}
-        {renderAddCategoryModal()}
       </LinearGradient>
+      {renderAddEditModal()}
+      {renderAddCategoryModal()}
     </GestureHandlerRootView>
   );
 };
@@ -481,7 +744,7 @@ const styles = StyleSheet.create({
   },
   list: {
     padding: 16,
-    paddingBottom: 120,
+    paddingBottom: 80,
   },
   itemContainer: {
     marginBottom: 16,
@@ -519,34 +782,6 @@ const styles = StyleSheet.create({
   plantActions: {
     marginTop: 8,
   },
-  deleteZone: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 100,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    backgroundColor: 'rgba(255,0,0,0.2)',
-    zIndex: 500,
-    backdropFilter: 'blur(10px)',
-  },
-  deleteZoneActive: {
-    backgroundColor: 'rgba(255,0,0,0.6)',
-  },
-  deleteZoneIcon: {
-    width: 32,
-    height: 32,
-    marginVertical: 8,
-  },
-  deleteZoneText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 16,
-  },
   backdrop: {
     backgroundColor: 'rgba(0, 0, 0, 0.4)',
     backdropFilter: 'blur(8px)',
@@ -562,6 +797,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 12,
     elevation: 5,
+  },
+  actionButton: {
+    flex: 1,
+    marginHorizontal: 4,
   },
   modalTitle: {
     marginBottom: 20,
@@ -591,6 +830,64 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  checkboxContainer: {
+    position: 'absolute',
+    top: 16,
+    left: 16,
+    zIndex: 10,
+  },
+  iconButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginHorizontal: 8,
+    backgroundColor: 'rgba(255,255,255,0.8)',
+  },
+  editModeButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'transparent',
+  },
+  selectAllContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: 8,
+  },
+  selectAllText: {
+    marginLeft: 8,
+  },
+  headerButtonsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'transparent',
+  },
+  batchActionBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    padding: 16,
+  },
+  batchActionButton: {
+    flex: 1,
+    marginHorizontal: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  dangerButton: {
+    backgroundColor: '#FF3D71',
+  },
+  warningButton: {
+    backgroundColor: '#FFAA00',
+  },
+  actionButtonText: {
+    color: 'white',
+    marginLeft: 8,
+    fontWeight: 'bold',
   },
 });
 

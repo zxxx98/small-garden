@@ -85,6 +85,7 @@ export class ActionManager
             return mockActions;
         }
         const records = await database.get<WatermelonAction>('actions').query().fetch();
+        console.log(records);
         return records.map(record => record.toJSON() as Action);
     }
 
@@ -113,6 +114,43 @@ export class ActionManager
             )
             .fetch();
         return records.map(record => record.toJSON() as Action);
+    }
+
+    static async getLastAndNextAction(plantId: string): Promise<{ lastAction: Action | null, nextAction: Action | null }>
+    {
+        if (Platform.OS === 'web') {
+            const now = Date.now();
+            const actions = mockActions.filter(item => item.plantId === plantId);
+            const lastAction = actions.filter(a => a.time <= now).sort((a, b) => b.time - a.time)[0] || null;
+            const nextAction = actions.filter(a => a.time > now).sort((a, b) => a.time - b.time)[0] || null;
+            return { lastAction, nextAction };
+        }
+
+        const now = Date.now();
+        const lastActionRecord = await database.get<WatermelonAction>('actions')
+            .query(
+                Q.and(
+                    Q.where('plant_id', plantId),
+                    Q.where('time', Q.lte(now)),
+                )
+            )
+            .extend(Q.sortBy('time', 'desc'))
+            .fetch();
+
+        const nextActionRecord = await database.get<WatermelonAction>('actions')
+            .query(
+                Q.and(
+                    Q.where('plant_id', plantId),
+                    Q.where('time', Q.gt(now))
+                )
+            )
+            .extend(Q.sortBy('time', 'asc'))
+            .fetch();
+
+        return {
+            lastAction: lastActionRecord[0]?.toJSON() as Action || null,
+            nextAction: nextActionRecord[0]?.toJSON() as Action || null
+        };
     }
 
 }

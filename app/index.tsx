@@ -24,16 +24,20 @@ export default function Index()
 
     useEffect(() =>
     {
-        Animated.timing(fadeAnim, {
-            toValue: 1,
-            duration: 2000,
-            useNativeDriver: true
-        }).start(() =>
+        Promise.all([
+            init(),
+            new Promise(resolve => Animated.timing(fadeAnim, {
+                toValue: 1,
+                duration: 2000,
+                useNativeDriver: true
+            }).start(() =>
+            {
+                resolve(void 0);
+            }))
+        ]).then(() =>
         {
             setLoading(false);
         });
-
-        init();
     }, [])
     if (!loading) {
         return <Redirect href="/(tabs)/timelinePage" />;

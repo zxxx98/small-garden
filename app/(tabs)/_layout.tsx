@@ -33,7 +33,6 @@ export default function TabLayout()
                     selectedIndex={props.state.index}
                     onSelect={index =>
                     {
-                        console.log(props.state.routeNames[index]);
                         props.navigation.navigate(props.state.routeNames[index]);
                     }}
                     appearance='noIndicator'

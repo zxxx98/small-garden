@@ -2,7 +2,7 @@ import * as React from 'react';
 import { StyleSheet, FlatList, Image, TouchableOpacity, View, Dimensions, Alert, ScrollView } from 'react-native';
 import { Layout, Text, Card, Icon, Modal, Button, Input, IconProps, Spinner } from '@ui-kitten/components';
 import { LinearGradient } from 'expo-linear-gradient';
-import ContentLoader from 'react-content-loader';
+import { Facebook } from 'react-content-loader/native';
 import { ActionManager } from '@/models/ActionManager';
 import { PlantManager } from '@/models/PlantManager';
 import { Action } from '@/types/action';
@@ -11,21 +11,26 @@ import { theme } from '@/theme/theme';
 import { getIconAndColor } from '@/utils/action';
 import * as ImagePicker from 'expo-image-picker';
 import { fileManager } from '@/models/FileManager';
+import { useTheme } from '../../theme/themeContext';
 
-interface ImageViewerProps {
+interface ImageViewerProps
+{
     visible: boolean;
     imageUri: string;
     onClose: () => void;
 }
 
-const ImageViewer = ({ visible, imageUri, onClose }: ImageViewerProps) => {
+const ImageViewer = ({ visible, imageUri, onClose }: ImageViewerProps) =>
+{
     const [rotation, setRotation] = React.useState(0);
 
-    const rotateLeft = () => {
+    const rotateLeft = () =>
+    {
         setRotation((prev) => (prev - 90) % 360);
     };
 
-    const rotateRight = () => {
+    const rotateRight = () =>
+    {
         setRotation((prev) => (prev + 90) % 360);
     };
 
@@ -64,7 +69,8 @@ const ImageViewer = ({ visible, imageUri, onClose }: ImageViewerProps) => {
     );
 };
 
-interface TaskDetailProps {
+interface TaskDetailProps
+{
     action: Action;
     plant: Plant;
     onClose: () => void;
@@ -72,7 +78,8 @@ interface TaskDetailProps {
     onComplete: (action: Action) => void;
 }
 
-const TaskDetail = ({ action, plant, onClose, onDelete, onComplete }: TaskDetailProps) => {
+const TaskDetail = ({ action, plant, onClose, onDelete, onComplete }: TaskDetailProps) =>
+{
     const screenWidth = Dimensions.get('window').width;
     const [isCompleting, setIsCompleting] = React.useState(false);
     const [remark, setRemark] = React.useState(action.remark || '');
@@ -80,19 +87,29 @@ const TaskDetail = ({ action, plant, onClose, onDelete, onComplete }: TaskDetail
     const [selectedImage, setSelectedImage] = React.useState('');
     const [showImageViewer, setShowImageViewer] = React.useState(false);
     const [loading, setLoading] = React.useState(false);
+    const { themeMode } = useTheme();
 
     const date = new Date(Number(action.time));
+    const cardStyle = [
+        styles.detailCard,
+        {
+            width: screenWidth * 0.8,
+            backgroundColor: themeMode === 'light' ? 'rgba(255, 255, 255, 0.98)' : 'rgba(43, 50, 65, 0.98)'
+        }
+    ];
 
-    const handleDelete = () => {
+    const handleDelete = () =>
+    {
         Alert.alert(
             "删除待办",
             "确定要删除这个待办事项吗？",
             [
                 { text: "取消", style: "cancel" },
-                { 
-                    text: "删除", 
+                {
+                    text: "删除",
                     style: "destructive",
-                    onPress: () => {
+                    onPress: () =>
+                    {
                         onDelete(action.id);
                         onClose();
                     }
@@ -101,7 +118,8 @@ const TaskDetail = ({ action, plant, onClose, onDelete, onComplete }: TaskDetail
         );
     };
 
-    const pickImage = async () => {
+    const pickImage = async () =>
+    {
         const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (!permissionResult.granted) {
             Alert.alert("需要权限", "需要访问相册权限才能选择图片");
@@ -120,9 +138,9 @@ const TaskDetail = ({ action, plant, onClose, onDelete, onComplete }: TaskDetail
             if (!result.canceled && result.assets && result.assets.length > 0) {
                 // Save the image using FileManager and get the stored URL
                 const imageUri = result.assets[0].uri;
-                
+
                 const savedImageUrl = await fileManager.saveImage(imageUri);
-                
+
                 // Add the saved image URL to the images array
                 const newImages = [...images, savedImageUrl];
                 setImages(newImages);
@@ -135,9 +153,10 @@ const TaskDetail = ({ action, plant, onClose, onDelete, onComplete }: TaskDetail
         }
     };
 
-    const handleComplete = async () => {
+    const handleComplete = async () =>
+    {
         setLoading(true);
-        
+
         try {
             // Make sure all images are properly saved before completing the task
             const updatedAction = {
@@ -147,7 +166,7 @@ const TaskDetail = ({ action, plant, onClose, onDelete, onComplete }: TaskDetail
                 done: true,
                 time: Date.now(), // Update time to completion time
             };
-            
+
             await onComplete(updatedAction);
             onClose();
         } catch (error) {
@@ -159,12 +178,12 @@ const TaskDetail = ({ action, plant, onClose, onDelete, onComplete }: TaskDetail
     };
 
     return (
-        <Card style={[styles.detailCard, { width: screenWidth * 0.8 }]}>
+        <Card style={cardStyle}>
             <ScrollView style={styles.detailContent}>
                 <Text category='h5' style={styles.detailDate}>
                     {date.toLocaleDateString()}
                 </Text>
-                
+
                 <View style={styles.detailActionContainer}>
                     <Text category='p1' style={styles.detailAction}>
                         为
@@ -179,15 +198,15 @@ const TaskDetail = ({ action, plant, onClose, onDelete, onComplete }: TaskDetail
 
                 {!isCompleting ? (
                     <View style={styles.buttonGroup}>
-                        <Button 
-                            status='primary' 
+                        <Button
+                            status='primary'
                             onPress={() => setIsCompleting(true)}
                             style={styles.actionButton}
                         >
                             标记完成
                         </Button>
-                        <Button 
-                            status='danger' 
+                        <Button
+                            status='danger'
                             onPress={handleDelete}
                             style={styles.actionButton}
                         >
@@ -205,7 +224,7 @@ const TaskDetail = ({ action, plant, onClose, onDelete, onComplete }: TaskDetail
                             textStyle={{ minHeight: 64 }}
                             style={styles.remarkInput}
                         />
-                        
+
                         <Text category='s1' style={styles.completeFormLabel}>添加图片记录:</Text>
                         <View style={styles.imageContainer}>
                             {images.length > 0 && (
@@ -216,7 +235,8 @@ const TaskDetail = ({ action, plant, onClose, onDelete, onComplete }: TaskDetail
                                     showsHorizontalScrollIndicator={false}
                                     renderItem={({ item }) => (
                                         <TouchableOpacity
-                                            onPress={() => {
+                                            onPress={() =>
+                                            {
                                                 setSelectedImage(item);
                                                 setShowImageViewer(true);
                                             }}
@@ -232,24 +252,24 @@ const TaskDetail = ({ action, plant, onClose, onDelete, onComplete }: TaskDetail
                                     ItemSeparatorComponent={() => <View style={{ width: 5 }} />}
                                 />
                             )}
-                            <TouchableOpacity 
-                                style={styles.addImageButton} 
+                            <TouchableOpacity
+                                style={styles.addImageButton}
                                 onPress={pickImage}
                             >
                                 <Icon name="plus-outline" style={{ width: 24, height: 24 }} />
                             </TouchableOpacity>
                         </View>
-                        
+
                         <View style={styles.buttonGroup}>
-                            <Button 
-                                status='basic' 
+                            <Button
+                                status='basic'
                                 onPress={() => setIsCompleting(false)}
                                 style={styles.actionButton}
                             >
                                 取消
                             </Button>
-                            <Button 
-                                status='success' 
+                            <Button
+                                status='success'
                                 onPress={handleComplete}
                                 style={styles.actionButton}
                                 accessoryLeft={loading ? (props) => <Spinner size="small" /> : undefined}
@@ -271,28 +291,39 @@ const TaskDetail = ({ action, plant, onClose, onDelete, onComplete }: TaskDetail
     );
 };
 
-const RenderTodoItem = ({ item ,onPress }: { item: Action,onPress:()=>void }) => {
+const RenderTodoItem = ({ item, onPress }: { item: Action, onPress: () => void }) =>
+{
     const [plant, setPlant] = React.useState<Plant | null>(null);
-    
-    React.useEffect(() => {
+    const { themeMode } = useTheme();
+
+    React.useEffect(() =>
+    {
         PlantManager.getPlant(item.plantId).then(setPlant);
     }, [item.plantId]);
 
     const iconData = getIconAndColor(item.name);
-    
+    const cardStyle = [
+        styles.todoItem,
+        { backgroundColor: themeMode === 'light' ? '#FFFFFF' : '#2E3A59' }
+    ];
+    const iconContainerStyle = [
+        styles.iconContainer,
+        { backgroundColor: themeMode === 'light' ? '#F7F9FC' : '#1A2138' }
+    ];
+
     if (!plant) {
         return <TaskLoader />;
     }
-    
+
     return (
         <TouchableOpacity>
-            <Card style={styles.todoItem} onPress={onPress}>
+            <Card style={cardStyle} onPress={onPress}>
                 <View style={styles.todoItemContent}>
-                    <View style={styles.iconContainer}>
-                        <Icon 
-                            name={iconData.iconName} 
-                            style={styles.taskIcon} 
-                            fill={iconData.color} 
+                    <View style={iconContainerStyle}>
+                        <Icon
+                            name={iconData.iconName}
+                            style={styles.taskIcon}
+                            fill={iconData.color}
                             pack={iconData.pack}
                         />
                     </View>
@@ -309,9 +340,9 @@ const RenderTodoItem = ({ item ,onPress }: { item: Action,onPress:()=>void }) =>
                             </Text>
                         ) : null}
                     </View>
-                    <Icon 
-                        name="chevron-right-outline" 
-                        style={styles.arrowIcon} 
+                    <Icon
+                        name="chevron-right-outline"
+                        style={styles.arrowIcon}
                         fill={theme['color-basic-500']}
                     />
                 </View>
@@ -320,17 +351,21 @@ const RenderTodoItem = ({ item ,onPress }: { item: Action,onPress:()=>void }) =>
     );
 };
 
-const TodoPage = () => {
+const TodoPage = () =>
+{
     const [todoItems, setTodoItems] = React.useState<Action[]>([]);
     const [loading, setLoading] = React.useState(true);
-    const [selectedTask, setSelectedTask] = React.useState<{action: Action, plant: Plant} | null>(null);
+    const [selectedTask, setSelectedTask] = React.useState<{ action: Action, plant: Plant } | null>(null);
     const [showDetail, setShowDetail] = React.useState(false);
+    const { themeMode } = useTheme();
 
-    React.useEffect(() => {
+    React.useEffect(() =>
+    {
         loadTodoItems();
     }, []);
 
-    const loadTodoItems = async () => {
+    const loadTodoItems = async () =>
+    {
         setLoading(true);
         try {
             const actions = await ActionManager.getAllActions();
@@ -343,7 +378,8 @@ const TodoPage = () => {
         }
     };
 
-    const handleDelete = async (id: number) => {
+    const handleDelete = async (id: number) =>
+    {
         try {
             await ActionManager.deleteAction(id);
             // Update the local state to remove the deleted item
@@ -354,7 +390,8 @@ const TodoPage = () => {
         }
     };
 
-    const handleComplete = async (updatedAction: Action) => {
+    const handleComplete = async (updatedAction: Action) =>
+    {
         try {
             await ActionManager.updateAction(updatedAction);
             // Remove from todo list since it's now completed
@@ -365,11 +402,12 @@ const TodoPage = () => {
         }
     };
 
-    const handleTaskPress = async (action: Action) => {
+    const handleTaskPress = async (action: Action) =>
+    {
         try {
             const plant = await PlantManager.getPlant(action.plantId);
             if (plant) {
-                setSelectedTask({action, plant});
+                setSelectedTask({ action, plant });
                 setShowDetail(true);
             }
         } catch (error) {
@@ -379,7 +417,9 @@ const TodoPage = () => {
 
     return (
         <LinearGradient
-            colors={['#F5F5F5', '#FFF3E0', '#F5F5F5']}
+            colors={themeMode === 'light'
+                ? ['#F5F5F5', '#FFF3E0', '#F5F5F5']
+                : ['#222B45', '#1A2138', '#222B45']}
             style={styles.container}
         >
             <Layout style={styles.header}>
@@ -395,8 +435,10 @@ const TodoPage = () => {
                 ) : todoItems.length > 0 ? (
                     <FlatList
                         data={todoItems}
-                        renderItem={(prop)=>{
-                            return <RenderTodoItem onPress={()=>{
+                        renderItem={(prop) =>
+                        {
+                            return <RenderTodoItem onPress={() =>
+                            {
                                 handleTaskPress(prop.item);
                             }} {...prop} />
                         }}
@@ -405,9 +447,9 @@ const TodoPage = () => {
                     />
                 ) : (
                     <View style={styles.emptyContainer}>
-                        <Icon 
-                            name="checkmark-circle-2-outline" 
-                            style={styles.emptyIcon} 
+                        <Icon
+                            name="checkmark-circle-2-outline"
+                            style={styles.emptyIcon}
                             fill={theme['color-success-400']}
                         />
                         <Text category="h5" style={styles.emptyText}>
@@ -426,7 +468,7 @@ const TodoPage = () => {
                 onBackdropPress={() => setShowDetail(false)}
             >
                 {selectedTask && (
-                    <TaskDetail 
+                    <TaskDetail
                         action={selectedTask.action}
                         plant={selectedTask.plant}
                         onClose={() => setShowDetail(false)}
@@ -440,17 +482,7 @@ const TodoPage = () => {
 };
 
 const TaskLoader = () => (
-    <ContentLoader
-        height={90}
-        backgroundColor="#f5f5f5"
-        foregroundColor="#dbdbdb"
-        style={styles.todoItem}
-    >
-        <circle cx="35" cy="45" r="25" />
-        <rect x="80" y="15" rx="4" ry="4" width="100" height="20" />
-        <rect x="80" y="45" rx="4" ry="4" width="150" height="15" />
-        <rect x="80" y="70" rx="3" ry="3" width="120" height="10" />
-    </ContentLoader>
+    <Facebook />
 );
 
 const styles = StyleSheet.create({

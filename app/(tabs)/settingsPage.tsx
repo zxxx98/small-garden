@@ -1,25 +1,27 @@
 import * as React from 'react';
-import { StyleSheet, TouchableOpacity, ScrollView, Alert, View, Dimensions } from 'react-native';
+import { StyleSheet, TouchableOpacity, ScrollView, Alert, View, Dimensions, Image } from 'react-native';
 import
-  {
-    Layout,
-    Text,
-    Toggle,
-    Divider,
-    List,
-    ListItem,
-    Icon,
-    IconProps,
-    Button,
-    Card,
-    Modal,
-    Input,
-    TopNavigation,
-    TopNavigationAction
-  } from '@ui-kitten/components';
+{
+  Layout,
+  Text,
+  Toggle,
+  Divider,
+  List,
+  ListItem,
+  Icon,
+  IconProps,
+  Button,
+  Card,
+  Modal,
+  Input,
+  TopNavigation,
+  TopNavigationAction
+} from '@ui-kitten/components';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../../theme/themeContext';
 import { useCategories, Category } from '../../context/CategoryContext';
+import { PlantManager } from '@/models/PlantManager';
+import { Plant } from '@/types/plant';
 
 // Icons
 const SunIcon = (props: IconProps) => <Icon {...props} name="sun-outline" />;
@@ -29,6 +31,18 @@ const TrashIcon = (props: IconProps) => <Icon {...props} name="trash-2-outline" 
 const PlusIcon = (props: IconProps) => <Icon {...props} name="plus-outline" />;
 const CategoryIcon = (props: IconProps) => <Icon {...props} name="folder-outline" />;
 const BackIcon = (props: IconProps) => <Icon {...props} name="arrow-back-outline" />;
+const CemeteryIcon = (props: IconProps) => <Icon {...props} name="alert-triangle-outline" />;
+const ResurrectIcon = (props: IconProps) => <Icon {...props} name="activity-outline" />;
+
+type PlantItem = {
+  id: string;
+  name: string;
+  scientificName: string;
+  type: string;
+  remark?: string;
+  img: string;
+  isDead: boolean;
+};
 
 const SettingsPage = () =>
 {
@@ -44,7 +58,21 @@ const SettingsPage = () =>
   const [categoryName, setCategoryName] = React.useState('');
 
   // State for section management
-  const [activeSection, setActiveSection] = React.useState<'main' | 'categories'>('main');
+  const [activeSection, setActiveSection] = React.useState<'main' | 'categories' | 'cemetery'>('main');
+
+  // State for cemetery plants
+  const [deadPlants, setDeadPlants] = React.useState<PlantItem[]>([]);
+  const [cemeteryLoading, setCemeteryLoading] = React.useState(false);
+  const [showResurrectModal, setShowResurrectModal] = React.useState(false);
+  const [selectedDeadPlant, setSelectedDeadPlant] = React.useState<PlantItem | null>(null);
+
+  // Load dead plants when entering cemetery view
+  React.useEffect(() =>
+  {
+    if (activeSection === 'cemetery') {
+      loadDeadPlants();
+    }
+  }, [activeSection]);
 
   // Reset category form
   const resetCategoryForm = () =>
@@ -110,6 +138,88 @@ const SettingsPage = () =>
     );
   };
 
+  // Load dead plants from database
+  const loadDeadPlants = async () =>
+  {
+    setCemeteryLoading(true);
+    try {
+      const plants = await PlantManager.getAllPlants();
+      const deadPlants = plants.filter(plant => plant.isDead).map(plant => ({
+        id: plant.id,
+        name: plant.name,
+        scientificName: plant.scientificName || plant.name,
+        type: plant.type,
+        remark: plant.remark || '',
+        img: plant.img,
+        isDead: plant.isDead
+      }));
+      setDeadPlants(deadPlants);
+    } catch (error) {
+      console.error('Failed to load dead plants:', error);
+      Alert.alert('错误', '加载墓地植物失败');
+    } finally {
+      setCemeteryLoading(false);
+    }
+  };
+
+  // Handle resurrect plant (set isDead to false)
+  const handleResurrectPlant = async () =>
+  {
+    if (!selectedDeadPlant) return;
+
+    try {
+      // Update the plant in database
+      const updatedPlant: Plant = {
+        id: selectedDeadPlant.id,
+        name: selectedDeadPlant.name,
+        type: selectedDeadPlant.type,
+        scientificName: selectedDeadPlant.scientificName,
+        remark: selectedDeadPlant.remark || '',
+        img: selectedDeadPlant.img,
+        isDead: false
+      };
+
+      // Update in database
+      await PlantManager.updatePlant(updatedPlant);
+
+      // Update local state
+      setDeadPlants(deadPlants.filter(p => p.id !== selectedDeadPlant.id));
+      setShowResurrectModal(false);
+      setSelectedDeadPlant(null);
+
+      Alert.alert('成功', `${selectedDeadPlant.name} 已从墓地中复活`);
+    } catch (error) {
+      console.error('Failed to resurrect plant:', error);
+      Alert.alert('错误', '复活植物失败');
+    }
+  };
+
+  // Handle permanently delete dead plant
+  const handlePermanentlyDeletePlant = (plant: PlantItem) =>
+  {
+    Alert.alert(
+      '确认永久删除',
+      `确定要永久删除植物 "${plant.name}" 吗？此操作无法撤销。`,
+      [
+        { text: '取消', style: 'cancel' },
+        {
+          text: '永久删除',
+          style: 'destructive',
+          onPress: async () =>
+          {
+            try {
+              await PlantManager.deletePlant(plant.id);
+              setDeadPlants(deadPlants.filter(p => p.id !== plant.id));
+            } catch (error) {
+              console.error('Failed to delete plant:', error);
+              Alert.alert('错误', '删除植物失败');
+            }
+          }
+        }
+      ]
+    );
+  };
+
   // Render category item
   const renderCategoryItem = ({ item }: { item: Category }) => (
     <ListItem
@@ -134,6 +244,49 @@ const SettingsPage = () =>
     />
   );
 
+  // Render dead plant item
+  const renderDeadPlantItem = ({ item }: { item: PlantItem }) => (
+    <ListItem
+      title={item.name}
+      description={`${item.type}${item.scientificName ? ` | ${item.scientificName}` : ''}`}
+      accessoryLeft={() => (
+        <View style={styles.deadPlantImageContainer}>
+          {item.img ? (
+            <Image
+              source={{ uri: item.img }}
+              style={styles.deadPlantImage}
+              resizeMode="cover"
+            />
+          ) : (
+            <View style={[styles.deadPlantImage, styles.noImage]}>
+              <Icon name="image-outline" fill="#8F9BB3" width={24} height={24} />
+            </View>
+          )}
+        </View>
+      )}
+      accessoryRight={() => (
+        <View style={styles.categoryItemActions}>
+          <TouchableOpacity
+            style={styles.categoryActionButton}
+            onPress={() =>
+            {
+              setSelectedDeadPlant(item);
+              setShowResurrectModal(true);
+            }}
+          >
+            <ResurrectIcon fill="#3366FF" width={20} height={20} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.categoryActionButton}
+            onPress={() => handlePermanentlyDeletePlant(item)}
+          >
+            <TrashIcon fill="#FF3D71" width={20} height={20} />
+          </TouchableOpacity>
+        </View>
+      )}
+    />
+  );
+
   // Render category management modal
   const renderCategoryModal = () => (
     <Modal
@@ -145,7 +298,13 @@ const SettingsPage = () =>
         resetCategoryForm();
       }}
     >
-      <Card disabled style={styles.modalCard}>
+      <Card
+        disabled
+        style={[
+          styles.modalCard,
+          { backgroundColor: themeMode === 'light' ? 'rgba(255, 255, 255, 0.98)' : 'rgba(43, 50, 65, 0.98)' }
+        ]}
+      >
         <Text category="h6" style={styles.modalTitle}>
           {editingCategory ? '编辑类别' : '添加类别'}
         </Text>
@@ -158,6 +317,52 @@ const SettingsPage = () =>
         <Button onPress={handleSaveCategory}>
           {editingCategory ? '保存' : '添加'}
         </Button>
+      </Card>
+    </Modal>
+  );
+
+  // Render resurrect plant modal
+  const renderResurrectModal = () => (
+    <Modal
+      visible={showResurrectModal}
+      backdropStyle={styles.backdrop}
+      onBackdropPress={() =>
+      {
+        setShowResurrectModal(false);
+        setSelectedDeadPlant(null);
+      }}
+    >
+      <Card
+        disabled
+        style={[
+          styles.modalCard,
+          { backgroundColor: themeMode === 'light' ? 'rgba(255, 255, 255, 0.98)' : 'rgba(43, 50, 65, 0.98)' }
+        ]}
+      >
+        <Text category="h6" style={styles.modalTitle}>复活植物</Text>
+        <Text style={styles.resurrectText}>
+          确定要将植物 "{selectedDeadPlant?.name || ''}" 从墓地中复活吗？
+        </Text>
+        <Layout style={styles.resurrectButtonsContainer}>
+          <Button
+            status="basic"
+            style={styles.resurrectButton}
+            onPress={() =>
+            {
+              setShowResurrectModal(false);
+              setSelectedDeadPlant(null);
+            }}
+          >
+            取消
+          </Button>
+          <Button
+            status="primary"
+            style={styles.resurrectButton}
+            onPress={handleResurrectPlant}
+          >
+            复活
+          </Button>
+        </Layout>
       </Card>
     </Modal>
   );
@@ -193,6 +398,20 @@ const SettingsPage = () =>
             <Layout style={styles.navItemContent}>
               <Text category="s1">管理植物类别</Text>
               <Text appearance="hint" category="p2">添加、编辑或删除植物类别</Text>
+            </Layout>
+            <Icon name="chevron-right-outline" fill="#8F9BB3" width={24} height={24} />
+          </Layout>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.navItem}
+          onPress={() => setActiveSection('cemetery')}
+        >
+          <Layout style={styles.navItemInner}>
+            <CemeteryIcon fill="#FFAA00" style={styles.navItemIcon} />
+            <Layout style={styles.navItemContent}>
+              <Text category="s1">查看墓地</Text>
+              <Text appearance="hint" category="p2">查看已死亡的植物，可以复活或永久删除</Text>
             </Layout>
             <Icon name="chevron-right-outline" fill="#8F9BB3" width={24} height={24} />
           </Layout>
@@ -254,10 +473,50 @@ const SettingsPage = () =>
     </>
   );
 
+  // Render cemetery section
+  const renderCemeterySection = () => (
+    <>
+      <TopNavigation
+        title="植物墓地"
+        alignment="center"
+        accessoryLeft={() => (
+          <TopNavigationAction
+            icon={BackIcon}
+            onPress={() => setActiveSection('main')}
+          />
+        )}
+      />
+
+      <Divider />
+
+      {cemeteryLoading ? (
+        <Layout style={styles.loadingContainer}>
+          <Text appearance="hint">加载中...</Text>
+        </Layout>
+      ) : (
+        <List
+          data={deadPlants}
+          renderItem={renderDeadPlantItem}
+          ItemSeparatorComponent={Divider}
+          contentContainerStyle={styles.categoriesList}
+          ListEmptyComponent={() => (
+            <Layout style={styles.cemeteryEmpty}>
+              <Icon name="heart-outline" fill="#8F9BB3" width={60} height={60} />
+              <Text category="h6" style={styles.cemeteryEmptyTitle}>墓地是空的</Text>
+              <Text appearance="hint" style={styles.cemeteryEmptyText}>
+                您所有的植物都健康存活 🌱
+              </Text>
+            </Layout>
+          )}
+        />
+      )}
+    </>
+  );
+
   // Determine background colors based on theme
   const gradientColors = themeMode === 'light'
-    ? ['#F5F5F5', '#F3E5F5', '#F5F5F5']
-    : ['#222B45', '#1A2138', '#222B45'];
+    ? ['#F5F5F5', '#F3E5F5', '#F5F5F5'] as const
+    : ['#222B45', '#1A2138', '#222B45'] as const;
 
   return (
     <LinearGradient
@@ -273,13 +532,18 @@ const SettingsPage = () =>
             {renderMainSection()}
           </ScrollView>
         </>
-      ) : (
+      ) : activeSection === 'categories' ? (
         <Layout style={styles.sectionContainer}>
           {renderCategoriesSection()}
+        </Layout>
+      ) : (
+        <Layout style={styles.sectionContainer}>
+          {renderCemeterySection()}
         </Layout>
       )}
 
       {renderCategoryModal()}
+      {renderResurrectModal()}
     </LinearGradient>
   );
 };
@@ -384,6 +648,46 @@ const styles = StyleSheet.create({
   emptyContainer: {
     padding: 24,
     alignItems: 'center',
+  },
+  deadPlantImageContainer: {
+    marginRight: 12,
+  },
+  deadPlantImage: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+    backgroundColor: '#F7F9FC',
+  },
+  noImage: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#F7F9FC',
+  },
+  cemeteryEmpty: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 40,
+  },
+  cemeteryEmptyTitle: {
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  cemeteryEmptyText: {
+    textAlign: 'center',
+  },
+  resurrectText: {
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  resurrectButtonsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    backgroundColor: 'transparent',
+  },
+  resurrectButton: {
+    flex: 1,
+    marginHorizontal: 4,
   },
 });
 

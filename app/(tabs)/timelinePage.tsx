@@ -10,6 +10,7 @@ import { getIconAndColor } from '@/utils/action';
 import { PlantManager } from '@/models/PlantManager';
 import { Plant } from '@/types/plant';
 import { ActionManager } from '@/models/ActionManager';
+import { useTheme } from '../../theme/themeContext';
 
 function getRangeLabel(startDate?: Date, endDate?: Date)
 {
@@ -162,21 +163,24 @@ const Detail = ({ action, plant }: { action?: Action, plant?: Plant }) =>
     );
 }
 
-const CalendarIcon = (props: IconProps) => <Icon {...props} name="calendar-outline" />;
+const CalendarIcon = (props: IconProps) => (
+    <Icon {...props} name="calendar-outline" />
+);
 
 const TimelinePage = () =>
 {
     const [timelineData, setTimelineData] = React.useState<Action[]>([]);
     const [showCalendar, setShowCalendar] = React.useState(false);
     //当前时间线的时间戳范围
-    const [curTimeRange, setCurTimeRange] = React.useState<{start:number,end:number}>({
+    const [curTimeRange, setCurTimeRange] = React.useState<{ start: number, end: number }>({
         start: new Date(new Date().getFullYear(), new Date().getMonth(), 1, 0, 0, 0, 0).getTime(),
-        end: new Date(new Date().setHours(23,59,59,999)).getTime()
+        end: new Date(new Date().setHours(23, 59, 59, 999)).getTime()
     });
     //当前日期选择器的数据
     const [rangeDate, setRangeDate] = React.useState<CalendarRange<Date>>({ startDate: new Date(), endDate: new Date() });
     const [detailInfo, setDetailInfo] = React.useState<{ show: boolean, action?: Action, plant?: Plant }>({ show: false });
     const calendarButtonRef = React.useRef(null);
+    const { themeMode } = useTheme();
 
     React.useEffect(() =>
     {
@@ -257,7 +261,9 @@ const TimelinePage = () =>
 
     return (
         <LinearGradient
-            colors={['#F5F5F5', '#E3F2FD', '#F5F5F5']}
+            colors={themeMode === 'light'
+                ? ['#F5F5F5', '#E3F2FD', '#F5F5F5']
+                : ['#222B45', '#1A2138', '#222B45']}
             style={styles.container}
         >
             <Layout style={styles.header}>
