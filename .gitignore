@@ -36,3 +36,7 @@ yarn-error.*
 *.tsbuildinfo
 
 app-example
+
+# Native build directories (to avoid conflict with app.json config)
+/android
+/ios

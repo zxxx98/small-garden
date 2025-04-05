@@ -62,7 +62,16 @@ export const DatabaseInstance = {
                 } else {
                     try {
                         console.log("Attempting to use SQLite adapter for mobile");
-                        adapter = await asyncLoadSqliteAdapter();
+                        adapter = new SQLiteAdapter({
+                            schema,
+                            migrations,
+                            dbName: 'small_garden',
+                            jsi: false,
+                            onSetUpError: (error: any) =>
+                            {
+                                console.error('Failed to setup database:', error);
+                            }
+                        });
                     } catch (adapterError) {
                         console.log("SQLite adapter not available, this is expected when using Expo Go.");
                         console.log("To use SQLite (better performance), create a development build with: npx expo run:android");
