@@ -20,7 +20,7 @@ const defaultCategories: Category[] = [
 
 // Default action types
 const defaultActionTypes: ActionType[] = [
-    { name: "浇水", iconName: "droplet-outline", color: theme["color-purple-300"], useCustomImage: false },
+    { name: "浇水", iconName: "droplet-outline", color: theme["color-purple-300"], pack: undefined, useCustomImage: false },
     { name: "施肥", iconName: "flower-pollen-outline", color: theme["color-success-500"], pack: "materialCommunityIcons", useCustomImage: false },
     { name: "授粉", iconName: "bee-flower", color: theme["color-primary-500"], pack: "materialCommunityIcons", useCustomImage: false },
     { name: "种植", iconName: "seed-outline", color: theme["color-success-500"], pack: "materialCommunityIcons", useCustomImage: false },

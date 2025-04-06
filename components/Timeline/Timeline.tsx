@@ -4,6 +4,7 @@ import { Icon, Text } from '@ui-kitten/components';
 import { ScrollView } from 'react-native';
 import Svg, { Line } from 'react-native-svg';
 import { theme } from '@/theme/theme';
+import { getActionIcon } from '@/utils/action';
 
 export interface TimelineItemProps
 {

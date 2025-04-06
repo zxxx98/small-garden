@@ -3,6 +3,7 @@ import { ActionType } from "../types/action";
 import { ConfigManager } from "../models/ConfigManager";
 import { Icon } from "@ui-kitten/components";
 import { Image } from "react-native";
+import { Feather, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 
 // In-memory cache of action types
 let actionTypesCache: ActionType[] | null = null;
@@ -12,7 +13,7 @@ let actionTypesCache: ActionType[] | null = null;
  * @param actionName 行为名称
  * @returns Icon information with either named icon or custom image
  */
-export async function getIconAndColor(actionName: string, size: number = 24, color?: string): Promise<React.ReactNode>
+export async function getActionIconAsync(actionName: string, size: number = 24, color?: string): Promise<React.ReactNode>
 {
     // Load action types if not cached
     if (!actionTypesCache) {
@@ -21,17 +22,35 @@ export async function getIconAndColor(actionName: string, size: number = 24, col
         } catch (error) {
             console.error('Failed to load action types:', error);
             // Return default if failed to load
-            return <Icon name="radio-button-on-outline" size={size} color={color} pack={undefined} />;
+            return <Icon name="radio-button-on-outline" size={size} fill={color} pack={undefined} />;
         }
     }
+    return getActionIcon(actionName, size, color);
+}
 
+export function getActionIcon(actionName: string, size: number = 24, color?: string): React.ReactNode
+{
+    if (!actionTypesCache) {
+        return <Icon name="radio-button-on-outline" size={size} fill={color} />;
+    }
     // Find matching action type
     const actionType = actionTypesCache.find(type => type.name === actionName);
+    console.log(actionType);
     if (actionType) {
         if (actionType.useCustomImage) {
             return <Image source={{ uri: actionType.iconImage }} style={{ width: size, height: size }} />;
         }
-        return <Icon name={actionType.iconName} size={size} color={color} pack={actionType.pack} />;
+        switch (actionType.pack) {
+            case "materialCommunityIcons":
+                return <MaterialCommunityIcons name={actionType.iconName as any} size={size} color={color ?? actionType.color} />;
+            case "Ionicons":
+                return <Ionicons name={actionType.iconName as any} size={size} color={color ?? actionType.color} />;
+            case "Feather":
+                return <Feather name={actionType.iconName as any} size={size} color={color ?? actionType.color} />;
+            default:
+                console.log("actionType.iconName: ", actionType.iconName);
+                return <Icon name={actionType.iconName} size={size} fill={color ?? actionType.color} pack={actionType.pack} />;
+        }
     }
 
     // Return default if not found

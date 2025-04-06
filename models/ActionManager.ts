@@ -157,10 +157,19 @@ export class ActionManager
 
 const mockActions: Action[] = [
     {
-        id: 1,
+        id: 11,
         name: '浇水',
         plantId: '3', // 绿萝
-        time: 1672531200000, // 2023-01-01
+        time: new Date().getTime(),
+        remark: '土壤干燥，浇透水',
+        imgs: ['https://cdn.pixabay.com/photo/2025/03/23/14/08/azaleas-9488835_1280.jpg', 'https://cdn.pixabay.com/photo/2025/03/25/14/21/kenroku-en-garden-9492642_1280.jpg', 'https://cdn.pixabay.com/photo/2025/03/23/14/08/azaleas-9488835_1280.jpg', 'https://cdn.pixabay.com/photo/2025/03/23/14/08/azaleas-9488835_1280.jpg'],
+        done: true,
+    },
+    {
+        id: 1,
+        name: '施肥',
+        plantId: '3', // 绿萝
+        time: new Date().getTime(),
         remark: '土壤干燥，浇透水',
         imgs: ['https://cdn.pixabay.com/photo/2025/03/23/14/08/azaleas-9488835_1280.jpg', 'https://cdn.pixabay.com/photo/2025/03/25/14/21/kenroku-en-garden-9492642_1280.jpg', 'https://cdn.pixabay.com/photo/2025/03/23/14/08/azaleas-9488835_1280.jpg', 'https://cdn.pixabay.com/photo/2025/03/23/14/08/azaleas-9488835_1280.jpg'],
         done: true,
@@ -169,90 +178,45 @@ const mockActions: Action[] = [
         id: 2,
         name: '施肥',
         plantId: '5', // 银杏
-        time: 1672617600000, // 2023-01-02
+        time: new Date().getTime(),
         remark: '施用有机肥',
         imgs: [''],
         done: true,
     },
     {
         id: 3,
-        name: '打侧枝',
-        plantId: '10', // 玫瑰
-        time: 1672704000000, // 2023-01-03
-        remark: '修剪过密侧枝促进主枝生长',
+        name: '施肥',
+        plantId: '5', // 银杏
+        time: new Date().getTime(),
+        remark: '施用有机肥',
         imgs: [''],
-        done: false,
+        done: true,
     },
     {
         id: 4,
-        name: '换盆',
-        plantId: '1', // 豌豆
-        time: 1672790400000, // 2023-01-04
-        remark: '换到大号花盆',
+        name: '施肥',
+        plantId: '5', // 银杏
+        time: new Date().getTime(),
+        remark: '施用有机肥',
         imgs: [''],
         done: true,
     },
     {
         id: 5,
-        name: '除虫',
-        plantId: '7', // 薰衣草
-        time: 1672876800000, // 2023-01-05
-        remark: '发现蚜虫，喷洒杀虫剂',
+        name: '施肥',
+        plantId: '5', // 银杏
+        time: new Date().getTime(),
+        remark: '施用有机肥',
         imgs: [''],
         done: true,
     },
     {
         id: 6,
-        name: '松土',
-        plantId: '2', // 月季
-        time: 1672963200000, // 2023-01-06
-        remark: '表层土壤板结',
-        imgs: [''],
-        done: false,
-    },
-    {
-        id: 7,
-        name: '支架固定',
-        plantId: '4', // 番茄
-        time: 1673049600000, // 2023-01-07
-        remark: '植株倒伏，用竹竿支撑',
+        name: '施肥',
+        plantId: '5', // 银杏
+        time: new Date().getTime(),
+        remark: '施用有机肥',
         imgs: [''],
         done: true,
     },
-    {
-        id: 8,
-        name: '播种',
-        plantId: '8', // 向日葵
-        time: 1673136000000, // 2023-01-08
-        remark: '春季播种计划',
-        imgs: [''],
-        done: false,
-    },
-    {
-        id: 9,
-        name: '修剪枯叶',
-        plantId: '6', // 仙人掌
-        time: 1673222400000, // 2023-01-09
-        remark: '去除底部发黄叶片',
-        imgs: [''],
-        done: true,
-    },
-    {
-        id: 10,
-        name: '冬季防护',
-        plantId: '9', // 竹子
-        time: 1673308800000, // 2023-01-10
-        remark: '包裹防寒布过冬',
-        imgs: [''],
-        done: false,
-    },
-    {
-        id: 11,
-        name: '冬季防护',
-        plantId: '9', // 竹子
-        time: 1743655492378, // 2023-01-10
-        remark: '包裹防寒布过冬',
-        imgs: [''],
-        done: false,
-    }
 ];

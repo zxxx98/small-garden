@@ -13,6 +13,7 @@ import { ConfigManager } from '@/models/ConfigManager';
 import { useTheme } from '../../theme/themeContext';
 import * as ImagePicker from 'expo-image-picker';
 import { fileManager } from '@/models/FileManager';
+import { useFocusEffect } from 'expo-router';
 
 // Define interface for ImageViewer props
 interface ImageViewerProps
@@ -453,69 +454,77 @@ const PlantsPage = () =>
     ? 'rgba(255, 255, 255, 0.95)'
     : 'rgba(43, 50, 65, 0.95)';
 
+  const updatePlants = React.useCallback(
+    () =>
+    {
+      PlantManager.getAllPlants().then((plants) =>
+      {
+        const plantItems = plants.map(getPlantItem);
+        setPlants(plantItems);
+
+        // Load actions for each plant
+        plantItems.forEach(plant =>
+        {
+          ActionManager.getLastAndNextAction(plant.id)
+            .then(actionData =>
+            {
+              // Process the action data and update the plant
+              setPlants(prevPlants =>
+              {
+                return prevPlants.map(p =>
+                {
+                  if (p.id === plant.id) {
+                    // Create a new plant object with updated data
+                    const updatedPlant: PlantItem = {
+                      ...p,
+                      actionsLoading: false
+                    };
+
+                    // Handle last action if available
+                    if (actionData.lastAction) {
+                      updatedPlant.lastAction = {
+                        type: actionData.lastAction.name,
+                        date: new Date(actionData.lastAction.time)
+                      };
+                    }
+
+                    // Handle next action if available
+                    if (actionData.nextAction) {
+                      updatedPlant.nextAction = {
+                        type: actionData.nextAction.name,
+                        date: new Date(actionData.nextAction.time)
+                      };
+                    }
+
+                    return updatedPlant;
+                  }
+                  return p;
+                });
+              });
+            })
+            .catch(error =>
+            {
+              console.error(`Failed to load actions for plant ${plant.id}:`, error);
+              setPlants(prevPlants =>
+                prevPlants.map(p =>
+                  p.id === plant.id ? { ...p, actionsLoading: false } : p
+                )
+              );
+            });
+        });
+      });
+      ConfigManager.getInstance().getCategories().then(categories =>
+      {
+        setCategories(categories);
+      });
+    }, [])
+
   React.useEffect(() =>
   {
-    PlantManager.getAllPlants().then((plants) =>
-    {
-      const plantItems = plants.map(getPlantItem);
-      setPlants(plantItems);
-
-      // Load actions for each plant
-      plantItems.forEach(plant =>
-      {
-        ActionManager.getLastAndNextAction(plant.id)
-          .then(actionData =>
-          {
-            // Process the action data and update the plant
-            setPlants(prevPlants =>
-            {
-              return prevPlants.map(p =>
-              {
-                if (p.id === plant.id) {
-                  // Create a new plant object with updated data
-                  const updatedPlant: PlantItem = {
-                    ...p,
-                    actionsLoading: false
-                  };
-
-                  // Handle last action if available
-                  if (actionData.lastAction) {
-                    updatedPlant.lastAction = {
-                      type: actionData.lastAction.name,
-                      date: new Date(actionData.lastAction.time)
-                    };
-                  }
-
-                  // Handle next action if available
-                  if (actionData.nextAction) {
-                    updatedPlant.nextAction = {
-                      type: actionData.nextAction.name,
-                      date: new Date(actionData.nextAction.time)
-                    };
-                  }
-
-                  return updatedPlant;
-                }
-                return p;
-              });
-            });
-          })
-          .catch(error =>
-          {
-            console.error(`Failed to load actions for plant ${plant.id}:`, error);
-            setPlants(prevPlants =>
-              prevPlants.map(p =>
-                p.id === plant.id ? { ...p, actionsLoading: false } : p
-              )
-            );
-          });
-      });
-    });
-    ConfigManager.getInstance().getCategories().then(categories =>
-    {
-      setCategories(categories);
-    });
+    updatePlants();
   }, []);
+
+  useFocusEffect(updatePlants);
 
   const resetForm = () =>
   {
@@ -653,8 +662,6 @@ const PlantsPage = () =>
       category: formData.category,
       image: formData.image,
       isDead: false,
-      lastAction: { type: '添加', date: new Date() },
-      nextAction: { type: '浇水', date: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000) },
       actionsLoading: false,
     };
 

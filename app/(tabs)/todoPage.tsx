@@ -1,17 +1,20 @@
 import * as React from 'react';
-import { StyleSheet, FlatList, Image, TouchableOpacity, View, Dimensions, Alert, ScrollView } from 'react-native';
-import { Layout, Text, Card, Icon, Modal, Button, Input, IconProps, Spinner } from '@ui-kitten/components';
+import { StyleSheet, FlatList, Image, TouchableOpacity, View, Dimensions, Alert, ScrollView, Animated } from 'react-native';
+import { Layout, Text, Card, Icon, Modal, Button, Input, IconProps, Spinner, Select, SelectItem, Datepicker, IndexPath } from '@ui-kitten/components';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Facebook } from 'react-content-loader/native';
 import { ActionManager } from '@/models/ActionManager';
 import { PlantManager } from '@/models/PlantManager';
-import { Action } from '@/types/action';
+import { Action, ActionType } from '@/types/action';
 import { Plant } from '@/types/plant';
 import { theme } from '@/theme/theme';
-import { getIconAndColor } from '@/utils/action';
+import { getActionIconAsync } from '@/utils/action';
 import * as ImagePicker from 'expo-image-picker';
 import { fileManager } from '@/models/FileManager';
 import { useTheme } from '../../theme/themeContext';
+import { ConfigManager } from '@/models/ConfigManager';
+import { BlurView } from 'expo-blur';
+import { useFocusEffect } from 'expo-router';
 
 interface ImageViewerProps
 {
@@ -304,7 +307,7 @@ const RenderTodoItem = ({ item, onPress }: { item: Action, onPress: () => void }
     const [iconData, setIconData] = React.useState<React.ReactNode>(null);
     React.useEffect(() =>
     {
-        getIconAndColor(item.name).then(setIconData);
+        getActionIconAsync(item.name).then(setIconData);
     }, [item.name]);
     const cardStyle = [
         styles.todoItem,
@@ -318,7 +321,6 @@ const RenderTodoItem = ({ item, onPress }: { item: Action, onPress: () => void }
     if (!plant) {
         return <TaskLoader />;
     }
-
     return (
         <TouchableOpacity>
             <Card style={cardStyle} onPress={onPress}>
@@ -350,6 +352,202 @@ const RenderTodoItem = ({ item, onPress }: { item: Action, onPress: () => void }
     );
 };
 
+// 添加待办表单组件
+interface TodoFormProps
+{
+    plants: Plant[];
+    actionTypes: ActionType[];
+    onSubmit: (formData: {
+        plant: Plant;
+        actionType: ActionType;
+        date: Date;
+        remark: string;
+    }) => void;
+    onCancel: () => void;
+    themeMode: string;
+}
+
+const TodoForm = ({ plants, actionTypes, onSubmit, onCancel, themeMode }: TodoFormProps) =>
+{
+    const [selectedPlant, setSelectedPlant] = React.useState<Plant | null>(null);
+    const [selectedActionType, setSelectedActionType] = React.useState<ActionType | null>(null);
+    const [selectedPlantIndex, setSelectedPlantIndex] = React.useState<IndexPath>();
+    const [selectedActionTypeIndex, setSelectedActionTypeIndex] = React.useState<IndexPath>();
+    const [todoDate, setTodoDate] = React.useState(new Date());
+    const [todoRemark, setTodoRemark] = React.useState('');
+    const [isSubmitting, setIsSubmitting] = React.useState(false);
+
+    // 滑动动画值
+    const slideAnim = React.useRef(new Animated.Value(Dimensions.get('window').height)).current;
+
+    // 组件挂载时启动滑上动画
+    React.useEffect(() =>
+    {
+        Animated.spring(slideAnim, {
+            toValue: 0,
+            useNativeDriver: true,
+            tension: 70,
+            friction: 12
+        }).start();
+    }, []);
+
+    const handleCancel = () =>
+    {
+        // 滑下动画
+        Animated.timing(slideAnim, {
+            toValue: Dimensions.get('window').height,
+            duration: 300,
+            useNativeDriver: true
+        }).start(() =>
+        {
+            onCancel();
+        });
+    };
+
+    const handleSubmitWithAnimation = () =>
+    {
+        if (!selectedPlant) {
+            Alert.alert('错误', '请选择一个植物');
+            return;
+        }
+
+        if (!selectedActionType) {
+            Alert.alert('错误', '请选择一个待办类型');
+            return;
+        }
+
+        // 滑下动画，然后提交
+        Animated.timing(slideAnim, {
+            toValue: Dimensions.get('window').height,
+            duration: 300,
+            useNativeDriver: true
+        }).start(() =>
+        {
+            onSubmit({
+                plant: selectedPlant,
+                actionType: selectedActionType,
+                date: todoDate,
+                remark: todoRemark
+            });
+        });
+    };
+
+    const backgroundColor = themeMode === 'light' ? 'rgba(255, 255, 255, 0.98)' : 'rgba(43, 50, 65, 0.98)';
+    const blurIntensity = themeMode === 'light' ? 50 : 80;
+
+    return (
+        <View style={styles.formOverlay}>
+            {/* 模糊背景 */}
+            <BlurView
+                intensity={blurIntensity}
+                tint={themeMode === 'light' ? 'light' : 'dark'}
+                style={StyleSheet.absoluteFill}
+            />
+
+            <TouchableOpacity
+                style={StyleSheet.absoluteFill}
+                activeOpacity={1}
+                onPress={handleCancel}
+            />
+
+            <Animated.View
+                style={[
+                    styles.animatedFormContainer,
+                    { transform: [{ translateY: slideAnim }] }
+                ]}
+            >
+                <ScrollView
+                    style={[styles.formContainer, { backgroundColor }]}
+                    contentContainerStyle={styles.formContentContainer}
+                >
+                    <View style={styles.formHeader}>
+                        <Text category="h5" style={styles.formTitle}>
+                            添加待办事项
+                        </Text>
+                    </View>
+
+                    {/* 拖动指示器 */}
+                    <View style={styles.dragIndicator} />
+
+                    <Text category='s1' style={styles.formLabel}>选择植物:</Text>
+                    <Select
+                        style={styles.input}
+                        placeholder="选择植物"
+                        value={selectedPlant?.name}
+                        selectedIndex={selectedPlantIndex}
+                        onSelect={(index) =>
+                        {
+                            setSelectedPlantIndex(index as IndexPath);
+                            if ((index as IndexPath).row !== undefined) {
+                                setSelectedPlant(plants[(index as IndexPath).row]);
+                            }
+                        }}
+                    >
+                        {plants.map((plant) => (
+                            <SelectItem key={plant.id} title={plant.name} />
+                        ))}
+                    </Select>
+
+                    <Text category='s1' style={styles.formLabel}>选择待办类型:</Text>
+                    <Select
+                        style={styles.input}
+                        placeholder="选择类型"
+                        value={selectedActionType?.name}
+                        selectedIndex={selectedActionTypeIndex}
+                        onSelect={(index) =>
+                        {
+                            setSelectedActionTypeIndex(index as IndexPath);
+                            if ((index as IndexPath).row !== undefined) {
+                                setSelectedActionType(actionTypes[(index as IndexPath).row]);
+                            }
+                        }}
+                    >
+                        {actionTypes.map((type, index) => (
+                            <SelectItem key={index.toString()} title={type.name} />
+                        ))}
+                    </Select>
+
+                    <Text category='s1' style={styles.formLabel}>选择日期:</Text>
+                    <Datepicker
+                        style={styles.input}
+                        date={todoDate}
+                        onSelect={setTodoDate}
+                        min={new Date()}
+                    />
+
+                    <Text category='s1' style={styles.formLabel}>备注:</Text>
+                    <Input
+                        style={styles.input}
+                        multiline={true}
+                        textStyle={{ minHeight: 64 }}
+                        placeholder="添加备注..."
+                        value={todoRemark}
+                        onChangeText={setTodoRemark}
+                    />
+
+                    <Button
+                        onPress={handleSubmitWithAnimation}
+                        style={styles.submitButton}
+                        accessoryLeft={isSubmitting ? (props) => <Spinner size="small" /> : undefined}
+                        disabled={isSubmitting || !selectedPlant || !selectedActionType}
+                    >
+                        添加
+                    </Button>
+
+                    <Button
+                        appearance="outline"
+                        status="basic"
+                        onPress={handleCancel}
+                        style={styles.cancelButton}
+                    >
+                        取消
+                    </Button>
+                </ScrollView>
+            </Animated.View>
+        </View>
+    );
+};
+
 const TodoPage = () =>
 {
     const [todoItems, setTodoItems] = React.useState<Action[]>([]);
@@ -358,10 +556,18 @@ const TodoPage = () =>
     const [showDetail, setShowDetail] = React.useState(false);
     const { themeMode } = useTheme();
 
-    React.useEffect(() =>
+    // 新的状态变量
+    const [showAddTodo, setShowAddTodo] = React.useState(false);
+    const [plants, setPlants] = React.useState<Plant[]>([]);
+    const [actionTypes, setActionTypes] = React.useState<ActionType[]>([]);
+    const [isSubmitting, setIsSubmitting] = React.useState(false);
+    const loadData = React.useCallback(() =>
     {
         loadTodoItems();
+        loadPlantsAndActionTypes();
     }, []);
+
+    useFocusEffect(loadData);
 
     const loadTodoItems = async () =>
     {
@@ -374,6 +580,21 @@ const TodoPage = () =>
             console.error("Error loading todo items:", error);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const loadPlantsAndActionTypes = async () =>
+    {
+        try {
+            // 加载所有植物
+            const allPlants = await PlantManager.getAllPlants();
+            setPlants(allPlants.filter(plant => !plant.isDead)); // 排除死亡的植物
+
+            // 加载行为类型
+            const types = await ConfigManager.getInstance().getActionTypes();
+            setActionTypes(types);
+        } catch (error) {
+            console.error("Error loading plants or action types:", error);
         }
     };
 
@@ -414,6 +635,45 @@ const TodoPage = () =>
         }
     };
 
+    const handleAddTodo = async (formData: {
+        plant: Plant;
+        actionType: ActionType;
+        date: Date;
+        remark: string;
+    }) =>
+    {
+        setIsSubmitting(true);
+
+        try {
+            // 创建新的待办事项，使用时间戳作为唯一ID
+            const newAction: Action = {
+                id: Date.now(),
+                name: formData.actionType.name,
+                plantId: formData.plant.id,
+                time: formData.date.getTime(),
+                remark: formData.remark,
+                imgs: [],
+                done: false
+            };
+
+            // 保存新待办
+            await ActionManager.addAction(newAction);
+
+            // 刷新待办列表
+            await loadTodoItems();
+
+            // 关闭表单
+            setShowAddTodo(false);
+
+            Alert.alert('成功', '待办事项已添加');
+        } catch (error) {
+            console.error("Error adding todo:", error);
+            Alert.alert('错误', '添加待办事项失败，请重试');
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
     return (
         <LinearGradient
             colors={themeMode === 'light'
@@ -423,6 +683,16 @@ const TodoPage = () =>
         >
             <Layout style={styles.header}>
                 <Text category="h1">今日待办</Text>
+                <TouchableOpacity
+                    style={styles.iconButton}
+                    onPress={() => setShowAddTodo(true)}
+                >
+                    <Icon
+                        name="plus-outline"
+                        style={styles.headerIcon}
+                        fill={theme['color-primary-500']}
+                    />
+                </TouchableOpacity>
             </Layout>
             <Layout style={styles.content}>
                 {loading ? (
@@ -445,7 +715,11 @@ const TodoPage = () =>
                         contentContainerStyle={styles.listContainer}
                     />
                 ) : (
-                    <View style={styles.emptyContainer}>
+                    <TouchableOpacity
+                        style={styles.emptyContainer}
+                        activeOpacity={0.7}
+                        onPress={() => setShowAddTodo(true)}
+                    >
                         <Icon
                             name="checkmark-circle-2-outline"
                             style={styles.emptyIcon}
@@ -455,12 +729,13 @@ const TodoPage = () =>
                             没有待办事项
                         </Text>
                         <Text category="p1" style={styles.emptySubtext}>
-                            休息一下或添加新的任务吧
+                            点击屏幕添加新的任务
                         </Text>
-                    </View>
+                    </TouchableOpacity>
                 )}
             </Layout>
 
+            {/* 任务详情模态框 */}
             <Modal
                 visible={showDetail}
                 backdropStyle={styles.backdrop}
@@ -476,6 +751,17 @@ const TodoPage = () =>
                     />
                 )}
             </Modal>
+
+            {/* 添加待办表单 - 只在showAddTodo为true时渲染 */}
+            {showAddTodo && (
+                <TodoForm
+                    plants={plants}
+                    actionTypes={actionTypes}
+                    onSubmit={handleAddTodo}
+                    onCancel={() => setShowAddTodo(false)}
+                    themeMode={themeMode}
+                />
+            )}
         </LinearGradient>
     );
 };
@@ -677,6 +963,107 @@ const styles = StyleSheet.create({
     rotateButton: {
         padding: 8,
         marginHorizontal: 10,
+    },
+    fab: {
+        position: 'absolute',
+        width: 56,
+        height: 56,
+        alignItems: 'center',
+        justifyContent: 'center',
+        right: 20,
+        bottom: 20,
+        borderRadius: 28,
+        elevation: 8,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.3,
+        shadowRadius: 3,
+        zIndex: 100,
+    },
+    fabIcon: {
+        width: 24,
+        height: 24,
+    },
+    addTodoContent: {
+        padding: 16,
+    },
+    addTodoTitle: {
+        textAlign: 'center',
+        marginBottom: 16,
+        color: theme['color-primary-500'],
+    },
+    formLabel: {
+        marginBottom: 4,
+        color: theme['color-basic-600'],
+    },
+    formInput: {
+        marginBottom: 16,
+    },
+    iconButton: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: 'rgba(255,255,255,0.8)',
+    },
+    headerIcon: {
+        width: 24,
+        height: 24,
+    },
+    formOverlay: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        zIndex: 9,
+        justifyContent: 'flex-end',
+    },
+    animatedFormContainer: {
+        maxHeight: '90%',
+        width: '100%',
+    },
+    formContainer: {
+        borderTopLeftRadius: 24,
+        borderTopRightRadius: 24,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: -2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 10,
+        elevation: 5,
+    },
+    formContentContainer: {
+        padding: 24,
+        paddingBottom: 40,
+    },
+    formHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 20,
+    },
+    formTitle: {
+        textAlign: 'center',
+        flex: 1,
+    },
+    dragIndicator: {
+        width: 40,
+        height: 4,
+        backgroundColor: 'rgba(0, 0, 0, 0.1)',
+        borderRadius: 2,
+        alignSelf: 'center',
+        marginBottom: 20,
+    },
+    input: {
+        marginBottom: 16,
+        backgroundColor: 'rgba(0, 0, 0, 0.02)',
+    },
+    submitButton: {
+        marginBottom: 12,
+    },
+    cancelButton: {
+        marginBottom: 16,
     },
 });
 

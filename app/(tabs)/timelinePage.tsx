@@ -2,15 +2,17 @@ import * as React from 'react';
 import { FlatList, Image, StyleSheet, View, Dimensions, TouchableOpacity } from 'react-native';
 import { Layout, Text, Card, Icon, RangeCalendar, CalendarRange, Button, Modal, IconProps } from '@ui-kitten/components';
 import { LinearGradient } from 'expo-linear-gradient';
-import ContentLoader from 'react-content-loader';
 import Timeline from '../../components/Timeline';
 import { theme } from '@/theme/theme';
 import { Action } from '@/types/action';
-import { getIconAndColor } from '@/utils/action';
+import { getActionIcon, getActionIconAsync } from '@/utils/action';
 import { PlantManager } from '@/models/PlantManager';
 import { Plant } from '@/types/plant';
 import { ActionManager } from '@/models/ActionManager';
 import { useTheme } from '../../theme/themeContext';
+import { Facebook } from 'react-content-loader/native';
+import { Ionicons, MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
+import { useFocusEffect } from 'expo-router';
 
 function getRangeLabel(startDate?: Date, endDate?: Date)
 {
@@ -182,13 +184,21 @@ const TimelinePage = () =>
     const calendarButtonRef = React.useRef(null);
     const { themeMode } = useTheme();
 
-    React.useEffect(() =>
+    const updateTimelineData = React.useCallback(() =>
     {
         ActionManager.getActionsByTimeRange(curTimeRange.start, curTimeRange.end).then((actions) =>
         {
+            console.log("actions: ", actions);
             setTimelineData(actions);
         });
     }, [curTimeRange]);
+
+    React.useEffect(() =>
+    {
+        updateTimelineData();
+    }, [curTimeRange]);
+
+    useFocusEffect(updateTimelineData);
 
     const onCntentClick = (action: Action, plant: Plant) =>
     {
@@ -219,7 +229,7 @@ const TimelinePage = () =>
             {
                 setPlant(plant);
             });
-        })
+        }, [data.plantId]);
         return <Card style={styles.customContent} onPress={() =>
         {
             if (plant) {
@@ -243,12 +253,9 @@ const TimelinePage = () =>
 
     const renderCustomIcon = (data: Action) =>
     {
-        const [iconData, setIconData] = React.useState<React.ReactNode>(null);
-        React.useEffect(() =>
-        {
-            getIconAndColor(data.name).then(setIconData);
-        }, [data.name]);
-        return iconData;
+        return data.done ?
+            <MaterialIcons name='sentiment-very-satisfied' size={24} color={theme['color-primary-500']}></MaterialIcons>
+            : <MaterialIcons name='sentiment-neutral' size={24} color={theme['color-dark-400']}></MaterialIcons>
     }
 
     const onCalendarSelect = (range: CalendarRange<Date>) =>
@@ -262,7 +269,6 @@ const TimelinePage = () =>
             setShowCalendar(false);
         }
     }
-
     return (
         <LinearGradient
             colors={themeMode === 'light'
@@ -488,16 +494,7 @@ const styles = StyleSheet.create({
 const PlantLoader = () =>
 {
     return (
-        <ContentLoader
-            height={90}
-            backgroundColor="#f5f5f5"
-            foregroundColor="#dbdbdb"
-        >
-            <circle cx="38" cy="45" r="38" />
-            <rect x="80" y="10" rx="5" ry="5" width="130" height="20" />
-            <rect x="80" y="40" rx="5" ry="5" width="130" height="20" />
-            <rect x="80" y="70" rx="5" ry="5" width="100" height="20" />
-        </ContentLoader>
+        <Facebook />
     )
 }
 
