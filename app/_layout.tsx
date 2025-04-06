@@ -8,6 +8,7 @@ import { CategoryProvider } from '../context/CategoryContext';
 import { FeatherIconsPack } from '../icons/FeatherIconsPack';
 import { IoniconsIconsPack } from '../icons/IoniconsIconsPack';
 import { MaterialCommunityIconsPack } from '../icons/MaterialCommunityIconsPack';
+import { AssetIconsPack } from '../icons/AssetIconsPack';
 
 // Create theme-aware app component
 const ThemedApp = () =>
@@ -32,7 +33,7 @@ export default function App()
 {
   return (
     <>
-      <IconRegistry icons={[EvaIconsPack, FeatherIconsPack, IoniconsIconsPack, MaterialCommunityIconsPack]} />
+      <IconRegistry icons={[EvaIconsPack, FeatherIconsPack, IoniconsIconsPack, MaterialCommunityIconsPack, AssetIconsPack]} />
       <ThemeProvider>
         <ThemedApp />
       </ThemeProvider>

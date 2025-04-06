@@ -16,3 +16,15 @@ export type Action = {
     //已完成
     done: boolean,
 };
+
+// 行为类型定义
+export type ActionType = {
+    name: string;
+    // Icon can be either a named icon or a custom image
+    iconName?: string;
+    iconImage?: string; // Base64 string or file URI for custom image
+    color: string;
+    pack?: string;
+    // Flag to distinguish between icon types
+    useCustomImage?: boolean;
+};

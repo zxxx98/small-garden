@@ -4,3 +4,5 @@ export const ActionNameKey = "ActionName";
 export const ThemeModeKey = "ThemeMode";
 //植物类别储存Key
 export const CategoriesKey = "plant_categories";
+//行为类型储存Key
+export const ActionTypesKey = "action_types";

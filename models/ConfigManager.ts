@@ -1,6 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { ActionNameKey, ThemeModeKey, CategoriesKey } from '../types/config';
+import { ActionNameKey, ThemeModeKey, CategoriesKey, ActionTypesKey } from '../types/config';
 import { Category } from '../context/CategoryContext';
+import { theme } from '@/theme/theme';
+import { ActionType } from '@/types/action';
 
 // Default categories
 const defaultCategories: Category[] = [
@@ -14,6 +16,17 @@ const defaultCategories: Category[] = [
     { id: '8', name: '风信子' },
     { id: '9', name: '水仙' },
     { id: '10', name: '其他' },
+];
+
+// Default action types
+const defaultActionTypes: ActionType[] = [
+    { name: "浇水", iconName: "droplet-outline", color: theme["color-purple-300"], useCustomImage: false },
+    { name: "施肥", iconName: "flower-pollen-outline", color: theme["color-success-500"], pack: "materialCommunityIcons", useCustomImage: false },
+    { name: "授粉", iconName: "bee-flower", color: theme["color-primary-500"], pack: "materialCommunityIcons", useCustomImage: false },
+    { name: "种植", iconName: "seed-outline", color: theme["color-success-500"], pack: "materialCommunityIcons", useCustomImage: false },
+    { name: "修剪", iconName: "scissors", color: theme["color-success-500"], pack: "feather", useCustomImage: false },
+    { name: "拔除", iconName: "emoticon-dead-outline", color: theme["color-primary-500"], pack: "materialCommunityIcons", useCustomImage: false },
+    { name: "除草", iconName: "grass", color: theme["color-success-500"], pack: "materialCommunityIcons", useCustomImage: false },
 ];
 
 export class ConfigManager
@@ -91,6 +104,32 @@ export class ConfigManager
         } catch (error) {
             console.error('Failed to save categories:', error);
             throw new Error('Failed to save categories');
+        }
+    }
+
+    public async getActionTypes(): Promise<ActionType[]>
+    {
+        try {
+            const storedActionTypes = await AsyncStorage.getItem(ActionTypesKey);
+            if (storedActionTypes) {
+                return JSON.parse(storedActionTypes);
+            }
+            // If no action types stored, use and save default action types
+            await this.saveActionTypes(defaultActionTypes);
+            return defaultActionTypes;
+        } catch (error) {
+            console.error('Failed to get action types:', error);
+            throw new Error('Failed to load action types');
+        }
+    }
+
+    public async saveActionTypes(actionTypes: ActionType[]): Promise<void>
+    {
+        try {
+            await AsyncStorage.setItem(ActionTypesKey, JSON.stringify(actionTypes));
+        } catch (error) {
+            console.error('Failed to save action types:', error);
+            throw new Error('Failed to save action types');
         }
     }
 }

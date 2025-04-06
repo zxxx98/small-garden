@@ -1,8 +1,9 @@
 import * as React from 'react';
-import { StyleSheet, Image, TouchableOpacity, Dimensions, Alert, View, FlatList } from 'react-native';
+import { StyleSheet, Image, TouchableOpacity, Dimensions, Alert, View, FlatList, ScrollView, Animated } from 'react-native';
 import { Layout, Text, Card, Button, Modal, Input, Select, SelectItem, Icon, IconProps, IndexPath, CheckBox, Spinner } from '@ui-kitten/components';
 import { LinearGradient } from 'expo-linear-gradient';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { BlurView } from 'expo-blur';
 import FlowerIcon from '@/assets/svgs/flower1.svg';
 import { PlantManager } from '@/models/PlantManager';
 import { Plant } from '@/types/plant';
@@ -71,6 +72,320 @@ const ImageViewer = ({ visible, imageUri, onClose }: ImageViewerProps) =>
   );
 };
 
+// New interface for PlantEditForm component
+interface PlantEditFormProps
+{
+  editingPlant: PlantItem | null;
+  categories: { id: string; name: string }[];
+  themeMode: 'light' | 'dark';
+  onSubmit: (formData: any) => void;
+  onCancel: () => void;
+}
+
+// PlantEditForm component to replace the modal
+const PlantEditForm = ({
+  editingPlant,
+  categories,
+  themeMode,
+  onSubmit,
+  onCancel
+}: PlantEditFormProps) =>
+{
+  const [plantName, setPlantName] = React.useState(editingPlant?.name || '');
+  const [scientificName, setScientificName] = React.useState(editingPlant?.scientificName || '');
+  const [selectedCategory, setSelectedCategory] = React.useState<any>(null);
+  const [selectedIndex, setSelectedIndex] = React.useState<IndexPath>();
+  const [plantImage, setPlantImage] = React.useState(editingPlant?.image || '');
+  const [imageLoading, setImageLoading] = React.useState(false);
+  const [selectedImage, setSelectedImage] = React.useState('');
+  const [showImageViewer, setShowImageViewer] = React.useState(false);
+
+  // Animation value for sliding up
+  const slideAnim = React.useRef(new Animated.Value(Dimensions.get('window').height)).current;
+
+  // Start slide-up animation when component mounts
+  React.useEffect(() =>
+  {
+    Animated.spring(slideAnim, {
+      toValue: 0,
+      useNativeDriver: true,
+      tension: 70,
+      friction: 12
+    }).start();
+  }, []);
+
+  // Set initial values when editingPlant changes
+  React.useEffect(() =>
+  {
+    if (editingPlant) {
+      setPlantName(editingPlant.name);
+      setScientificName(editingPlant.scientificName);
+      setPlantImage(editingPlant.image);
+
+      const categoryIndex = categories.findIndex(c => c.name === editingPlant.category);
+      if (categoryIndex !== -1) {
+        setSelectedCategory(categories[categoryIndex]);
+        setSelectedIndex(new IndexPath(categoryIndex));
+      }
+    } else {
+      setPlantName('');
+      setScientificName('');
+      setPlantImage('');
+      setSelectedCategory(null);
+      setSelectedIndex(undefined);
+    }
+  }, [editingPlant, categories]);
+
+  // Image picking function
+  const pickImage = async () =>
+  {
+    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permissionResult.granted) {
+      Alert.alert("需要权限", "需要访问相册权限才能选择图片");
+      return;
+    }
+
+    try {
+      setImageLoading(true);
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        // Save the image using FileManager and get the stored URL
+        const imageUri = result.assets[0].uri;
+        const savedImageUrl = await fileManager.saveImage(imageUri);
+        setPlantImage(savedImageUrl);
+      }
+    } catch (error) {
+      console.error("Error saving image:", error);
+      Alert.alert("错误", "保存图片失败，请重试");
+    } finally {
+      setImageLoading(false);
+    }
+  };
+
+  // Camera function
+  const takePhoto = async () =>
+  {
+    const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
+    if (!permissionResult.granted) {
+      Alert.alert("需要权限", "需要访问相机权限才能拍照");
+      return;
+    }
+
+    try {
+      setImageLoading(true);
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        // Save the image using FileManager and get the stored URL
+        const imageUri = result.assets[0].uri;
+        const savedImageUrl = await fileManager.saveImage(imageUri);
+        setPlantImage(savedImageUrl);
+      }
+    } catch (error) {
+      console.error("Error taking photo:", error);
+      Alert.alert("错误", "拍照失败，请重试");
+    } finally {
+      setImageLoading(false);
+    }
+  };
+
+  // Show image action sheet
+  const showImageOptions = () =>
+  {
+    Alert.alert(
+      "选择图片来源",
+      "请选择图片来源",
+      [
+        { text: "取消", style: "cancel" },
+        { text: "相册", onPress: () => pickImage() },
+        { text: "相机", onPress: () => takePhoto() }
+      ]
+    );
+  };
+
+  const handleCancel = () =>
+  {
+    // Animate the form sliding down before calling onCancel
+    Animated.timing(slideAnim, {
+      toValue: Dimensions.get('window').height,
+      duration: 300,
+      useNativeDriver: true
+    }).start(() =>
+    {
+      onCancel();
+    });
+  };
+
+  const handleSubmitWithAnimation = () =>
+  {
+    if (!plantName.trim()) {
+      Alert.alert('错误', '请输入植物名称');
+      return;
+    }
+
+    // Animate the form sliding down before submitting
+    Animated.timing(slideAnim, {
+      toValue: Dimensions.get('window').height,
+      duration: 300,
+      useNativeDriver: true
+    }).start(() =>
+    {
+      // Pass the form data back to the parent component
+      onSubmit({
+        plantName,
+        scientificName: scientificName || plantName,
+        category: selectedCategory?.name || '未分类',
+        image: plantImage || 'https://via.placeholder.com/150'
+      });
+    });
+  };
+
+  const backgroundColor = themeMode === 'light' ? 'rgba(255, 255, 255, 0.98)' : 'rgba(43, 50, 65, 0.98)';
+  const blurIntensity = themeMode === 'light' ? 50 : 80;
+  const tintColor = themeMode === 'light' ? 'rgba(255, 255, 255, 0.9)' : 'rgba(30, 30, 40, 0.9)';
+
+  return (
+    <View style={styles.formOverlay}>
+      {/* Blur background */}
+      <BlurView
+        intensity={blurIntensity}
+        tint={themeMode === 'light' ? 'light' : 'dark'}
+        style={StyleSheet.absoluteFill}
+      />
+
+      <TouchableOpacity
+        style={StyleSheet.absoluteFill}
+        activeOpacity={1}
+        onPress={handleCancel}
+      />
+
+      <Animated.View
+        style={[
+          styles.animatedFormContainer,
+          { transform: [{ translateY: slideAnim }] }
+        ]}
+      >
+        <ScrollView
+          style={[styles.formContainer, { backgroundColor }]}
+          contentContainerStyle={styles.formContentContainer}
+        >
+          <View style={styles.formHeader}>
+            <Text category="h5" style={styles.formTitle}>
+              {editingPlant ? '编辑植物' : '添加植物'}
+            </Text>
+          </View>
+
+          {/* Drag indicator at the top */}
+          <View style={styles.dragIndicator} />
+
+          {/* Image Picker */}
+          <View style={styles.imagePickerContainer}>
+            {plantImage ? (
+              <TouchableOpacity
+                onPress={() =>
+                {
+                  setSelectedImage(plantImage);
+                  setShowImageViewer(true);
+                }}
+              >
+                <Image
+                  source={{ uri: plantImage }}
+                  style={styles.plantImagePreview}
+                  resizeMode="cover"
+                />
+                <View style={styles.imageOverlay}>
+                  <Icon name="edit-2-outline" fill="#FFFFFF" width={24} height={24} />
+                </View>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                style={styles.addImageButton}
+                onPress={showImageOptions}
+                disabled={imageLoading}
+              >
+                {imageLoading ? (
+                  <Spinner size="medium" />
+                ) : (
+                  <>
+                    <Icon name="camera-outline" fill="#8F9BB3" width={32} height={32} />
+                    <Text category="c1" style={{ marginTop: 8, textAlign: 'center' }}>
+                      添加图片
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            )}
+          </View>
+
+          <Input
+            placeholder="植物名称"
+            value={plantName}
+            onChangeText={text =>
+            {
+              setPlantName(text);
+              if (!scientificName) {
+                setScientificName(text);
+              }
+            }}
+            style={styles.input}
+          />
+
+          <Input
+            placeholder="植物学名"
+            value={scientificName}
+            onChangeText={setScientificName}
+            style={styles.input}
+          />
+
+          <Select
+            placeholder="选择类别"
+            value={selectedCategory?.name}
+            selectedIndex={selectedIndex}
+            onSelect={(index) =>
+            {
+              setSelectedIndex(index as IndexPath);
+              if ((index as IndexPath).row !== undefined) {
+                setSelectedCategory(categories[(index as IndexPath).row]);
+              }
+            }}
+            style={styles.input}
+          >
+            {categories.map(category => (
+              <SelectItem key={category.id} title={category.name} />
+            ))}
+          </Select>
+
+          <Button onPress={handleSubmitWithAnimation} style={styles.submitButton}>
+            {editingPlant ? '保存' : '添加'}
+          </Button>
+
+          <Button appearance="outline" status="basic" onPress={handleCancel} style={styles.cancelButton}>
+            取消
+          </Button>
+
+          {/* Image Viewer */}
+          <ImageViewer
+            visible={showImageViewer}
+            imageUri={selectedImage}
+            onClose={() => setShowImageViewer(false)}
+          />
+        </ScrollView>
+      </Animated.View>
+    </View>
+  );
+};
+
 type PlantItem = {
   id: string;
   name: string;
@@ -123,23 +438,13 @@ const PlantsPage = () =>
 {
   const [plants, setPlants] = React.useState<PlantItem[]>([]);
   const [categories, setCategories] = React.useState<{ id: string; name: string }[]>([]);
-  const [visible, setVisible] = React.useState(false);
+  const [showForm, setShowForm] = React.useState(false); // Replace visible modal state
   const [editingPlant, setEditingPlant] = React.useState<PlantItem | null>(null);
   const [editMode, setEditMode] = React.useState(false);
   const [selectedPlants, setSelectedPlants] = React.useState<string[]>([]);
   const [isAllSelected, setIsAllSelected] = React.useState(false);
   const { themeMode } = useTheme();
-
-  // New plant form state
-  const [plantName, setPlantName] = React.useState('');
-  const [scientificName, setScientificName] = React.useState('');
-  const [selectedCategory, setSelectedCategory] = React.useState<any>(null);
-  const [selectedIndex, setSelectedIndex] = React.useState<IndexPath>();
   const [newCategory, setNewCategory] = React.useState('');
-
-  // Image handling state
-  const [plantImage, setPlantImage] = React.useState('');
-  const [imageLoading, setImageLoading] = React.useState(false);
   const [selectedImage, setSelectedImage] = React.useState('');
   const [showImageViewer, setShowImageViewer] = React.useState(false);
 
@@ -214,12 +519,7 @@ const PlantsPage = () =>
 
   const resetForm = () =>
   {
-    setPlantName('');
-    setScientificName('');
-    setSelectedCategory(null);
-    setSelectedIndex(undefined);
     setEditingPlant(null);
-    setPlantImage('');
   };
 
   const toggleEditMode = () =>
@@ -344,19 +644,14 @@ const PlantsPage = () =>
     );
   };
 
-  const handleAddPlant = () =>
+  const handleAddPlant = (formData: any) =>
   {
-    if (!plantName.trim()) {
-      Alert.alert('错误', '请输入植物名称');
-      return;
-    }
-
     const newPlant: PlantItem = {
       id: generateId(),
-      name: plantName,
-      scientificName: scientificName || plantName,
-      category: selectedCategory?.name || '未分类',
-      image: plantImage || 'https://via.placeholder.com/150', // Use the selected image or a placeholder
+      name: formData.plantName,
+      scientificName: formData.scientificName,
+      category: formData.category,
+      image: formData.image,
       isDead: false,
       lastAction: { type: '添加', date: new Date() },
       nextAction: { type: '浇水', date: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000) },
@@ -369,11 +664,11 @@ const PlantsPage = () =>
       // Update in database
       const plantToUpdate: Plant = {
         id: editingPlant.id,
-        name: plantName,
-        type: selectedCategory?.name || '未分类',
-        scientificName: scientificName || plantName,
+        name: formData.plantName,
+        type: formData.category,
+        scientificName: formData.scientificName,
         remark: '',
-        img: plantImage || editingPlant.image, // Use new image or keep existing
+        img: formData.image,
         isDead: false
       };
 
@@ -388,11 +683,11 @@ const PlantsPage = () =>
       // Add to database
       const plantToAdd: Plant = {
         id: newPlant.id,
-        name: plantName,
-        type: selectedCategory?.name || '未分类',
-        scientificName: scientificName || plantName,
+        name: formData.plantName,
+        type: formData.category,
+        scientificName: formData.scientificName,
         remark: '',
-        img: plantImage || 'https://via.placeholder.com/150',
+        img: formData.image,
         isDead: false
       };
 
@@ -403,7 +698,7 @@ const PlantsPage = () =>
       });
     }
 
-    setVisible(false);
+    setShowForm(false);
     resetForm();
   };
 
@@ -473,17 +768,7 @@ const PlantsPage = () =>
   const handleEditPlant = (plant: PlantItem) =>
   {
     setEditingPlant(plant);
-    setPlantName(plant.name);
-    setScientificName(plant.scientificName);
-    setPlantImage(plant.image);
-
-    const categoryIndex = categories.findIndex(c => c.name === plant.category);
-    if (categoryIndex !== -1) {
-      setSelectedCategory(categories[categoryIndex]);
-      setSelectedIndex(new IndexPath(categoryIndex));
-    }
-
-    setVisible(true);
+    setShowForm(true);
   };
 
   const handleAddCategory = () =>
@@ -499,206 +784,8 @@ const PlantsPage = () =>
     };
 
     setCategories([...categories, newCategoryObj]);
-    setSelectedCategory(newCategoryObj);
     setNewCategory('');
   };
-
-  // Image picking function
-  const pickImage = async () =>
-  {
-    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permissionResult.granted) {
-      Alert.alert("需要权限", "需要访问相册权限才能选择图片");
-      return;
-    }
-
-    try {
-      setImageLoading(true);
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.8,
-      });
-
-      if (!result.canceled && result.assets && result.assets.length > 0) {
-        // Save the image using FileManager and get the stored URL
-        const imageUri = result.assets[0].uri;
-        const savedImageUrl = await fileManager.saveImage(imageUri);
-        setPlantImage(savedImageUrl);
-      }
-    } catch (error) {
-      console.error("Error saving image:", error);
-      Alert.alert("错误", "保存图片失败，请重试");
-    } finally {
-      setImageLoading(false);
-    }
-  };
-
-  // Camera function
-  const takePhoto = async () =>
-  {
-    const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
-    if (!permissionResult.granted) {
-      Alert.alert("需要权限", "需要访问相机权限才能拍照");
-      return;
-    }
-
-    try {
-      setImageLoading(true);
-      const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.8,
-      });
-
-      if (!result.canceled && result.assets && result.assets.length > 0) {
-        // Save the image using FileManager and get the stored URL
-        const imageUri = result.assets[0].uri;
-        const savedImageUrl = await fileManager.saveImage(imageUri);
-        setPlantImage(savedImageUrl);
-      }
-    } catch (error) {
-      console.error("Error taking photo:", error);
-      Alert.alert("错误", "拍照失败，请重试");
-    } finally {
-      setImageLoading(false);
-    }
-  };
-
-  // Show image action sheet
-  const showImageOptions = () =>
-  {
-    Alert.alert(
-      "选择图片来源",
-      "请选择图片来源",
-      [
-        { text: "取消", style: "cancel" },
-        { text: "相册", onPress: () => pickImage() },
-        { text: "相机", onPress: () => takePhoto() }
-      ]
-    );
-  };
-
-  const renderAddEditModal = () => (
-    <Modal
-      visible={visible}
-      backdropStyle={styles.backdrop}
-      onBackdropPress={() =>
-      {
-        resetForm();
-        setVisible(false);
-      }}
-    >
-      <Card
-        style={[
-          styles.modalCard,
-          { backgroundColor: themeMode === 'light' ? 'rgba(255, 255, 255, 0.98)' : 'rgba(43, 50, 65, 0.98)' }
-        ]}
-      >
-        <Text category="h6" style={styles.modalTitle}>
-          {editingPlant ? '编辑植物' : '添加植物'}
-        </Text>
-
-        {/* Image Picker */}
-        <View style={styles.imagePickerContainer}>
-          {plantImage ? (
-            <TouchableOpacity
-              onPress={() =>
-              {
-                setSelectedImage(plantImage);
-                setShowImageViewer(true);
-              }}
-            >
-              <Image
-                source={{ uri: plantImage }}
-                style={styles.plantImagePreview}
-                resizeMode="cover"
-              />
-              <View style={styles.imageOverlay}>
-                <Icon name="edit-2-outline" fill="#FFFFFF" width={24} height={24} />
-              </View>
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity
-              style={styles.addImageButton}
-              onPress={showImageOptions}
-              disabled={imageLoading}
-            >
-              {imageLoading ? (
-                <Spinner size="medium" />
-              ) : (
-                <>
-                  <Icon name="camera-outline" fill="#8F9BB3" width={32} height={32} />
-                  <Text category="c1" style={{ marginTop: 8, textAlign: 'center' }}>
-                    添加图片
-                  </Text>
-                </>
-              )}
-            </TouchableOpacity>
-          )}
-        </View>
-
-        <Input
-          placeholder="植物名称"
-          value={plantName}
-          onChangeText={text =>
-          {
-            setPlantName(text);
-            if (!scientificName) {
-              setScientificName(text);
-            }
-          }}
-          style={styles.input}
-        />
-        <Input
-          placeholder="植物学名"
-          value={scientificName}
-          onChangeText={setScientificName}
-          style={styles.input}
-        />
-        <Select
-          placeholder="选择类别"
-          value={selectedCategory?.name}
-          selectedIndex={selectedIndex}
-          onSelect={(index) =>
-          {
-            setSelectedIndex(index as IndexPath);
-            if ((index as IndexPath).row !== undefined) {
-              setSelectedCategory(categories[(index as IndexPath).row]);
-            }
-          }}
-          style={styles.input}>
-          {categories.map(category => (
-            <SelectItem key={category.id} title={category.name} />
-          ))}
-        </Select>
-        <Button onPress={handleAddPlant}>
-          {editingPlant ? '保存' : '添加'}
-        </Button>
-
-        {/* Image Viewer */}
-        <ImageViewer
-          visible={showImageViewer}
-          imageUri={selectedImage}
-          onClose={() => setShowImageViewer(false)}
-        />
-      </Card>
-    </Modal>
-  );
-
-  const renderEmptyState = () => (
-    <Layout style={styles.emptyContainer}>
-      <FlowerIcon width={100} height={100} />
-      <Text category="h5" style={[styles.emptyText, { color: themeMode === 'light' ? '#2C3E50' : '#E4E9F2' }]}>
-        您的花园还是空的
-      </Text>
-      <Text category="p1" style={[styles.emptyText, { color: themeMode === 'light' ? '#2C3E50' : '#E4E9F2', marginTop: 8 }]}>
-        点击添加您的第一株植物吧！
-      </Text>
-    </Layout>
-  );
 
   // Render each plant item
   const renderItem = ({ item }: { item: PlantItem }) =>
@@ -789,6 +876,18 @@ const PlantsPage = () =>
     );
   };
 
+  const renderEmptyState = () => (
+    <Layout style={styles.emptyContainer}>
+      <FlowerIcon width={100} height={100} />
+      <Text category="h5" style={[styles.emptyText, { color: themeMode === 'light' ? '#2C3E50' : '#E4E9F2' }]}>
+        您的花园还是空的
+      </Text>
+      <Text category="p1" style={[styles.emptyText, { color: themeMode === 'light' ? '#2C3E50' : '#E4E9F2', marginTop: 8 }]}>
+        点击添加您的第一株植物吧！
+      </Text>
+    </Layout>
+  );
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <LinearGradient
@@ -831,7 +930,7 @@ const PlantsPage = () =>
                 onPress={() =>
                 {
                   resetForm();
-                  setVisible(true);
+                  setShowForm(true);
                 }}
               >
                 <PlusIcon fill="#3366FF" width={24} height={24} />
@@ -859,6 +958,7 @@ const PlantsPage = () =>
           </Layout>
         )}
 
+        {/* Always render the plant list, and overlay the edit form when needed */}
         {plants.length > 0 ? (
           <Layout style={[styles.contentContainer, { backgroundColor: 'transparent' }]}>
             <FlatList
@@ -875,7 +975,7 @@ const PlantsPage = () =>
             onPress={() =>
             {
               resetForm();
-              setVisible(true);
+              setShowForm(true);
             }}
             activeOpacity={0.7}
           >
@@ -883,8 +983,28 @@ const PlantsPage = () =>
           </TouchableOpacity>
         )}
 
+        {/* Render the form overlay only when showForm is true */}
+        {showForm && (
+          <PlantEditForm
+            editingPlant={editingPlant}
+            categories={categories}
+            themeMode={themeMode}
+            onSubmit={handleAddPlant}
+            onCancel={() =>
+            {
+              setShowForm(false);
+              resetForm();
+            }}
+          />
+        )}
       </LinearGradient>
-      {renderAddEditModal()}
+
+      {/* Image viewer can be kept outside */}
+      <ImageViewer
+        visible={showImageViewer}
+        imageUri={selectedImage}
+        onClose={() => setShowImageViewer(false)}
+      />
     </GestureHandlerRootView>
   );
 };
@@ -1124,6 +1244,57 @@ const styles = StyleSheet.create({
   },
   checkbox: {
     marginRight: 8,
+  },
+  formOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 9,
+    justifyContent: 'flex-end',
+  },
+  animatedFormContainer: {
+    maxHeight: '90%',
+    width: '100%',
+  },
+  formContainer: {
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+  formContentContainer: {
+    padding: 24,
+    paddingBottom: 40,
+  },
+  formHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  formTitle: {
+    textAlign: 'center',
+    flex: 1,
+  },
+  dragIndicator: {
+    width: 40,
+    height: 5,
+    backgroundColor: 'rgba(150, 150, 150, 0.3)',
+    alignSelf: 'center',
+    borderRadius: 5,
+    marginBottom: 20,
+    marginTop: -10,
+  },
+  submitButton: {
+    marginBottom: 12,
+  },
+  cancelButton: {
+    marginBottom: 20,
   },
 });
 

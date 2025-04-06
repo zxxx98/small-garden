@@ -1,6 +1,5 @@
 import { Database, DatabaseAdapter } from '@nozbe/watermelondb';
 import LokiJSAdapter from '@nozbe/watermelondb/adapters/lokijs'; // Web adapter
-import SQLiteAdapter from '@nozbe/watermelondb/adapters/sqlite'; // Mobile adapter
 import { Platform, NativeModules } from 'react-native';
 import { schema } from './schema';
 import { Plant } from './Plant';
@@ -25,6 +24,7 @@ const asyncLoadSqliteAdapter = async () =>
         const jsiEnabled = false;
         console.log("JSI enabled:", jsiEnabled);
 
+        const SQLiteAdapter = require('@nozbe/watermelondb/adapters/sqlite');
         return new SQLiteAdapter({
             schema,
             migrations,
@@ -62,16 +62,7 @@ export const DatabaseInstance = {
                 } else {
                     try {
                         console.log("Attempting to use SQLite adapter for mobile");
-                        adapter = new SQLiteAdapter({
-                            schema,
-                            migrations,
-                            dbName: 'small_garden',
-                            jsi: false,
-                            onSetUpError: (error: any) =>
-                            {
-                                console.error('Failed to setup database:', error);
-                            }
-                        });
+                        adapter = await asyncLoadSqliteAdapter();
                     } catch (adapterError) {
                         console.log("SQLite adapter not available, this is expected when using Expo Go.");
                         console.log("To use SQLite (better performance), create a development build with: npx expo run:android");

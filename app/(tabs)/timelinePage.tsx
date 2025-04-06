@@ -243,8 +243,12 @@ const TimelinePage = () =>
 
     const renderCustomIcon = (data: Action) =>
     {
-        const iconData = getIconAndColor(data.name);
-        return <Icon name={iconData.iconName} style={styles.customIcon} fill={iconData.color} pack={iconData.pack} />
+        const [iconData, setIconData] = React.useState<React.ReactNode>(null);
+        React.useEffect(() =>
+        {
+            getIconAndColor(data.name).then(setIconData);
+        }, [data.name]);
+        return iconData;
     }
 
     const onCalendarSelect = (range: CalendarRange<Date>) =>

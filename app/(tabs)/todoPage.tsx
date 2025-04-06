@@ -301,7 +301,11 @@ const RenderTodoItem = ({ item, onPress }: { item: Action, onPress: () => void }
         PlantManager.getPlant(item.plantId).then(setPlant);
     }, [item.plantId]);
 
-    const iconData = getIconAndColor(item.name);
+    const [iconData, setIconData] = React.useState<React.ReactNode>(null);
+    React.useEffect(() =>
+    {
+        getIconAndColor(item.name).then(setIconData);
+    }, [item.name]);
     const cardStyle = [
         styles.todoItem,
         { backgroundColor: themeMode === 'light' ? '#FFFFFF' : '#2E3A59' }
@@ -320,12 +324,7 @@ const RenderTodoItem = ({ item, onPress }: { item: Action, onPress: () => void }
             <Card style={cardStyle} onPress={onPress}>
                 <View style={styles.todoItemContent}>
                     <View style={iconContainerStyle}>
-                        <Icon
-                            name={iconData.iconName}
-                            style={styles.taskIcon}
-                            fill={iconData.color}
-                            pack={iconData.pack}
-                        />
+                        {iconData}
                     </View>
                     <View style={styles.taskInfo}>
                         <Text category="h6" style={styles.plantName}>
@@ -523,10 +522,6 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
         marginRight: 16,
-    },
-    taskIcon: {
-        width: 24,
-        height: 24,
     },
     taskInfo: {
         flex: 1,
