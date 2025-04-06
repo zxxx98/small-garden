@@ -14,6 +14,48 @@ import { Facebook } from 'react-content-loader/native';
 import { Ionicons, MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
 
+// Create a separate TimelineContent component to handle plant loading
+const TimelineContent = React.memo(({ data, onContentClick }: {
+    data: Action,
+    onContentClick: (action: Action, plant: Plant) => void
+}) =>
+{
+    const [plant, setPlant] = React.useState<Plant | null>(null);
+
+    React.useEffect(() =>
+    {
+        PlantManager.getPlant(data.plantId).then((plant) =>
+        {
+            setPlant(plant);
+        });
+    }, [data.plantId]);
+
+    return (
+        <Card style={styles.customContent} onPress={() =>
+        {
+            if (plant) {
+                onContentClick(data, plant);
+            }
+        }}>
+            {plant ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', minHeight: 90, flex: 1 }}>
+                    <Image
+                        source={{ uri: plant.img }}
+                        style={{ width: 76, height: 76, borderRadius: 38, marginRight: 10, flexShrink: 0 }}
+                    />
+                    <View style={{ flex: 1 }}>
+                        <Text category='h6' style={styles.contentText} numberOfLines={1}>{plant?.name}</Text>
+                        <Text category='p1' style={styles.contentText} numberOfLines={1}>{data.name}</Text>
+                        <Text category='s1' style={styles.contentText} numberOfLines={2}>{data.remark}</Text>
+                    </View>
+                </View>
+            ) : (
+                <PlantLoader />
+            )}
+        </Card>
+    );
+});
+
 function getRangeLabel(startDate?: Date, endDate?: Date)
 {
     if (!startDate || !endDate) {
@@ -193,19 +235,21 @@ const TimelinePage = () =>
         });
     }, [curTimeRange]);
 
-    React.useEffect(() =>
-    {
-        updateTimelineData();
-    }, [curTimeRange]);
+    // Remove duplicate useEffect and just use useFocusEffect
+    useFocusEffect(
+        React.useCallback(() =>
+        {
+            updateTimelineData();
+            return () => { };
+        }, [updateTimelineData])
+    );
 
-    useFocusEffect(updateTimelineData);
-
-    const onCntentClick = (action: Action, plant: Plant) =>
+    const onCntentClick = React.useCallback((action: Action, plant: Plant) =>
     {
         setDetailInfo({ show: true, action, plant });
-    }
+    }, []);
 
-    const renderCustomTime = (data: Action) =>
+    const renderCustomTime = React.useCallback((data: Action) =>
     {
         const date = new Date(Number(data.time));
         const dayOfMonth = date.getDate(); // 获取日期（1-31）
@@ -218,47 +262,23 @@ const TimelinePage = () =>
                 <Text category='s1' style={{ color: theme['color-dark-400'], ...styles.weekText }}>{dayOfWeek}</Text>
             </View>
         );
-    };
+    }, []);
 
-    const renderCustomContent = (data: Action) =>
+    // Use the new TimelineContent component instead of inline function with hooks
+    const renderCustomContent = React.useCallback((data: Action) =>
     {
-        const [plant, setPlant] = React.useState<Plant | null>(null);
-        React.useEffect(() =>
-        {
-            PlantManager.getPlant(data.plantId).then((plant) =>
-            {
-                setPlant(plant);
-            });
-        }, [data.plantId]);
-        return <Card style={styles.customContent} onPress={() =>
-        {
-            if (plant) {
-                onCntentClick(data, plant);
-            }
-        }}>
-            {
-                plant ? <View style={{ flexDirection: 'row', alignItems: 'center', minHeight: 90, flex: 1 }}>
-                    <Image source={{ uri: plant.img }} style={{ width: 76, height: 76, borderRadius: 38, marginRight: 10, flexShrink: 0 }} />
-                    <View style={{ flex: 1 }}>
-                        <Text category='h6' style={styles.contentText} numberOfLines={1}>{plant?.name}</Text>
-                        <Text category='p1' style={styles.contentText} numberOfLines={1}>{data.name}</Text>
-                        <Text category='s1' style={styles.contentText} numberOfLines={2}>{data.remark}</Text>
-                    </View>
-                </View>
-                    :
-                    <PlantLoader></PlantLoader>
-            }
-        </Card>;
-    };
+        return <TimelineContent data={data} onContentClick={onCntentClick} />;
+    }, [onCntentClick]);
 
-    const renderCustomIcon = (data: Action) =>
+    // Define renderCustomIcon with useCallback to ensure stability
+    const renderCustomIcon = React.useCallback((data: Action) =>
     {
         return data.done ?
-            <MaterialIcons name='sentiment-very-satisfied' size={24} color={theme['color-primary-500']}></MaterialIcons>
-            : <MaterialIcons name='sentiment-neutral' size={24} color={theme['color-dark-400']}></MaterialIcons>
-    }
+            <MaterialIcons name='sentiment-very-satisfied' size={24} color={theme['color-primary-500']} />
+            : <MaterialIcons name='sentiment-neutral' size={24} color={theme['color-dark-400']} />;
+    }, []);
 
-    const onCalendarSelect = (range: CalendarRange<Date>) =>
+    const onCalendarSelect = React.useCallback((range: CalendarRange<Date>) =>
     {
         setRangeDate(range);
         if (range.startDate && range.endDate) {
@@ -268,7 +288,8 @@ const TimelinePage = () =>
             });
             setShowCalendar(false);
         }
-    }
+    }, []);
+
     return (
         <LinearGradient
             colors={themeMode === 'light'

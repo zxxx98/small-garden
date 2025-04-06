@@ -371,7 +371,6 @@ const TodoForm = ({ plants, actionTypes, onSubmit, onCancel, themeMode }: TodoFo
 {
     const [selectedPlant, setSelectedPlant] = React.useState<Plant | null>(null);
     const [selectedActionType, setSelectedActionType] = React.useState<ActionType | null>(null);
-    const [selectedPlantIndex, setSelectedPlantIndex] = React.useState<IndexPath>();
     const [selectedActionTypeIndex, setSelectedActionTypeIndex] = React.useState<IndexPath>();
     const [todoDate, setTodoDate] = React.useState(new Date());
     const [todoRemark, setTodoRemark] = React.useState('');
@@ -474,12 +473,11 @@ const TodoForm = ({ plants, actionTypes, onSubmit, onCancel, themeMode }: TodoFo
                         style={styles.input}
                         placeholder="选择植物"
                         value={selectedPlant?.name}
-                        selectedIndex={selectedPlantIndex}
                         onSelect={(index) =>
                         {
-                            setSelectedPlantIndex(index as IndexPath);
-                            if ((index as IndexPath).row !== undefined) {
-                                setSelectedPlant(plants[(index as IndexPath).row]);
+                            const idx = index as IndexPath;
+                            if (idx && idx.row !== undefined) {
+                                setSelectedPlant(plants[idx.row]);
                             }
                         }}
                     >
@@ -496,9 +494,14 @@ const TodoForm = ({ plants, actionTypes, onSubmit, onCancel, themeMode }: TodoFo
                         selectedIndex={selectedActionTypeIndex}
                         onSelect={(index) =>
                         {
-                            setSelectedActionTypeIndex(index as IndexPath);
-                            if ((index as IndexPath).row !== undefined) {
-                                setSelectedActionType(actionTypes[(index as IndexPath).row]);
+                            const idx = index as IndexPath;
+                            if (idx && idx.row !== undefined) {
+                                // Use a timeout to defer the state update outside of render cycle
+                                setTimeout(() =>
+                                {
+                                    setSelectedActionTypeIndex(idx);
+                                    setSelectedActionType(actionTypes[idx.row]);
+                                }, 0);
                             }
                         }}
                     >
