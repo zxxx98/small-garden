@@ -124,7 +124,6 @@ const PlantsPage = () =>
   const [plants, setPlants] = React.useState<PlantItem[]>([]);
   const [categories, setCategories] = React.useState<{ id: string; name: string }[]>([]);
   const [visible, setVisible] = React.useState(false);
-  const [addCategoryVisible, setAddCategoryVisible] = React.useState(false);
   const [editingPlant, setEditingPlant] = React.useState<PlantItem | null>(null);
   const [editMode, setEditMode] = React.useState(false);
   const [selectedPlants, setSelectedPlants] = React.useState<string[]>([]);
@@ -502,7 +501,6 @@ const PlantsPage = () =>
     setCategories([...categories, newCategoryObj]);
     setSelectedCategory(newCategoryObj);
     setNewCategory('');
-    setAddCategoryVisible(false);
   };
 
   // Image picking function
@@ -582,30 +580,6 @@ const PlantsPage = () =>
       ]
     );
   };
-
-  const renderAddCategoryModal = () => (
-    <Modal
-      visible={addCategoryVisible}
-      backdropStyle={styles.backdrop}
-      onBackdropPress={() => setAddCategoryVisible(false)}
-    >
-      <Card
-        style={[
-          styles.modalCard,
-          { backgroundColor: themeMode === 'light' ? 'rgba(255, 255, 255, 0.98)' : 'rgba(43, 50, 65, 0.98)' }
-        ]}
-      >
-        <Text category="h6" style={styles.modalTitle}>添加新类别</Text>
-        <Input
-          placeholder="输入类别名称"
-          value={newCategory}
-          onChangeText={setNewCategory}
-          style={styles.input}
-        />
-        <Button onPress={handleAddCategory}>添加</Button>
-      </Card>
-    </Modal>
-  );
 
   const renderAddEditModal = () => (
     <Modal
@@ -700,13 +674,6 @@ const PlantsPage = () =>
             <SelectItem key={category.id} title={category.name} />
           ))}
         </Select>
-        <Button
-          appearance="ghost"
-          status="basic"
-          style={styles.addCategoryButton}
-          onPress={() => setAddCategoryVisible(true)}>
-          + 添加新类别
-        </Button>
         <Button onPress={handleAddPlant}>
           {editingPlant ? '保存' : '添加'}
         </Button>
@@ -918,7 +885,6 @@ const PlantsPage = () =>
 
       </LinearGradient>
       {renderAddEditModal()}
-      {renderAddCategoryModal()}
     </GestureHandlerRootView>
   );
 };
