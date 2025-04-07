@@ -85,7 +85,6 @@ export class ActionManager
             return mockActions;
         }
         const records = await database.get<WatermelonAction>('actions').query().fetch();
-        console.log(records);
         return records.map(record => record.toJSON() as Action);
     }
 

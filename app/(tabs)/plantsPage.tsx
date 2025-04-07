@@ -294,11 +294,7 @@ const PlantEditForm = ({
           <View style={styles.imagePickerContainer}>
             {plantImage ? (
               <TouchableOpacity
-                onPress={() =>
-                {
-                  setSelectedImage(plantImage);
-                  setShowImageViewer(true);
-                }}
+                onPress={showImageOptions}
               >
                 <Image
                   source={{ uri: plantImage }}

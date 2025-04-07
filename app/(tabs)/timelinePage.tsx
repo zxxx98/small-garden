@@ -27,7 +27,6 @@ const TimelineContent = React.memo(({ data, onContentClick }: {
             setPlant(plant);
         });
     }, [data.plantId]);
-
     return (
         <Card style={styles.customContent} onPress={() =>
         {

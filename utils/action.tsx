@@ -35,7 +35,6 @@ export function getActionIcon(actionName: string, size: number = 24, color?: str
     }
     // Find matching action type
     const actionType = actionTypesCache.find(type => type.name === actionName);
-    console.log(actionType);
     if (actionType) {
         if (actionType.useCustomImage) {
             return <Image source={{ uri: actionType.iconImage }} style={{ width: size, height: size }} />;
@@ -48,7 +47,6 @@ export function getActionIcon(actionName: string, size: number = 24, color?: str
             case "feather":
                 return <Feather name={actionType.iconName as any} size={size} color={color ?? actionType.color} />;
             default:
-                console.log("actionType.iconName: ", actionType.iconName);
                 return <Icon name={actionType.iconName} size={size} fill={color ?? actionType.color} pack={actionType.pack} />;
         }
     }
