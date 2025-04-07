@@ -11,6 +11,7 @@ import { ActionManager } from '@/models/ActionManager';
 import { useTheme } from '../../theme/themeContext';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
+import { getActionIcon } from '@/utils/action';
 
 // Create a separate TimelineContent component to handle plant loading
 const TimelineContent = React.memo(({ data, onContentClick }: {
@@ -41,10 +42,13 @@ const TimelineContent = React.memo(({ data, onContentClick }: {
                             source={{ uri: plant.img }}
                             style={{ width: 76, height: 76, borderRadius: 38, marginRight: 10, flexShrink: 0 }}
                         />
-                        <View style={{ flex: 1 }}>
-                            <Text category='h6' style={styles.contentText} numberOfLines={1}>{plant?.name}</Text>
-                            <Text category='p1' style={styles.contentText} numberOfLines={1}>{data.name}</Text>
-                            <Text category='s1' style={styles.contentText} numberOfLines={2}>{data.remark}</Text>
+                        <View style={{ flex: 1, paddingLeft: 10, paddingTop: 10 }}>
+                            <Text category='p1' style={styles.contentText} numberOfLines={1}>🌱 {plant?.name}</Text>
+                            {/* <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                {getActionIcon(data.name)}
+                            </View> */}
+                            <Text category='p1' style={styles.contentText} numberOfLines={1}>🙌 {data.name}</Text>
+                            <Text category='p1' style={styles.contentText} numberOfLines={2}>{data.remark ? `🎉 ${data.remark}` : ""}</Text>
                         </View>
                     </View>
                 ) : (
@@ -360,6 +364,7 @@ const styles = StyleSheet.create({
     content: {
         flex: 1,
         backgroundColor: 'transparent',
+        paddingTop: 10
     },
     backdrop: {
         backgroundColor: 'rgba(0, 0, 0, 0.4)',
@@ -422,7 +427,6 @@ const styles = StyleSheet.create({
     },
     contentText: {
         fontSize: 14,
-        lineHeight: 20,
         marginBottom: 4,
     },
     customIcon: {

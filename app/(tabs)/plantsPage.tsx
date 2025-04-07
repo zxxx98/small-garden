@@ -14,6 +14,7 @@ import { useTheme } from '../../theme/themeContext';
 import * as ImagePicker from 'expo-image-picker';
 import { fileManager } from '@/models/FileManager';
 import { useFocusEffect } from 'expo-router';
+import { theme } from '@/theme/theme';
 
 // Define interface for ImageViewer props
 interface ImageViewerProps
@@ -396,10 +397,10 @@ type PlantItem = {
   selected?: boolean; // For multi-select mode
 }
 
-const PlusIcon = (props: IconProps) => <Icon {...props} name="plus-outline" />;
+const PlusIcon = (props: IconProps) => <Icon fill={theme['color-primary-500']} {...props} name="plus-outline" />;
 const DeleteIcon = (props: IconProps) => <Icon {...props} name="trash-2-outline" fill="#FF3D71" width={24} height={24} />;
 const CemeteryIcon = (props: IconProps) => <Icon {...props} name="alert-triangle-outline" fill="#FFAA00" width={24} height={24} />;
-const EditIcon = (props: IconProps) => <Icon {...props} name="edit-outline" fill="#3366FF" width={24} height={24} />;
+const EditIcon = (props: IconProps) => <Icon {...props} name="edit-outline" fill={theme['color-primary-500']} width={24} height={24} />;
 const CloseIcon = (props: IconProps) => <Icon {...props} name="close-outline" fill="#8F9BB3" width={24} height={24} />;
 
 // Calculate days ago/from now
@@ -926,7 +927,7 @@ const PlantsPage = () =>
                 style={styles.iconButton}
                 onPress={toggleEditMode}
               >
-                <EditIcon fill="#3366FF" width={24} height={24} />
+                <EditIcon width={24} height={24} />
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.iconButton}
@@ -936,7 +937,7 @@ const PlantsPage = () =>
                   setShowForm(true);
                 }}
               >
-                <PlusIcon fill="#3366FF" width={24} height={24} />
+                <PlusIcon width={24} height={24} />
               </TouchableOpacity>
             </Layout>
           )}

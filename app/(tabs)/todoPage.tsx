@@ -553,6 +553,8 @@ const TodoForm = ({ plants, actionTypes, onSubmit, onCancel, themeMode }: TodoFo
 const TodoPage = () =>
 {
     const [todoItems, setTodoItems] = React.useState<Action[]>([]);
+    const [todayTasks, setTodayTasks] = React.useState<Action[]>([]);
+    const [futureTasks, setFutureTasks] = React.useState<Action[]>([]);
     const [loading, setLoading] = React.useState(true);
     const [selectedTask, setSelectedTask] = React.useState<{ action: Action, plant: Plant } | null>(null);
     const [showDetail, setShowDetail] = React.useState(false);
@@ -571,13 +573,49 @@ const TodoPage = () =>
 
     useFocusEffect(loadData);
 
+    // 分离今日待办和未来待办
+    const separateTodoItems = (actions: Action[]) =>
+    {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+
+        const todayItems: Action[] = [];
+        const futureItems: Action[] = [];
+
+        actions.forEach(action =>
+        {
+            const actionDate = new Date(Number(action.time));
+            actionDate.setHours(0, 0, 0, 0);
+
+            if (actionDate.getTime() < tomorrow.getTime()) {
+                todayItems.push(action);
+            } else {
+                futureItems.push(action);
+            }
+        });
+
+        // 按时间排序
+        todayItems.sort((a, b) => Number(a.time) - Number(b.time));
+        futureItems.sort((a, b) => Number(a.time) - Number(b.time));
+
+        return { todayItems, futureItems };
+    };
+
     const loadTodoItems = async () =>
     {
         setLoading(true);
         try {
             const actions = await ActionManager.getAllActions();
             const pendingActions = actions.filter(action => !action.done);
+
+            // 将待办分为今日和未来
+            const { todayItems, futureItems } = separateTodoItems(pendingActions);
+
             setTodoItems(pendingActions);
+            setTodayTasks(todayItems);
+            setFutureTasks(futureItems);
         } catch (error) {
             console.error("Error loading todo items:", error);
         } finally {
@@ -606,6 +644,8 @@ const TodoPage = () =>
             await ActionManager.deleteAction(id);
             // Update the local state to remove the deleted item
             setTodoItems(prev => prev.filter(item => item.id !== id));
+            setTodayTasks(prev => prev.filter(item => item.id !== id));
+            setFutureTasks(prev => prev.filter(item => item.id !== id));
         } catch (error) {
             console.error("Error deleting task:", error);
             Alert.alert("错误", "删除失败，请重试");
@@ -618,6 +658,8 @@ const TodoPage = () =>
             await ActionManager.updateAction(updatedAction);
             // Remove from todo list since it's now completed
             setTodoItems(prev => prev.filter(item => item.id !== updatedAction.id));
+            setTodayTasks(prev => prev.filter(item => item.id !== updatedAction.id));
+            setFutureTasks(prev => prev.filter(item => item.id !== updatedAction.id));
         } catch (error) {
             console.error("Error completing task:", error);
             throw error; // Let the calling component handle the error
@@ -676,6 +718,13 @@ const TodoPage = () =>
         }
     };
 
+    // 渲染分区标题
+    const renderSectionHeader = (title: string) => (
+        <View style={styles.sectionHeader}>
+            <Text category="h6" style={styles.sectionTitle}>{title}</Text>
+        </View>
+    );
+
     return (
         <LinearGradient
             colors={themeMode === 'light'
@@ -703,18 +752,33 @@ const TodoPage = () =>
                         <Text category='s1' style={styles.loadingText}>加载中...</Text>
                     </View>
                 ) : todoItems.length > 0 ? (
-                    <FlatList
-                        data={todoItems}
-                        renderItem={(prop) =>
-                        {
-                            return <RenderTodoItem onPress={() =>
-                            {
-                                handleTaskPress(prop.item);
-                            }} {...prop} />
-                        }}
-                        keyExtractor={(item) => item.id.toString()}
-                        contentContainerStyle={styles.listContainer}
-                    />
+                    <ScrollView contentContainerStyle={styles.listContainer}>
+                        {todayTasks.length > 0 && (
+                            <>
+                                {renderSectionHeader('今日待办')}
+                                {todayTasks.map(item => (
+                                    <RenderTodoItem
+                                        key={item.id.toString()}
+                                        item={item}
+                                        onPress={() => handleTaskPress(item)}
+                                    />
+                                ))}
+                            </>
+                        )}
+
+                        {futureTasks.length > 0 && (
+                            <>
+                                {renderSectionHeader('未来待办')}
+                                {futureTasks.map(item => (
+                                    <RenderTodoItem
+                                        key={item.id.toString()}
+                                        item={item}
+                                        onPress={() => handleTaskPress(item)}
+                                    />
+                                ))}
+                            </>
+                        )}
+                    </ScrollView>
                 ) : (
                     <TouchableOpacity
                         style={styles.emptyContainer}
@@ -913,8 +977,8 @@ const styles = StyleSheet.create({
         marginBottom: 8,
     },
     addImageButton: {
-        width: 80,
-        height: 80,
+        width: 40,
+        height: 40,
         borderRadius: 8,
         borderWidth: 1,
         borderColor: theme['color-basic-400'],
@@ -1072,6 +1136,16 @@ const styles = StyleSheet.create({
     },
     loadingText: {
         marginTop: 16,
+    },
+    sectionHeader: {
+        paddingVertical: 10,
+        paddingHorizontal: 6,
+        marginBottom: 8,
+        borderBottomWidth: 1,
+        borderBottomColor: 'rgba(143, 155, 179, 0.2)',
+    },
+    sectionTitle: {
+        color: theme['color-primary-500'],
     },
 });
 
