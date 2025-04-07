@@ -24,6 +24,7 @@ export const theme = {
     'color-dark-200': '#F9F8F8',
     'color-dark-300': '#EFEDED',
     'color-dark-400': '#DFDDDD',
+    'color-dark-500': '#CFCFCF',
     'color-purple-100': '#F1DBFE',
     'color-purple-200': '#E0B7FE',
     'color-purple-300': '#CB93FC',

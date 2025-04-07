@@ -15,7 +15,7 @@ interface TabDataItem
 // 标签数据
 const tabData: TabDataItem[] = [
     { name: 'timelinePage', title: '时间线', iconName: 'clock-outline' },
-    { name: 'todoPage', title: '今日待办', iconName: 'list-outline' },
+    { name: 'todoPage', title: '待办', iconName: 'list-outline' },
     { name: 'plantsPage', title: '花园', iconName: 'flower-outline', iconPack: 'ionicons' },
     { name: 'settingsPage', title: '设置', iconName: 'settings-2-outline' }
 ];

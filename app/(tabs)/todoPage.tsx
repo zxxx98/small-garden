@@ -684,7 +684,7 @@ const TodoPage = () =>
             style={styles.container}
         >
             <Layout style={styles.header}>
-                <Text category="h1">今日待办</Text>
+                <Text category="h1">待办</Text>
                 <TouchableOpacity
                     style={styles.iconButton}
                     onPress={() => setShowAddTodo(true)}

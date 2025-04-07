@@ -28,28 +28,41 @@ const TimelineContent = React.memo(({ data, onContentClick }: {
         });
     }, [data.plantId]);
     return (
-        <Card style={styles.customContent} onPress={() =>
-        {
-            if (plant) {
-                onContentClick(data, plant);
-            }
-        }}>
-            {plant ? (
-                <View style={{ flexDirection: 'row', alignItems: 'center', minHeight: 90, flex: 1 }}>
-                    <Image
-                        source={{ uri: plant.img }}
-                        style={{ width: 76, height: 76, borderRadius: 38, marginRight: 10, flexShrink: 0 }}
-                    />
-                    <View style={{ flex: 1 }}>
-                        <Text category='h6' style={styles.contentText} numberOfLines={1}>{plant?.name}</Text>
-                        <Text category='p1' style={styles.contentText} numberOfLines={1}>{data.name}</Text>
-                        <Text category='s1' style={styles.contentText} numberOfLines={2}>{data.remark}</Text>
+        <View>
+            <Card style={styles.customContent} onPress={() =>
+            {
+                if (plant) {
+                    onContentClick(data, plant);
+                }
+            }}>
+                {plant ? (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', minHeight: 90, flex: 1 }}>
+                        <Image
+                            source={{ uri: plant.img }}
+                            style={{ width: 76, height: 76, borderRadius: 38, marginRight: 10, flexShrink: 0 }}
+                        />
+                        <View style={{ flex: 1 }}>
+                            <Text category='h6' style={styles.contentText} numberOfLines={1}>{plant?.name}</Text>
+                            <Text category='p1' style={styles.contentText} numberOfLines={1}>{data.name}</Text>
+                            <Text category='s1' style={styles.contentText} numberOfLines={2}>{data.remark}</Text>
+                        </View>
                     </View>
-                </View>
-            ) : (
-                <View></View>
-            )}
-        </Card>
+                ) : (
+                    <View></View>
+                )}
+            </Card>
+            <Text category='c1' style={styles.timeStamp}>
+                {new Date(Number(data.time)).toLocaleString('zh-CN', {
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                    hour12: false
+                })}
+            </Text>
+        </View>
     );
 });
 
@@ -500,6 +513,12 @@ const styles = StyleSheet.create({
     rotateButton: {
         padding: 8,
         marginHorizontal: 10,
+    },
+    timeStamp: {
+        position: 'absolute',
+        bottom: -10,
+        left: 10,
+        color: theme['color-dark-500'],
     },
 });
 
