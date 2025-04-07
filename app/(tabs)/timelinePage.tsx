@@ -5,13 +5,11 @@ import { LinearGradient } from 'expo-linear-gradient';
 import Timeline from '../../components/Timeline';
 import { theme } from '@/theme/theme';
 import { Action } from '@/types/action';
-import { getActionIcon, getActionIconAsync } from '@/utils/action';
 import { PlantManager } from '@/models/PlantManager';
 import { Plant } from '@/types/plant';
 import { ActionManager } from '@/models/ActionManager';
 import { useTheme } from '../../theme/themeContext';
-import { Facebook } from 'react-content-loader/native';
-import { Ionicons, MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
+import { MaterialIcons } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
 
 // Create a separate TimelineContent component to handle plant loading
@@ -50,25 +48,11 @@ const TimelineContent = React.memo(({ data, onContentClick }: {
                     </View>
                 </View>
             ) : (
-                <PlantLoader />
+                <View></View>
             )}
         </Card>
     );
 });
-
-function getRangeLabel(startDate?: Date, endDate?: Date)
-{
-    if (!startDate || !endDate) {
-        return '';
-    }
-    if (!startDate) {
-        return `${endDate.toLocaleDateString()}`;
-    }
-    if (!endDate) {
-        return `${startDate.toLocaleDateString()}`;
-    }
-    return `${startDate.toLocaleDateString()} - ${endDate.toLocaleDateString()}`;
-}
 
 // Define interface for ImageViewer props
 interface ImageViewerProps
@@ -135,6 +119,7 @@ const Detail = ({ action, plant }: { action?: Action, plant?: Plant }) =>
     const imageHeight = screenHeight * 0.5 * 0.3;
     const [selectedImage, setSelectedImage] = React.useState('');
     const [showImageViewer, setShowImageViewer] = React.useState(false);
+    const { themeMode } = useTheme();
 
     let content = null;
     if (action && plant) {
@@ -200,8 +185,15 @@ const Detail = ({ action, plant }: { action?: Action, plant?: Plant }) =>
             />
         </View>)
     }
+    const cardStyle = [
+        styles.detailCard,
+        {
+            width: screenWidth * 0.8,
+            backgroundColor: themeMode === 'light' ? 'rgba(255, 255, 255, 0.98)' : 'rgba(43, 50, 65, 0.98)'
+        }
+    ];
     return (
-        <Card style={[styles.detailCard, { width: screenWidth * 0.7 }]}>
+        <Card style={cardStyle}>
             {content}
         </Card>
     );
@@ -230,8 +222,9 @@ const TimelinePage = () =>
     {
         ActionManager.getActionsByTimeRange(curTimeRange.start, curTimeRange.end).then((actions) =>
         {
-            console.log("actions: ", actions);
-            setTimelineData(actions);
+            //过滤掉还没完成的action
+            const filteredActions = actions.filter((action) => action.done);
+            setTimelineData(filteredActions);
         });
     }, [curTimeRange]);
 
@@ -427,7 +420,6 @@ const styles = StyleSheet.create({
         marginTop: 10,
     },
     detailCard: {
-        height: '80%',
         alignSelf: 'center',
         backgroundColor: theme['color-basic-100'],
         borderRadius: 20,
@@ -511,12 +503,5 @@ const styles = StyleSheet.create({
         marginHorizontal: 10,
     },
 });
-
-const PlantLoader = () =>
-{
-    return (
-        <Facebook />
-    )
-}
 
 export default TimelinePage;

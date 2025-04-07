@@ -2,7 +2,6 @@ import * as React from 'react';
 import { StyleSheet, FlatList, Image, TouchableOpacity, View, Dimensions, Alert, ScrollView, Animated } from 'react-native';
 import { Layout, Text, Card, Icon, Modal, Button, Input, IconProps, Spinner, Select, SelectItem, Datepicker, IndexPath } from '@ui-kitten/components';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Facebook } from 'react-content-loader/native';
 import { ActionManager } from '@/models/ActionManager';
 import { PlantManager } from '@/models/PlantManager';
 import { Action, ActionType } from '@/types/action';
@@ -319,7 +318,7 @@ const RenderTodoItem = ({ item, onPress }: { item: Action, onPress: () => void }
     ];
 
     if (!plant) {
-        return <TaskLoader />;
+        return <View></View>
     }
     return (
         <TouchableOpacity>
@@ -699,10 +698,9 @@ const TodoPage = () =>
             </Layout>
             <Layout style={styles.content}>
                 {loading ? (
-                    <View style={styles.loaderContainer}>
-                        <TaskLoader />
-                        <TaskLoader />
-                        <TaskLoader />
+                    <View style={styles.loadingContainer}>
+                        <Spinner size='large' />
+                        <Text category='s1' style={styles.loadingText}>加载中...</Text>
                     </View>
                 ) : todoItems.length > 0 ? (
                     <FlatList
@@ -768,10 +766,6 @@ const TodoPage = () =>
         </LinearGradient>
     );
 };
-
-const TaskLoader = () => (
-    <Facebook />
-);
 
 const styles = StyleSheet.create({
     container: {
@@ -856,8 +850,11 @@ const styles = StyleSheet.create({
         backdropFilter: 'blur(2px)',
     },
     detailCard: {
-        maxHeight: '85%',
-        borderRadius: 16,
+        alignSelf: 'center',
+        backgroundColor: theme['color-basic-100'],
+        borderRadius: 20,
+        elevation: 4,
+        overflow: 'hidden',
     },
     detailContent: {
         padding: 20,
@@ -1067,6 +1064,14 @@ const styles = StyleSheet.create({
     },
     cancelButton: {
         marginBottom: 16,
+    },
+    loadingContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    loadingText: {
+        marginTop: 16,
     },
 });
 

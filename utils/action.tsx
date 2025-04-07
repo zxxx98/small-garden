@@ -43,9 +43,9 @@ export function getActionIcon(actionName: string, size: number = 24, color?: str
         switch (actionType.pack) {
             case "materialCommunityIcons":
                 return <MaterialCommunityIcons name={actionType.iconName as any} size={size} color={color ?? actionType.color} />;
-            case "Ionicons":
+            case "ionicons":
                 return <Ionicons name={actionType.iconName as any} size={size} color={color ?? actionType.color} />;
-            case "Feather":
+            case "feather":
                 return <Feather name={actionType.iconName as any} size={size} color={color ?? actionType.color} />;
             default:
                 console.log("actionType.iconName: ", actionType.iconName);
