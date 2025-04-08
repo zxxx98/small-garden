@@ -8,13 +8,24 @@ import migrations from './migrations';
 
 export let database: Database;
 
+// Check if WMDatabaseBridge is available
+const isWatermelonDBNativeAvailable = () =>
+{
+    try {
+        return !!NativeModules.WMDatabaseBridge;
+    } catch (e) {
+        return false;
+    }
+};
+
 const asyncLoadSqliteAdapter = async () =>
 {
     try {
         // Check if the native module is available
-        console.log("Checking for WMDatabaseBridge:", NativeModules.WMDatabaseBridge ? "Available" : "Not available");
+        const isAvailable = isWatermelonDBNativeAvailable();
+        console.log("Checking for WMDatabaseBridge:", isAvailable ? "Available" : "Not available");
 
-        if (!NativeModules.WMDatabaseBridge) {
+        if (!isAvailable) {
             throw new Error("WatermelonDB native module is not available. Using Expo Go? Native modules require a development build.");
         }
 
@@ -51,8 +62,15 @@ export const DatabaseInstance = {
             try {
                 let adapter: DatabaseAdapter;
 
-                if (Platform.OS === "web") {
-                    console.log("Using LokiJS adapter for web platform");
+                // Use LokiJS for web or if WMDatabaseBridge is not available
+                if (Platform.OS === "web" || !isWatermelonDBNativeAvailable()) {
+                    if (Platform.OS === "web") {
+                        console.log("Using LokiJS adapter for web platform");
+                    } else {
+                        console.log("WMDatabaseBridge not available, using LokiJS adapter as fallback");
+                        console.log("To use SQLite (better performance), create a development build with: npx expo run:android");
+                    }
+
                     adapter = new LokiJSAdapter({
                         schema,
                         migrations,
@@ -64,10 +82,7 @@ export const DatabaseInstance = {
                         console.log("Attempting to use SQLite adapter for mobile");
                         adapter = await asyncLoadSqliteAdapter();
                     } catch (adapterError) {
-                        console.log("SQLite adapter not available, this is expected when using Expo Go.");
-                        console.log("To use SQLite (better performance), create a development build with: npx expo run:android");
-
-                        console.log("Using LokiJS adapter as fallback for development");
+                        console.log("SQLite adapter not available, falling back to LokiJS");
                         adapter = new LokiJSAdapter({
                             schema,
                             migrations,

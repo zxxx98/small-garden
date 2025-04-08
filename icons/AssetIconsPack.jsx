@@ -10,6 +10,6 @@ const IconProvider = (source) => ({
 export const AssetIconsPack = {
   name: 'assets',
   icons: {
-    'garden': IconProvider(require('../assets/images/flowers-garden-svgrepo-com.png')),
+    'garden': IconProvider(require('../assets/images/icon.png')),
   },
 };

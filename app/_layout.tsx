@@ -21,7 +21,6 @@ const ThemedApp = () =>
         <Stack>
           <Stack.Screen name="index" options={{ headerShown: false }} />
           <Stack.Screen name='(tabs)' options={{ headerShown: false }} />
-          <Stack.Screen name="(tabs)/addEditPlantPage" options={{ headerShown: false }} />
           <Stack.Screen name="+not-found" options={{ headerShown: false }} />
         </Stack>
       </CategoryProvider>
