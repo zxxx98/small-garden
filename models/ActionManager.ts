@@ -1,8 +1,6 @@
 import { Platform } from 'react-native';
 import { Action } from '../types/action';
-import { database } from './watermelon/database';
-import { Action as WatermelonAction } from './watermelon/Action';
-import { Q } from '@nozbe/watermelondb';
+import { Action as SQLiteAction } from './sqlite/Action';
 
 export class ActionManager
 {
@@ -12,20 +10,7 @@ export class ActionManager
             mockActions.push(action);
             return true;
         }
-        await database.write(async () =>
-        {
-            await database.get<WatermelonAction>('actions').create(record =>
-            {
-                record._raw.id = String(action.id);
-                record.name = action.name;
-                (record._raw as any).plant_id = action.plantId;
-                record.time = action.time;
-                record.remark = action.remark;
-                record.imgs = JSON.stringify(action.imgs);
-                record.done = action.done;
-            });
-        });
-        return true;
+        return await SQLiteAction.create(action);
     }
 
     static async updateAction(action: Action)
@@ -35,20 +20,9 @@ export class ActionManager
             if (index !== -1) {
                 mockActions[index] = action;
             }
+            return;
         }
-        const record = await database.get<WatermelonAction>('actions').find(String(action.id));
-        await database.write(async () =>
-        {
-            await record.update(item =>
-            {
-                item.name = action.name;
-                (record._raw as any).plant_id = action.plantId;
-                item.time = action.time;
-                item.remark = action.remark;
-                item.imgs = JSON.stringify(action.imgs);
-                item.done = action.done;
-            });
-        });
+        await SQLiteAction.update(action);
     }
 
     static async deleteAction(id: number)
@@ -58,12 +32,9 @@ export class ActionManager
             if (index !== -1) {
                 mockActions.splice(index, 1);
             }
+            return;
         }
-        const record = await database.get<WatermelonAction>('actions').find(String(id));
-        await database.write(async () =>
-        {
-            await record.destroyPermanently();
-        });
+        await SQLiteAction.delete(id);
     }
 
     static async getAction(id: number): Promise<Action | null>
@@ -71,12 +42,7 @@ export class ActionManager
         if (Platform.OS === 'web') {
             return mockActions.find(item => item.id === id) || null;
         }
-        try {
-            const record = await database.get<WatermelonAction>('actions').find(String(id));
-            return record.toJSON() as Action;
-        } catch (error) {
-            return null;
-        }
+        return await SQLiteAction.findById(String(id));
     }
 
     static async getAllActions(): Promise<Action[]>
@@ -84,8 +50,7 @@ export class ActionManager
         if (Platform.OS === 'web') {
             return mockActions;
         }
-        const records = await database.get<WatermelonAction>('actions').query().fetch();
-        return records.map(record => record.toJSON() as Action);
+        return await SQLiteAction.findAll();
     }
 
     static async getActionsByPlantId(plantId: string): Promise<Action[]>
@@ -93,10 +58,7 @@ export class ActionManager
         if (Platform.OS === 'web') {
             return mockActions.filter(item => item.plantId === plantId);
         }
-        const records = await database.get<WatermelonAction>('actions')
-            .query(Q.where('plant_id', plantId))
-            .fetch();
-        return records.map(record => record.toJSON() as Action);
+        return await SQLiteAction.findByPlantId(plantId);
     }
 
     static async getActionsByTimeRange(startTime: number, endTime: number): Promise<Action[]>
@@ -104,15 +66,7 @@ export class ActionManager
         if (Platform.OS === 'web') {
             return mockActions.filter(item => item.time >= startTime && item.time <= endTime);
         }
-        const records = await database.get<WatermelonAction>('actions')
-            .query(
-                Q.and(
-                    Q.where('time', Q.gte(startTime)),
-                    Q.where('time', Q.lte(endTime))
-                )
-            )
-            .fetch();
-        return records.map(record => record.toJSON() as Action);
+        return await SQLiteAction.findByTimeRange(startTime, endTime);
     }
 
     static async getLastAndNextAction(plantId: string): Promise<{ lastAction: Action | null, nextAction: Action | null }>
@@ -125,31 +79,7 @@ export class ActionManager
             return { lastAction, nextAction };
         }
 
-        const now = Date.now();
-        const lastActionRecord = await database.get<WatermelonAction>('actions')
-            .query(
-                Q.and(
-                    Q.where('plant_id', plantId),
-                    Q.where('time', Q.lte(now)),
-                )
-            )
-            .extend(Q.sortBy('time', 'desc'))
-            .fetch();
-
-        const nextActionRecord = await database.get<WatermelonAction>('actions')
-            .query(
-                Q.and(
-                    Q.where('plant_id', plantId),
-                    Q.where('time', Q.gt(now))
-                )
-            )
-            .extend(Q.sortBy('time', 'asc'))
-            .fetch();
-
-        return {
-            lastAction: lastActionRecord[0]?.toJSON() as Action || null,
-            nextAction: nextActionRecord[0]?.toJSON() as Action || null
-        };
+        return await SQLiteAction.findLastAndNextAction(plantId);
     }
 
 }

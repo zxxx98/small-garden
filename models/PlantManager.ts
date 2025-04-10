@@ -1,7 +1,6 @@
 import { Platform } from 'react-native';
 import { Plant } from '../types/plant';
-import { database } from './watermelon/database';
-import { Plant as WatermelonPlant } from './watermelon/Plant';
+import { Plant as SQLitePlant } from './sqlite/Plant';
 
 export class PlantManager
 {
@@ -11,20 +10,7 @@ export class PlantManager
             mock.push(plant);
             return true;
         }
-        await database.write(async () =>
-        {
-            await database.get<WatermelonPlant>('plants').create(record =>
-            {
-                record._raw.id = plant.id;
-                record.name = plant.name;
-                record.type = plant.type;
-                record.scientificName = plant.scientificName;
-                record.remark = plant.remark;
-                record.img = plant.img;
-                record.isDead = plant.isDead;
-            });
-        });
-        return true;
+        return await SQLitePlant.create(plant);
     }
 
     static async updatePlant(plant: Plant)
@@ -34,20 +20,9 @@ export class PlantManager
             if (index !== -1) {
                 mock[index] = plant;
             }
+            return;
         }
-        const record = await database.get<WatermelonPlant>('plants').find(plant.id);
-        await database.write(async () =>
-        {
-            await record.update(item =>
-            {
-                item.name = plant.name;
-                item.type = plant.type;
-                item.scientificName = plant.scientificName;
-                item.remark = plant.remark;
-                item.img = plant.img;
-                item.isDead = plant.isDead;
-            });
-        });
+        await SQLitePlant.update(plant);
     }
 
     static async deletePlant(id: string)
@@ -57,12 +32,9 @@ export class PlantManager
             if (index !== -1) {
                 mock.splice(index, 1);
             }
+            return;
         }
-        const record = await database.get<WatermelonPlant>('plants').find(id);
-        await database.write(async () =>
-        {
-            await record.destroyPermanently();
-        });
+        await SQLitePlant.delete(id);
     }
 
     static async getPlant(id: string): Promise<Plant | null>
@@ -70,12 +42,7 @@ export class PlantManager
         if (Platform.OS === 'web') {
             return mock.find(item => item.id === id) || null;
         }
-        try {
-            const record = await database.get<WatermelonPlant>('plants').find(id);
-            return record.toJSON() as Plant;
-        } catch (error) {
-            return null;
-        }
+        return await SQLitePlant.findById(id);
     }
 
     static async getAllPlants(): Promise<Plant[]>
@@ -83,8 +50,7 @@ export class PlantManager
         if (Platform.OS === 'web') {
             return mock;
         }
-        const records = await database.get<WatermelonPlant>('plants').query().fetch();
-        return records.map(record => record.toJSON() as Plant);
+        return await SQLitePlant.findAll();
     }
 }
 
