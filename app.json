@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "small-garden",
+    "name": "小花园",
     "slug": "small-garden",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -25,7 +25,7 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/favicon.png",
+          "image": "./assets/images/touming.png",
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
