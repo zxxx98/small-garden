@@ -12,16 +12,18 @@ import * as ImagePicker from 'expo-image-picker';
 import { fileManager } from '@/models/FileManager';
 import { useTheme } from '../../theme/themeContext';
 import { ConfigManager } from '@/models/ConfigManager';
-import { BlurView } from 'expo-blur';
 import { useFocusEffect } from 'expo-router';
+import SlideUpModal from '@/components/SlideUpModal';
 
+// 图片查看器组件接口定义
 interface ImageViewerProps
 {
-    visible: boolean;
-    imageUri: string;
-    onClose: () => void;
+    visible: boolean;    // 是否显示查看器
+    imageUri: string;    // 图片URI
+    onClose: () => void; // 关闭回调
 }
 
+// 图片查看器组件 - 用于全屏查看和旋转图片
 const ImageViewer = ({ visible, imageUri, onClose }: ImageViewerProps) =>
 {
     const [rotation, setRotation] = React.useState(0);
@@ -71,15 +73,17 @@ const ImageViewer = ({ visible, imageUri, onClose }: ImageViewerProps) =>
     );
 };
 
+// 任务详情组件接口定义
 interface TaskDetailProps
 {
-    action: Action;
-    plant: Plant;
-    onClose: () => void;
-    onDelete: (id: number) => void;
-    onComplete: (action: Action) => void;
+    action: Action;           // 待办事项
+    plant: Plant;            // 关联的植物
+    onClose: () => void;     // 关闭回调
+    onDelete: (id: number) => void;  // 删除回调
+    onComplete: (action: Action) => void;  // 完成任务回调
 }
 
+// 任务详情组件 - 显示待办事项的详细信息，支持完成和删除操作
 const TaskDetail = ({ action, plant, onClose, onDelete, onComplete }: TaskDetailProps) =>
 {
     const screenWidth = Dimensions.get('window').width;
@@ -293,6 +297,7 @@ const TaskDetail = ({ action, plant, onClose, onDelete, onComplete }: TaskDetail
     );
 };
 
+// 待办事项列表项渲染组件 - 显示单个待办事项
 const RenderTodoItem = ({ item, onPress }: { item: Action, onPress: () => void }) =>
 {
     const [plant, setPlant] = React.useState<Plant | null>(null);
@@ -351,229 +356,167 @@ const RenderTodoItem = ({ item, onPress }: { item: Action, onPress: () => void }
     );
 };
 
-// 添加待办表单组件
+// 添加待办表单组件接口定义
 interface TodoFormProps
 {
-    plants: Plant[];
-    actionTypes: ActionType[];
-    onSubmit: (formData: {
+    plants: Plant[];         // 可选植物列表
+    actionTypes: ActionType[]; // 可选操作类型列表
+    onSubmit: (formData: {   // 提交回调
         plant: Plant;
         actionType: ActionType;
         date: Date;
         remark: string;
     }) => void;
-    onCancel: () => void;
-    themeMode: string;
+    onCancel: () => void;    // 取消回调
+    themeMode: 'light' | 'dark';  // 主题模式
 }
 
+// 添加待办表单组件 - 用于创建新的待办事项
 const TodoForm = ({ plants, actionTypes, onSubmit, onCancel, themeMode }: TodoFormProps) =>
 {
     const [selectedPlant, setSelectedPlant] = React.useState<Plant | null>(null);
-    const [selectedActionType, setSelectedActionType] = React.useState<ActionType | null>(null);
     const [selectedActionTypeIndex, setSelectedActionTypeIndex] = React.useState<IndexPath>();
     const [todoDate, setTodoDate] = React.useState(new Date());
     const [todoRemark, setTodoRemark] = React.useState('');
     const [isSubmitting, setIsSubmitting] = React.useState(false);
 
-    // 滑动动画值
-    const slideAnim = React.useRef(new Animated.Value(Dimensions.get('window').height)).current;
+    // Remove the incorrect useEffect that was trying to access non-existent properties
+    React.useEffect(() => {
+        if (selectedPlant) {
+            setTodoDate(new Date());
+            setTodoRemark('');
+        }
+    }, [selectedPlant]);
 
-    // 组件挂载时启动滑上动画
-    React.useEffect(() =>
-    {
-        Animated.spring(slideAnim, {
-            toValue: 0,
-            useNativeDriver: true,
-            tension: 70,
-            friction: 12
-        }).start();
-    }, []);
-
-    const handleCancel = () =>
-    {
-        // 滑下动画
-        Animated.timing(slideAnim, {
-            toValue: Dimensions.get('window').height,
-            duration: 300,
-            useNativeDriver: true
-        }).start(() =>
-        {
-            onCancel();
-        });
-    };
-
-    const handleSubmitWithAnimation = () =>
-    {
+    const handleSubmit = () => {
         if (!selectedPlant) {
             Alert.alert('错误', '请选择一个植物');
             return;
         }
 
-        if (!selectedActionType) {
+        if (selectedActionTypeIndex === undefined) {
             Alert.alert('错误', '请选择一个待办类型');
             return;
         }
 
-        // 滑下动画，然后提交
-        Animated.timing(slideAnim, {
-            toValue: Dimensions.get('window').height,
-            duration: 300,
-            useNativeDriver: true
-        }).start(() =>
-        {
-            onSubmit({
-                plant: selectedPlant,
-                actionType: selectedActionType,
-                date: todoDate,
-                remark: todoRemark
-            });
+        onSubmit({
+            plant: selectedPlant,
+            actionType: actionTypes[selectedActionTypeIndex.row],
+            date: todoDate,
+            remark: todoRemark
         });
     };
 
-    const backgroundColor = themeMode === 'light' ? 'rgba(255, 255, 255, 0.98)' : 'rgba(43, 50, 65, 0.98)';
-    const blurIntensity = themeMode === 'light' ? 50 : 80;
-
     return (
-        <View style={styles.formOverlay}>
-            {/* 模糊背景 */}
-            <BlurView
-                intensity={blurIntensity}
-                tint={themeMode === 'light' ? 'light' : 'dark'}
-                style={StyleSheet.absoluteFill}
-            />
+        <SlideUpModal visible={true} onClose={onCancel} themeMode={themeMode}>
+            <View style={styles.formHeader}>
+                <Text category="h5" style={styles.formTitle}>
+                    添加待办事项
+                </Text>
+            </View>
 
-            <TouchableOpacity
-                style={StyleSheet.absoluteFill}
-                activeOpacity={1}
-                onPress={handleCancel}
-            />
-
-            <Animated.View
-                style={[
-                    styles.animatedFormContainer,
-                    { transform: [{ translateY: slideAnim }] }
-                ]}
+            <Text category='s1' style={styles.formLabel}>选择植物:</Text>
+            <Select
+                style={styles.input}
+                placeholder="选择植物"
+                value={selectedPlant?.name}
+                onSelect={(index) => {
+                    const idx = index as IndexPath;
+                    if (idx && idx.row !== undefined) {
+                        setSelectedPlant(plants[idx.row]);
+                    }
+                }}
             >
-                <ScrollView
-                    style={[styles.formContainer, { backgroundColor }]}
-                    contentContainerStyle={styles.formContentContainer}
-                >
-                    <View style={styles.formHeader}>
-                        <Text category="h5" style={styles.formTitle}>
-                            添加待办事项
-                        </Text>
-                    </View>
+                {plants.map((plant) => (
+                    <SelectItem key={plant.id} title={plant.name} />
+                ))}
+            </Select>
 
-                    {/* 拖动指示器 */}
-                    <View style={styles.dragIndicator} />
+            <Text category='s1' style={styles.formLabel}>选择待办类型:</Text>
+            <Select
+                style={styles.input}
+                placeholder="选择类型"
+                selectedIndex={selectedActionTypeIndex}
+                onSelect={(index) => {
+                    const idx = index as IndexPath;
+                    if (idx && idx.row !== undefined) {
+                        setSelectedActionTypeIndex(idx);
+                    }
+                }}
+            >
+                {actionTypes.map((type, index) => (
+                    <SelectItem key={index.toString()} title={type.name} />
+                ))}
+            </Select>
 
-                    <Text category='s1' style={styles.formLabel}>选择植物:</Text>
-                    <Select
-                        style={styles.input}
-                        placeholder="选择植物"
-                        value={selectedPlant?.name}
-                        onSelect={(index) =>
-                        {
-                            const idx = index as IndexPath;
-                            if (idx && idx.row !== undefined) {
-                                setSelectedPlant(plants[idx.row]);
-                            }
-                        }}
-                    >
-                        {plants.map((plant) => (
-                            <SelectItem key={plant.id} title={plant.name} />
-                        ))}
-                    </Select>
+            <Text category='s1' style={styles.formLabel}>选择日期:</Text>
+            <Datepicker
+                style={styles.input}
+                date={todoDate}
+                onSelect={setTodoDate}
+                min={new Date()}
+            />
 
-                    <Text category='s1' style={styles.formLabel}>选择待办类型:</Text>
-                    <Select
-                        style={styles.input}
-                        placeholder="选择类型"
-                        value={selectedActionType?.name}
-                        selectedIndex={selectedActionTypeIndex}
-                        onSelect={(index) =>
-                        {
-                            const idx = index as IndexPath;
-                            if (idx && idx.row !== undefined) {
-                                // Use a timeout to defer the state update outside of render cycle
-                                setTimeout(() =>
-                                {
-                                    setSelectedActionTypeIndex(idx);
-                                    setSelectedActionType(actionTypes[idx.row]);
-                                }, 0);
-                            }
-                        }}
-                    >
-                        {actionTypes.map((type, index) => (
-                            <SelectItem key={index.toString()} title={type.name} />
-                        ))}
-                    </Select>
+            <Text category='s1' style={styles.formLabel}>备注:</Text>
+            <Input
+                style={styles.input}
+                multiline={true}
+                textStyle={{ minHeight: 64 }}
+                placeholder="添加备注..."
+                value={todoRemark}
+                onChangeText={setTodoRemark}
+            />
 
-                    <Text category='s1' style={styles.formLabel}>选择日期:</Text>
-                    <Datepicker
-                        style={styles.input}
-                        date={todoDate}
-                        onSelect={setTodoDate}
-                        min={new Date()}
-                    />
+            <Button
+                onPress={handleSubmit}
+                style={styles.submitButton}
+                accessoryLeft={isSubmitting ? (props) => <Spinner size="small" /> : undefined}
+                disabled={isSubmitting || !selectedPlant || selectedActionTypeIndex === undefined}
+            >
+                添加
+            </Button>
 
-                    <Text category='s1' style={styles.formLabel}>备注:</Text>
-                    <Input
-                        style={styles.input}
-                        multiline={true}
-                        textStyle={{ minHeight: 64 }}
-                        placeholder="添加备注..."
-                        value={todoRemark}
-                        onChangeText={setTodoRemark}
-                    />
-
-                    <Button
-                        onPress={handleSubmitWithAnimation}
-                        style={styles.submitButton}
-                        accessoryLeft={isSubmitting ? (props) => <Spinner size="small" /> : undefined}
-                        disabled={isSubmitting || !selectedPlant || !selectedActionType}
-                    >
-                        添加
-                    </Button>
-
-                    <Button
-                        appearance="outline"
-                        status="basic"
-                        onPress={handleCancel}
-                        style={styles.cancelButton}
-                    >
-                        取消
-                    </Button>
-                </ScrollView>
-            </Animated.View>
-        </View>
+            <Button
+                appearance="outline"
+                status="basic"
+                onPress={onCancel}
+                style={styles.cancelButton}
+            >
+                取消
+            </Button>
+        </SlideUpModal>
     );
 };
 
+// 主页面组件 - 待办事项管理页面
 const TodoPage = () =>
 {
-    const [todoItems, setTodoItems] = React.useState<Action[]>([]);
-    const [todayTasks, setTodayTasks] = React.useState<Action[]>([]);
-    const [futureTasks, setFutureTasks] = React.useState<Action[]>([]);
-    const [loading, setLoading] = React.useState(true);
-    const [selectedTask, setSelectedTask] = React.useState<{ action: Action, plant: Plant } | null>(null);
-    const [showDetail, setShowDetail] = React.useState(false);
-    const { themeMode } = useTheme();
+    // 状态管理
+    const [todoItems, setTodoItems] = React.useState<Action[]>([]); // 所有待办事项
+    const [todayTasks, setTodayTasks] = React.useState<Action[]>([]); // 今日待办
+    const [futureTasks, setFutureTasks] = React.useState<Action[]>([]); // 未来待办
+    const [loading, setLoading] = React.useState(true); // 加载状态
+    const [selectedTask, setSelectedTask] = React.useState<{ action: Action, plant: Plant } | null>(null); // 选中的任务
+    const [showDetail, setShowDetail] = React.useState(false); // 是否显示详情
+    const { themeMode } = useTheme(); // 主题模式
 
-    // 新的状态变量
-    const [showAddTodo, setShowAddTodo] = React.useState(false);
-    const [plants, setPlants] = React.useState<Plant[]>([]);
-    const [actionTypes, setActionTypes] = React.useState<ActionType[]>([]);
-    const [isSubmitting, setIsSubmitting] = React.useState(false);
+    // 添加待办相关状态
+    const [showAddTodo, setShowAddTodo] = React.useState(false); // 是否显示添加表单
+    const [plants, setPlants] = React.useState<Plant[]>([]); // 植物列表
+    const [actionTypes, setActionTypes] = React.useState<ActionType[]>([]); // 操作类型列表
+    const [isSubmitting, setIsSubmitting] = React.useState(false); // 提交状态
+
+    // 加载数据的回调函数
     const loadData = React.useCallback(() =>
     {
         loadTodoItems();
         loadPlantsAndActionTypes();
     }, []);
 
+    // 页面聚焦时重新加载数据
     useFocusEffect(loadData);
 
-    // 分离今日待办和未来待办
+    // 将待办事项分为今日和未来
     const separateTodoItems = (actions: Action[]) =>
     {
         const today = new Date();
@@ -603,6 +546,7 @@ const TodoPage = () =>
         return { todayItems, futureItems };
     };
 
+    // 加载所有待办事项
     const loadTodoItems = async () =>
     {
         setLoading(true);
@@ -623,6 +567,7 @@ const TodoPage = () =>
         }
     };
 
+    // 加载植物和操作类型数据
     const loadPlantsAndActionTypes = async () =>
     {
         try {
@@ -638,6 +583,7 @@ const TodoPage = () =>
         }
     };
 
+    // 删除待办事项
     const handleDelete = async (id: number) =>
     {
         try {
@@ -652,6 +598,7 @@ const TodoPage = () =>
         }
     };
 
+    // 完成待办事项
     const handleComplete = async (updatedAction: Action) =>
     {
         try {
@@ -666,6 +613,7 @@ const TodoPage = () =>
         }
     };
 
+    // 处理任务点击事件
     const handleTaskPress = async (action: Action) =>
     {
         try {
@@ -679,6 +627,7 @@ const TodoPage = () =>
         }
     };
 
+    // 添加新的待办事项
     const handleAddTodo = async (formData: {
         plant: Plant;
         actionType: ActionType;
@@ -835,7 +784,7 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
     },
-    header: {
+    header: {  // 页面头部样式
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
@@ -844,14 +793,14 @@ const styles = StyleSheet.create({
         paddingBottom: 8,
         backgroundColor: 'transparent',
     },
-    content: {
+    content: {  // 主要内容区域样式
         flex: 1,
         backgroundColor: 'transparent',
     },
-    listContainer: {
+    listContainer: {  // 列表容器样式
         padding: 16,
     },
-    todoItem: {
+    todoItem: {  // 待办事项卡片样式
         marginBottom: 12,
         borderRadius: 10,
         elevation: 2,
@@ -1075,7 +1024,7 @@ const styles = StyleSheet.create({
         width: 24,
         height: 24,
     },
-    formOverlay: {
+    formOverlay: {  // 表单遮罩层样式
         position: 'absolute',
         top: 0,
         left: 0,
@@ -1137,14 +1086,14 @@ const styles = StyleSheet.create({
     loadingText: {
         marginTop: 16,
     },
-    sectionHeader: {
+    sectionHeader: {  // 分区标题样式
         paddingVertical: 10,
         paddingHorizontal: 6,
         marginBottom: 8,
         borderBottomWidth: 1,
         borderBottomColor: 'rgba(143, 155, 179, 0.2)',
     },
-    sectionTitle: {
+    sectionTitle: {  // 分区标题文字样式
         color: theme['color-primary-500'],
     },
 });

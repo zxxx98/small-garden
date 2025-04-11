@@ -3,7 +3,6 @@ import { StyleSheet, Image, TouchableOpacity, Dimensions, Alert, View, FlatList,
 import { Layout, Text, Card, Button, Modal, Input, Select, SelectItem, Icon, IconProps, IndexPath, CheckBox, Spinner } from '@ui-kitten/components';
 import { LinearGradient } from 'expo-linear-gradient';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { BlurView } from 'expo-blur';
 import FlowerIcon from '@/assets/svgs/flower1.svg';
 import { PlantManager } from '@/models/PlantManager';
 import { Plant } from '@/types/plant';
@@ -15,6 +14,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { fileManager } from '@/models/FileManager';
 import { useFocusEffect } from 'expo-router';
 import { theme } from '@/theme/theme';
+import SlideUpModal from '@/components/SlideUpModal';
 
 // Define interface for ImageViewer props
 interface ImageViewerProps
@@ -102,20 +102,6 @@ const PlantEditForm = ({
   const [selectedImage, setSelectedImage] = React.useState('');
   const [showImageViewer, setShowImageViewer] = React.useState(false);
 
-  // Animation value for sliding up
-  const slideAnim = React.useRef(new Animated.Value(Dimensions.get('window').height)).current;
-
-  // Start slide-up animation when component mounts
-  React.useEffect(() =>
-  {
-    Animated.spring(slideAnim, {
-      toValue: 0,
-      useNativeDriver: true,
-      tension: 70,
-      friction: 12
-    }).start();
-  }, []);
-
   // Set initial values when editingPlant changes
   React.useEffect(() =>
   {
@@ -137,6 +123,42 @@ const PlantEditForm = ({
       setSelectedIndex(undefined);
     }
   }, [editingPlant, categories]);
+
+  const handleSubmit = () => {
+    if (!plantName.trim()) {
+      Alert.alert('错误', '请输入植物名称');
+      return;
+    }
+
+    onSubmit({
+      plantName,
+      scientificName: scientificName || plantName,
+      category: selectedCategory?.name || '未分类',
+      image: plantImage || 'https://via.placeholder.com/150'
+    });
+  };
+
+  const showImageOptions = () =>
+  {
+    Alert.alert(
+      "选择图片来源",
+      "请选择图片来源",
+      [
+        { text: "取消", style: "cancel" },
+        { text: "相册", onPress: () => pickImage() },
+        { text: "相机", onPress: () => takePhoto() }
+      ]
+    );
+  };
+
+  // Function to view the image in full screen
+  const viewImage = () =>
+  {
+    if (plantImage) {
+      setSelectedImage(plantImage);
+      setShowImageViewer(true);
+    }
+  };
 
   // Image picking function
   const pickImage = async () =>
@@ -202,185 +224,105 @@ const PlantEditForm = ({
     }
   };
 
-  // Show image action sheet
-  const showImageOptions = () =>
-  {
-    Alert.alert(
-      "选择图片来源",
-      "请选择图片来源",
-      [
-        { text: "取消", style: "cancel" },
-        { text: "相册", onPress: () => pickImage() },
-        { text: "相机", onPress: () => takePhoto() }
-      ]
-    );
-  };
-
-  const handleCancel = () =>
-  {
-    // Animate the form sliding down before calling onCancel
-    Animated.timing(slideAnim, {
-      toValue: Dimensions.get('window').height,
-      duration: 300,
-      useNativeDriver: true
-    }).start(() =>
-    {
-      onCancel();
-    });
-  };
-
-  const handleSubmitWithAnimation = () =>
-  {
-    if (!plantName.trim()) {
-      Alert.alert('错误', '请输入植物名称');
-      return;
-    }
-
-    // Animate the form sliding down before submitting
-    Animated.timing(slideAnim, {
-      toValue: Dimensions.get('window').height,
-      duration: 300,
-      useNativeDriver: true
-    }).start(() =>
-    {
-      // Pass the form data back to the parent component
-      onSubmit({
-        plantName,
-        scientificName: scientificName || plantName,
-        category: selectedCategory?.name || '未分类',
-        image: plantImage || 'https://via.placeholder.com/150'
-      });
-    });
-  };
-
-  const backgroundColor = themeMode === 'light' ? 'rgba(255, 255, 255, 0.98)' : 'rgba(43, 50, 65, 0.98)';
-  const blurIntensity = themeMode === 'light' ? 50 : 80;
-  const tintColor = themeMode === 'light' ? 'rgba(255, 255, 255, 0.9)' : 'rgba(30, 30, 40, 0.9)';
-
   return (
-    <View style={styles.formOverlay}>
-      {/* Blur background */}
-      <BlurView
-        intensity={blurIntensity}
-        tint={themeMode === 'light' ? 'light' : 'dark'}
-        style={StyleSheet.absoluteFill}
-      />
+    <SlideUpModal visible={true} onClose={onCancel} themeMode={themeMode}>
+      <View style={styles.formHeader}>
+        <Text category="h5" style={styles.formTitle}>
+          {editingPlant ? '编辑植物' : '添加植物'}
+        </Text>
+      </View>
 
-      <TouchableOpacity
-        style={StyleSheet.absoluteFill}
-        activeOpacity={1}
-        onPress={handleCancel}
-      />
-
-      <Animated.View
-        style={[
-          styles.animatedFormContainer,
-          { transform: [{ translateY: slideAnim }] }
-        ]}
-      >
-        <ScrollView
-          style={[styles.formContainer, { backgroundColor }]}
-          contentContainerStyle={styles.formContentContainer}
-        >
-          <View style={styles.formHeader}>
-            <Text category="h5" style={styles.formTitle}>
-              {editingPlant ? '编辑植物' : '添加植物'}
-            </Text>
-          </View>
-
-          {/* Drag indicator at the top */}
-          <View style={styles.dragIndicator} />
-
-          {/* Image Picker */}
-          <View style={styles.imagePickerContainer}>
-            {plantImage ? (
-              <TouchableOpacity
-                onPress={showImageOptions}
-              >
-                <Image
-                  source={{ uri: plantImage }}
-                  style={styles.plantImagePreview}
-                  resizeMode="cover"
-                />
-                <View style={styles.imageOverlay}>
+      {/* Image Picker */}
+      <View style={styles.imagePickerContainer}>
+        {plantImage ? (
+          <View>
+            <Image
+              source={{ uri: plantImage }}
+              style={styles.plantImagePreview}
+              resizeMode="cover"
+            />
+            <View style={styles.imageOverlay}>
+              <View style={styles.imageOverlayIcons}>
+                <TouchableOpacity style={styles.imageOverlayIconButton} onPress={showImageOptions}>
                   <Icon name="edit-2-outline" fill="#FFFFFF" width={24} height={24} />
-                </View>
-              </TouchableOpacity>
-            ) : (
-              <TouchableOpacity
-                style={styles.addImageButton}
-                onPress={showImageOptions}
-                disabled={imageLoading}
-              >
-                {imageLoading ? (
-                  <Spinner size="medium" />
-                ) : (
-                  <>
-                    <Icon name="camera-outline" fill="#8F9BB3" width={32} height={32} />
-                    <Text category="c1" style={{ marginTop: 8, textAlign: 'center' }}>
-                      添加图片
-                    </Text>
-                  </>
-                )}
-              </TouchableOpacity>
-            )}
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.imageOverlayIconButton} onPress={viewImage}>
+                  <Icon name="eye-outline" fill="#FFFFFF" width={24} height={24} />
+                </TouchableOpacity>
+              </View>
+            </View>
           </View>
-
-          <Input
-            placeholder="植物名称"
-            value={plantName}
-            onChangeText={text =>
-            {
-              setPlantName(text);
-              if (!scientificName) {
-                setScientificName(text);
-              }
-            }}
-            style={styles.input}
-          />
-
-          <Input
-            placeholder="植物学名"
-            value={scientificName}
-            onChangeText={setScientificName}
-            style={styles.input}
-          />
-
-          <Select
-            placeholder="选择类别"
-            value={selectedCategory?.name}
-            selectedIndex={selectedIndex}
-            onSelect={(index) =>
-            {
-              setSelectedIndex(index as IndexPath);
-              if ((index as IndexPath).row !== undefined) {
-                setSelectedCategory(categories[(index as IndexPath).row]);
-              }
-            }}
-            style={styles.input}
+        ) : (
+          <TouchableOpacity
+            style={styles.addImageButton}
+            onPress={showImageOptions}
+            disabled={imageLoading}
           >
-            {categories.map(category => (
-              <SelectItem key={category.id} title={category.name} />
-            ))}
-          </Select>
+            {imageLoading ? (
+              <Spinner size="medium" />
+            ) : (
+              <>
+                <Icon name="camera-outline" fill="#8F9BB3" width={32} height={32} />
+                <Text category="c1" style={{ marginTop: 8, textAlign: 'center' }}>
+                  添加图片
+                </Text>
+              </>
+            )}
+          </TouchableOpacity>
+        )}
+      </View>
 
-          <Button onPress={handleSubmitWithAnimation} style={styles.submitButton}>
-            {editingPlant ? '保存' : '添加'}
-          </Button>
+      <Input
+        placeholder="植物名称"
+        value={plantName}
+        onChangeText={text => {
+          setPlantName(text);
+          if (!scientificName) {
+            setScientificName(text);
+          }
+        }}
+        style={styles.input}
+      />
 
-          <Button appearance="outline" status="basic" onPress={handleCancel} style={styles.cancelButton}>
-            取消
-          </Button>
+      <Input
+        placeholder="植物学名"
+        value={scientificName}
+        onChangeText={setScientificName}
+        style={styles.input}
+      />
 
-          {/* Image Viewer */}
-          <ImageViewer
-            visible={showImageViewer}
-            imageUri={selectedImage}
-            onClose={() => setShowImageViewer(false)}
-          />
-        </ScrollView>
-      </Animated.View>
-    </View>
+      <Select
+        placeholder="选择类别"
+        value={selectedCategory?.name}
+        selectedIndex={selectedIndex}
+        onSelect={(index) => {
+          setSelectedIndex(index as IndexPath);
+          if ((index as IndexPath).row !== undefined) {
+            setSelectedCategory(categories[(index as IndexPath).row]);
+          }
+        }}
+        style={styles.input}
+      >
+        {categories.map(category => (
+          <SelectItem key={category.id} title={category.name} />
+        ))}
+      </Select>
+
+      <Button onPress={handleSubmit} style={styles.submitButton}>
+        {editingPlant ? '保存' : '添加'}
+      </Button>
+
+      <Button appearance="outline" status="basic" onPress={onCancel} style={styles.cancelButton}>
+        取消
+      </Button>
+
+      {/* Image Viewer */}
+      <ImageViewer
+        visible={showImageViewer}
+        imageUri={selectedImage}
+        onClose={() => setShowImageViewer(false)}
+      />
+    </SlideUpModal>
   );
 };
 
@@ -1192,6 +1134,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     borderRadius: 16,
+  },
+  imageOverlayIcons: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  imageOverlayIconButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginHorizontal: 8,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
   },
   addImageButton: {
     width: '100%',
