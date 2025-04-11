@@ -35,7 +35,7 @@ export class CloudflareR2Manager {
                 secretAccessKey: secretAccessKey,
             },
             // Fix for checksum validation issues with newer AWS SDK versions
-            requestChecksumValidation: "WHEN_REQUIRED",
+            requestChecksumCalculation: "WHEN_REQUIRED",
             responseChecksumValidation: "WHEN_REQUIRED",
         });
     }
@@ -98,7 +98,7 @@ export class CloudflareR2Manager {
             const command = new PutObjectCommand({
                 Bucket: this.bucketName,
                 Key: key,
-                Body: bytes.buffer,
+                Body: bytes,
                 ContentType: contentType || this.getContentTypeFromPath(filePath),
             });
             

@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { ActionNameKey, ThemeModeKey, CategoriesKey, ActionTypesKey } from '../types/config';
+import { ActionNameKey, ThemeModeKey, CategoriesKey, ActionTypesKey, R2ConfigKey, UseR2StorageKey, R2Config } from '../types/config';
 import { Category } from '../context/CategoryContext';
 import { theme } from '@/theme/theme';
 import { ActionType } from '@/types/action';
@@ -130,6 +130,51 @@ export class ConfigManager
         } catch (error) {
             console.error('Failed to save action types:', error);
             throw new Error('Failed to save action types');
+        }
+    }
+
+    public async getR2Config(): Promise<R2Config | null>
+    {
+        try {
+            const configString = await AsyncStorage.getItem(R2ConfigKey);
+            if (configString) {
+                return JSON.parse(configString);
+            }
+            return null;
+        } catch (error) {
+            console.error('Failed to get R2 config:', error);
+            return null;
+        }
+    }
+
+    public async saveR2Config(config: R2Config): Promise<void>
+    {
+        try {
+            await AsyncStorage.setItem(R2ConfigKey, JSON.stringify(config));
+        } catch (error) {
+            console.error('Failed to save R2 config:', error);
+            throw new Error('Failed to save R2 configuration');
+        }
+    }
+
+    public async getUseR2Storage(): Promise<boolean>
+    {
+        try {
+            const value = await AsyncStorage.getItem(UseR2StorageKey);
+            return value === 'true';
+        } catch (error) {
+            console.error('Failed to get R2 storage toggle:', error);
+            return false; // Default to false/local storage
+        }
+    }
+
+    public async setUseR2Storage(value: boolean): Promise<void>
+    {
+        try {
+            await AsyncStorage.setItem(UseR2StorageKey, value ? 'true' : 'false');
+        } catch (error) {
+            console.error('Failed to set R2 storage toggle:', error);
+            throw new Error('Failed to save R2 storage preference');
         }
     }
 }

@@ -31,6 +31,7 @@ import { clearActionTypesCache } from '@/utils/action';
 import { theme } from '@/theme/theme';
 import * as ImagePicker from 'expo-image-picker';
 import { FileManager } from '@/models/FileManager';
+import { R2Config } from '@/types/config';
 
 // Icons
 const SunIcon = (props: IconProps) => <Icon {...props} name="sun-outline" />;
@@ -43,6 +44,7 @@ const BackIcon = (props: IconProps) => <Icon {...props} name="arrow-back-outline
 const CemeteryIcon = (props: IconProps) => <Icon {...props} name="alert-triangle-outline" />;
 const ResurrectIcon = (props: IconProps) => <Icon {...props} name="activity-outline" />;
 const ActionTypeIcon = (props: IconProps) => <Icon {...props} name="droplet-outline" />;
+const CloudIcon = (props: IconProps) => <Icon {...props} name="cloud-upload-outline" />;
 
 // Available icon packs for selection
 const iconPacks = [
@@ -95,6 +97,18 @@ const SettingsPage = () =>
   const [cemeteryLoading, setCemeteryLoading] = React.useState(false);
   const [showResurrectModal, setShowResurrectModal] = React.useState(false);
   const [selectedDeadPlant, setSelectedDeadPlant] = React.useState<PlantItem | null>(null);
+
+  // R2 configuration state
+  const [r2ConfigModalVisible, setR2ConfigModalVisible] = React.useState(false);
+  const [r2Config, setR2Config] = React.useState<R2Config>({
+    accountId: '',
+    accessKeyId: '',
+    secretAccessKey: '',
+    bucketName: '',
+    publicUrl: ''
+  });
+  const [useR2Storage, setUseR2Storage] = React.useState(false);
+  const [r2ConfigLoading, setR2ConfigLoading] = React.useState(false);
 
   // Load dead plants when entering cemetery view
   React.useEffect(() =>
@@ -431,6 +445,37 @@ const SettingsPage = () =>
             status="primary"
           />
         </Layout>
+      </Layout>
+
+      <Divider />
+
+      <Layout style={styles.section}>
+        <Text category="h6" style={styles.sectionTitle}>云存储</Text>
+        <Layout style={styles.settingRow}>
+          <Layout style={styles.settingInfo}>
+            <Text category="s1">使用Cloudflare R2存储</Text>
+            <Text appearance="hint" category="p2">将图片保存到云端而非本地设备</Text>
+          </Layout>
+          <Toggle
+            checked={useR2Storage}
+            onChange={toggleR2Storage}
+            status="primary"
+          />
+        </Layout>
+        
+        <TouchableOpacity
+          style={styles.navItem}
+          onPress={() => setR2ConfigModalVisible(true)}
+        >
+          <Layout style={styles.navItemInner}>
+            <CloudIcon fill="#3366FF" style={styles.navItemIcon} />
+            <Layout style={styles.navItemContent}>
+              <Text category="s1">Cloudflare R2配置</Text>
+              <Text appearance="hint" category="p2">设置R2账户信息和访问凭证</Text>
+            </Layout>
+            <Icon name="chevron-right-outline" fill="#8F9BB3" width={24} height={24} />
+          </Layout>
+        </TouchableOpacity>
       </Layout>
 
       <Divider />
@@ -906,6 +951,164 @@ const SettingsPage = () =>
     </>
   );
 
+  // Load R2 configuration when the component mounts
+  React.useEffect(() => {
+    loadR2Config();
+  }, []);
+
+  // Load R2 configuration
+  const loadR2Config = async () => {
+    setR2ConfigLoading(true);
+    try {
+      const configManager = ConfigManager.getInstance();
+      
+      // Load toggle state
+      const useR2 = await configManager.getUseR2Storage();
+      setUseR2Storage(useR2);
+      
+      // Load configuration
+      const config = await configManager.getR2Config();
+      if (config) {
+        setR2Config(config);
+      }
+    } catch (error) {
+      console.error('Failed to load R2 configuration:', error);
+      Alert.alert('错误', '加载R2配置失败');
+    } finally {
+      setR2ConfigLoading(false);
+    }
+  };
+
+  // Toggle R2 storage
+  const toggleR2Storage = async (checked: boolean) => {
+    try {
+      // If turning on R2, check if we have valid configuration
+      if (checked) {
+        const configValid = isR2ConfigValid();
+        if (!configValid) {
+          Alert.alert(
+            'R2配置不完整', 
+            '请先完成Cloudflare R2的配置后再启用', 
+            [{ text: '确定', onPress: () => setR2ConfigModalVisible(true) }]
+          );
+          return;
+        }
+      }
+      
+      await ConfigManager.getInstance().setUseR2Storage(checked);
+      setUseR2Storage(checked);
+      
+      // Update FileManager config
+      await FileManager.getInstance().updateStorageConfig();
+      
+      Alert.alert('成功', `已${checked ? '启用' : '禁用'}Cloudflare R2存储`);
+    } catch (error) {
+      console.error('Failed to toggle R2 storage:', error);
+      Alert.alert('错误', '更改R2存储设置失败');
+    }
+  };
+
+  // Check if R2 configuration is valid
+  const isR2ConfigValid = (): boolean => {
+    return !!(
+      r2Config.accountId && 
+      r2Config.accessKeyId && 
+      r2Config.secretAccessKey && 
+      r2Config.bucketName
+    );
+  };
+
+  // Handle saving R2 configuration
+  const handleSaveR2Config = async () => {
+    if (!r2Config.accountId || !r2Config.accessKeyId || 
+        !r2Config.secretAccessKey || !r2Config.bucketName) {
+      Alert.alert('错误', '请填写所有必填字段');
+      return;
+    }
+
+    try {
+      await ConfigManager.getInstance().saveR2Config(r2Config);
+      setR2ConfigModalVisible(false);
+      Alert.alert('成功', 'R2配置已保存');
+      
+      // If R2 storage is enabled, update FileManager config
+      if (useR2Storage) {
+        await FileManager.getInstance().updateStorageConfig();
+      }
+    } catch (error) {
+      console.error('Failed to save R2 config:', error);
+      Alert.alert('错误', '保存R2配置失败');
+    }
+  };
+
+  // Render R2 configuration modal
+  const renderR2ConfigModal = () => (
+    <Modal
+      visible={r2ConfigModalVisible}
+      backdropStyle={styles.backdrop}
+      onBackdropPress={() => setR2ConfigModalVisible(false)}
+    >
+      <Card
+        disabled
+        style={[
+          styles.r2ConfigModalCard,
+          { backgroundColor: themeMode === 'light' ? 'rgba(255, 255, 255, 0.98)' : 'rgba(43, 50, 65, 0.98)' }
+        ]}
+      >
+        <Text category="h6" style={styles.modalTitle}>Cloudflare R2配置</Text>
+        
+        <Text style={styles.fieldLabel} category="s1">Account ID</Text>
+        <Input
+          placeholder="Account ID"
+          value={r2Config.accountId}
+          onChangeText={(text) => setR2Config({...r2Config, accountId: text})}
+          style={styles.input}
+        />
+        
+        <Text style={styles.fieldLabel} category="s1">Access Key ID</Text>
+        <Input
+          placeholder="Access Key ID"
+          value={r2Config.accessKeyId}
+          onChangeText={(text) => setR2Config({...r2Config, accessKeyId: text})}
+          style={styles.input}
+        />
+        
+        <Text style={styles.fieldLabel} category="s1">Secret Access Key</Text>
+        <Input
+          placeholder="Secret Access Key"
+          value={r2Config.secretAccessKey}
+          onChangeText={(text) => setR2Config({...r2Config, secretAccessKey: text})}
+          style={styles.input}
+          secureTextEntry={true}
+        />
+        
+        <Text style={styles.fieldLabel} category="s1">Bucket Name</Text>
+        <Input
+          placeholder="Bucket Name"
+          value={r2Config.bucketName}
+          onChangeText={(text) => setR2Config({...r2Config, bucketName: text})}
+          style={styles.input}
+        />
+        
+        <Text style={styles.fieldLabel} category="s1">Public URL (可选)</Text>
+        <Input
+          placeholder="例如: https://your-domain.com"
+          value={r2Config.publicUrl}
+          onChangeText={(text) => setR2Config({...r2Config, publicUrl: text})}
+          style={styles.input}
+        />
+        
+        <Text appearance="hint" category="c1" style={styles.configHint}>
+          这些信息可以在Cloudflare控制台的R2部分找到。您需要创建一个API令牌才能使用此功能。
+        </Text>
+        
+        <Button onPress={handleSaveR2Config} style={styles.saveButton}>
+          保存配置
+        </Button>
+      </Card>
+    </Modal>
+  );
+
   // Determine background colors based on theme
   const gradientColors = themeMode === 'light'
     ? ['#F5F5F5', '#F3E5F5', '#F5F5F5'] as const
@@ -942,6 +1145,7 @@ const SettingsPage = () =>
       {renderCategoryModal()}
       {renderResurrectModal()}
       {renderActionTypeModal()}
+      {renderR2ConfigModal()}
     </LinearGradient>
   );
 };
@@ -1148,6 +1352,21 @@ const styles = StyleSheet.create({
   },
   pickImageButton: {
     marginTop: 8,
+  },
+  r2ConfigModalCard: {
+    width: Dimensions.get('window').width * 0.85,
+    maxWidth: 400,
+    borderRadius: 16,
+    padding: 4,
+  },
+  fieldLabel: {
+    marginBottom: 8,
+    marginTop: 12,
+  },
+  configHint: {
+    marginTop: 16,
+    marginBottom: 16,
+    textAlign: 'center',
   },
 });
 

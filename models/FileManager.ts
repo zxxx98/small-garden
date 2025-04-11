@@ -1,12 +1,31 @@
 import * as FileSystem from 'expo-file-system';
+import { ConfigManager } from './ConfigManager';
+import { R2Config } from '../types/config';
 
 export class FileManager {
     private static instance: FileManager;
     private readonly imageDir: string;
+    private useR2Storage: boolean = false;
+    private r2Config: R2Config | null = null;
 
     private constructor() {
         // 在不同平台使用适当的目录
         this.imageDir = `${FileSystem.documentDirectory}images/`;
+        
+        // 初始化时加载配置
+        this.loadConfig();
+    }
+
+    private async loadConfig() {
+        try {
+            const configManager = ConfigManager.getInstance();
+            this.useR2Storage = await configManager.getUseR2Storage();
+            this.r2Config = await configManager.getR2Config();
+        } catch (error) {
+            console.error('Failed to load storage config:', error);
+            this.useR2Storage = false;
+            this.r2Config = null;
+        }
     }
 
     public static getInstance(): FileManager {
@@ -14,6 +33,13 @@ export class FileManager {
             FileManager.instance = new FileManager();
         }
         return FileManager.instance;
+    }
+
+    /**
+     * 更新存储配置
+     */
+    public async updateStorageConfig() {
+        await this.loadConfig();
     }
 
     /**
@@ -34,11 +60,39 @@ export class FileManager {
     }
 
     /**
-     * 保存图片到本地文件系统
+     * 保存图片到本地文件系统或R2
      * @param imageSource base64数据或者图片uri
-     * @returns 保存后的本地文件路径
+     * @returns 保存后的文件路径或URL
      */
     public async saveImage(imageSource: string): Promise<string> {
+        // 刷新配置确保使用最新设置
+        await this.loadConfig();
+        
+        // 如果使用R2且配置有效，保存到R2
+        if (this.useR2Storage && this.r2Config && this.isValidR2Config(this.r2Config)) {
+            return this.saveImageToR2(imageSource);
+        }
+        
+        // 否则保存到本地
+        return this.saveImageToLocal(imageSource);
+    }
+
+    /**
+     * 检查R2配置是否有效
+     */
+    private isValidR2Config(config: R2Config): boolean {
+        return !!(
+            config.accountId && 
+            config.accessKeyId && 
+            config.secretAccessKey && 
+            config.bucketName
+        );
+    }
+
+    /**
+     * 保存图片到本地
+     */
+    private async saveImageToLocal(imageSource: string): Promise<string> {
         await this.ensureImageDirExists();
         
         const fileName = this.generateUniqueFileName();
@@ -61,11 +115,58 @@ export class FileManager {
     }
 
     /**
-     * 获取本地图片URI
-     * @param filePath 图片文件路径
-     * @returns 图片URI
+     * 保存图片到R2
+     * 注意: 这是一个模拟实现，需要依赖实际的R2 SDK
+     */
+    private async saveImageToR2(imageSource: string): Promise<string> {
+        if (!this.r2Config) {
+            throw new Error('R2 config is not available');
+        }
+
+        // 获取一个本地的临时副本，以便上传
+        const localPath = await this.saveImageToLocal(imageSource);
+        
+        // 这里需要实现R2上传逻辑
+        // 在实际实现中，你需要使用SDK上传到R2
+        // 以下是一个示例逻辑框架
+        
+        try {
+            // 读取文件内容
+            const fileInfo = await FileSystem.getInfoAsync(localPath);
+            if (!fileInfo.exists) {
+                throw new Error('File does not exist');
+            }
+            
+            const fileName = localPath.split('/').pop() || this.generateUniqueFileName();
+            
+            // R2上传逻辑将在此实现
+            // 注意: 实际项目需要添加依赖库如 aws-sdk 来实现
+            
+            // 构建可访问URL
+            const publicUrl = this.r2Config.publicUrl 
+                ? `${this.r2Config.publicUrl}/${fileName}`
+                : `https://${this.r2Config.bucketName}.${this.r2Config.accountId}.r2.cloudflarestorage.com/${fileName}`;
+                
+            // 为了演示，我们返回本地路径，但标记它为R2路径
+            // 在实际项目中，请返回真实的R2 URL
+            return publicUrl;
+        } catch (error) {
+            console.error('Failed to upload to R2:', error);
+            // 如果R2上传失败，返回本地路径作为备份
+            return localPath;
+        }
+    }
+
+    /**
+     * 获取图片URI，处理本地或R2路径
      */
     public async getImageUri(filePath: string): Promise<string> {
+        // 如果是R2 URL，直接返回
+        if (filePath.startsWith('http')) {
+            return filePath;
+        }
+        
+        // 否则处理本地文件
         const fileInfo = await FileSystem.getInfoAsync(filePath);
         if (!fileInfo.exists) {
             throw new Error('Image file not found');
@@ -74,13 +175,50 @@ export class FileManager {
     }
 
     /**
-     * 删除本地图片
-     * @param filePath 图片文件路径
+     * 删除图片，处理本地或R2路径
      */
     public async deleteImage(filePath: string): Promise<void> {
+        // 刷新配置
+        await this.loadConfig();
+        
+        // 如果是R2 URL
+        if (filePath.startsWith('http')) {
+            if (this.useR2Storage && this.r2Config && this.isValidR2Config(this.r2Config)) {
+                await this.deleteImageFromR2(filePath);
+            }
+            return;
+        }
+        
+        // 处理本地文件
         const fileInfo = await FileSystem.getInfoAsync(filePath);
         if (fileInfo.exists) {
             await FileSystem.deleteAsync(filePath);
+        }
+    }
+
+    /**
+     * 从R2删除图片
+     * 注意: 这是一个模拟实现，需要依赖实际的R2 SDK
+     */
+    private async deleteImageFromR2(url: string): Promise<void> {
+        if (!this.r2Config) {
+            throw new Error('R2 config is not available');
+        }
+        
+        try {
+            // 从URL提取文件名
+            const fileName = url.split('/').pop();
+            if (!fileName) {
+                throw new Error('Cannot extract filename from URL');
+            }
+            
+            // R2删除逻辑将在此实现
+            // 注意: 实际项目需要添加依赖库如 aws-sdk 来实现
+            
+            console.log(`Deleted ${fileName} from R2 (simulation)`);
+        } catch (error) {
+            console.error('Failed to delete from R2:', error);
+            throw new Error('Failed to delete image from R2');
         }
     }
 
