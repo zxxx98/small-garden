@@ -1,0 +1,33 @@
+name = "d1-api-worker"
+main = "d1-api-worker.js"
+compatibility_date = "2023-10-30"
+
+# Configure your D1 database binding
+# Replace YOUR_DATABASE_NAME with your actual D1 database name
+[[d1_databases]]
+binding = "DB" # This name should match the binding name in your worker
+database_name = "YOUR_DATABASE_NAME"
+database_id = "YOUR_DATABASE_ID"
+
+# Configure environment variables
+[vars]
+NODE_ENV = "production"
+
+# Configure routes
+[routes]
+pattern = "api.your-domain.com/*"
+zone_name = "your-domain.com"
+
+# Configure CORS
+[cors]
+allowed_origins = [
+  "https://your-app-domain.com",
+  "capacitor://localhost",
+  "http://localhost:3000",
+  "http://localhost:8080",
+  "http://localhost:19000",
+  "http://localhost:19006"
+]
+allowed_methods = ["GET", "POST", "OPTIONS"]
+allowed_headers = ["Content-Type", "Authorization", "X-API-Key"]
+max_age = 86400
