@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { ActionNameKey, ThemeModeKey, CategoriesKey, ActionTypesKey, R2ConfigKey, UseR2StorageKey, R2Config } from '../types/config';
+import { ActionNameKey, ThemeModeKey, CategoriesKey, ActionTypesKey, R2ConfigKey, UseR2StorageKey, R2Config, PlantNetApiKeyKey } from '../types/config';
 import { Category } from '../context/CategoryContext';
 import { theme } from '@/theme/theme';
 import { ActionType } from '@/types/action';
@@ -175,6 +175,26 @@ export class ConfigManager
         } catch (error) {
             console.error('Failed to set R2 storage toggle:', error);
             throw new Error('Failed to save R2 storage preference');
+        }
+    }
+
+    public async getPlantNetApiKey(): Promise<string | null>
+    {
+        try {
+            return await AsyncStorage.getItem(PlantNetApiKeyKey);
+        } catch (error) {
+            console.error('Failed to get PlantNet API key:', error);
+            return null;
+        }
+    }
+
+    public async setPlantNetApiKey(value: string): Promise<void>
+    {
+        try {
+            await AsyncStorage.setItem(PlantNetApiKeyKey, value);
+        } catch (error) {
+            console.error('Failed to set PlantNet API key:', error);
+            throw new Error('Failed to save PlantNet API key');
         }
     }
 }

@@ -45,6 +45,7 @@ const CemeteryIcon = (props: IconProps) => <Icon {...props} name="alert-triangle
 const ResurrectIcon = (props: IconProps) => <Icon {...props} name="activity-outline" />;
 const ActionTypeIcon = (props: IconProps) => <Icon {...props} name="droplet-outline" />;
 const CloudIcon = (props: IconProps) => <Icon {...props} name="cloud-upload-outline" />;
+const FlowerIcon = (props: IconProps) => <Icon {...props} name="keypad-outline" />;
 
 // Available icon packs for selection
 const iconPacks = [
@@ -110,6 +111,11 @@ const SettingsPage = () =>
   const [useR2Storage, setUseR2Storage] = React.useState(false);
   const [r2ConfigLoading, setR2ConfigLoading] = React.useState(false);
 
+  // PlantNet API key state
+  const [plantNetApiKey, setPlantNetApiKey] = React.useState<string>('');
+  const [plantNetApiKeyModalVisible, setPlantNetApiKeyModalVisible] = React.useState(false);
+  const [plantNetApiKeyLoading, setPlantNetApiKeyLoading] = React.useState(false);
+
   // Load dead plants when entering cemetery view
   React.useEffect(() =>
   {
@@ -119,6 +125,31 @@ const SettingsPage = () =>
       loadActionTypes();
     }
   }, [activeSection]);
+
+  // Load PlantNet API key
+  const loadPlantNetApiKey = async () =>
+  {
+    setPlantNetApiKeyLoading(true);
+    try {
+      const configManager = ConfigManager.getInstance();
+      const apiKey = await configManager.getPlantNetApiKey();
+      if (apiKey) {
+        setPlantNetApiKey(apiKey);
+      }
+    } catch (error) {
+      console.error('Failed to load PlantNet API key:', error);
+      Alert.alert('错误', '加载PlantNet API key失败');
+    } finally {
+      setPlantNetApiKeyLoading(false);
+    }
+  };
+
+  // Load R2 configuration when the component mounts
+  React.useEffect(() =>
+  {
+    loadR2Config();
+    loadPlantNetApiKey();
+  }, []);
 
   // Load action types
   const loadActionTypes = async () =>
@@ -327,8 +358,7 @@ const SettingsPage = () =>
       )}
       accessoryRight={() => (
         <View style={styles.categoryItemActions}>
-          {/**禁用复活功能 */}
-          {/* <TouchableOpacity
+          <TouchableOpacity
             style={styles.categoryActionButton}
             onPress={() =>
             {
@@ -337,7 +367,7 @@ const SettingsPage = () =>
             }}
           >
             <ResurrectIcon fill="#3366FF" width={20} height={20} />
-          </TouchableOpacity> */}
+          </TouchableOpacity>
           <TouchableOpacity
             style={styles.categoryActionButton}
             onPress={() => handlePermanentlyDeletePlant(item)}
@@ -462,7 +492,7 @@ const SettingsPage = () =>
             status="primary"
           />
         </Layout>
-        
+
         <TouchableOpacity
           style={styles.navItem}
           onPress={() => setR2ConfigModalVisible(true)}
@@ -472,6 +502,25 @@ const SettingsPage = () =>
             <Layout style={styles.navItemContent}>
               <Text category="s1">Cloudflare R2配置</Text>
               <Text appearance="hint" category="p2">设置R2账户信息和访问凭证</Text>
+            </Layout>
+            <Icon name="chevron-right-outline" fill="#8F9BB3" width={24} height={24} />
+          </Layout>
+        </TouchableOpacity>
+      </Layout>
+
+      <Divider />
+
+      <Layout style={styles.section}>
+        <Text category="h6" style={styles.sectionTitle}>API配置</Text>
+        <TouchableOpacity
+          style={styles.navItem}
+          onPress={() => setPlantNetApiKeyModalVisible(true)}
+        >
+          <Layout style={styles.navItemInner}>
+            <FlowerIcon fill="#00C781" style={styles.navItemIcon} />
+            <Layout style={styles.navItemContent}>
+              <Text category="s1">PlantNet API Key</Text>
+              <Text appearance="hint" category="p2">设置用于植物识别的API密钥</Text>
             </Layout>
             <Icon name="chevron-right-outline" fill="#8F9BB3" width={24} height={24} />
           </Layout>
@@ -952,20 +1001,23 @@ const SettingsPage = () =>
   );
 
   // Load R2 configuration when the component mounts
-  React.useEffect(() => {
+  React.useEffect(() =>
+  {
     loadR2Config();
+    loadPlantNetApiKey();
   }, []);
 
   // Load R2 configuration
-  const loadR2Config = async () => {
+  const loadR2Config = async () =>
+  {
     setR2ConfigLoading(true);
     try {
       const configManager = ConfigManager.getInstance();
-      
+
       // Load toggle state
       const useR2 = await configManager.getUseR2Storage();
       setUseR2Storage(useR2);
-      
+
       // Load configuration
       const config = await configManager.getR2Config();
       if (config) {
@@ -980,27 +1032,28 @@ const SettingsPage = () =>
   };
 
   // Toggle R2 storage
-  const toggleR2Storage = async (checked: boolean) => {
+  const toggleR2Storage = async (checked: boolean) =>
+  {
     try {
       // If turning on R2, check if we have valid configuration
       if (checked) {
         const configValid = isR2ConfigValid();
         if (!configValid) {
           Alert.alert(
-            'R2配置不完整', 
-            '请先完成Cloudflare R2的配置后再启用', 
+            'R2配置不完整',
+            '请先完成Cloudflare R2的配置后再启用',
             [{ text: '确定', onPress: () => setR2ConfigModalVisible(true) }]
           );
           return;
         }
       }
-      
+
       await ConfigManager.getInstance().setUseR2Storage(checked);
       setUseR2Storage(checked);
-      
+
       // Update FileManager config
       await FileManager.getInstance().updateStorageConfig();
-      
+
       Alert.alert('成功', `已${checked ? '启用' : '禁用'}Cloudflare R2存储`);
     } catch (error) {
       console.error('Failed to toggle R2 storage:', error);
@@ -1009,19 +1062,21 @@ const SettingsPage = () =>
   };
 
   // Check if R2 configuration is valid
-  const isR2ConfigValid = (): boolean => {
+  const isR2ConfigValid = (): boolean =>
+  {
     return !!(
-      r2Config.accountId && 
-      r2Config.accessKeyId && 
-      r2Config.secretAccessKey && 
+      r2Config.accountId &&
+      r2Config.accessKeyId &&
+      r2Config.secretAccessKey &&
       r2Config.bucketName
     );
   };
 
   // Handle saving R2 configuration
-  const handleSaveR2Config = async () => {
-    if (!r2Config.accountId || !r2Config.accessKeyId || 
-        !r2Config.secretAccessKey || !r2Config.bucketName) {
+  const handleSaveR2Config = async () =>
+  {
+    if (!r2Config.accountId || !r2Config.accessKeyId ||
+      !r2Config.secretAccessKey || !r2Config.bucketName || !r2Config.publicUrl) {
       Alert.alert('错误', '请填写所有必填字段');
       return;
     }
@@ -1030,7 +1085,7 @@ const SettingsPage = () =>
       await ConfigManager.getInstance().saveR2Config(r2Config);
       setR2ConfigModalVisible(false);
       Alert.alert('成功', 'R2配置已保存');
-      
+
       // If R2 storage is enabled, update FileManager config
       if (useR2Storage) {
         await FileManager.getInstance().updateStorageConfig();
@@ -1056,54 +1111,110 @@ const SettingsPage = () =>
         ]}
       >
         <Text category="h6" style={styles.modalTitle}>Cloudflare R2配置</Text>
-        
-        <Text style={styles.fieldLabel} category="s1">Account ID</Text>
-        <Input
-          placeholder="Account ID"
-          value={r2Config.accountId}
-          onChangeText={(text) => setR2Config({...r2Config, accountId: text})}
-          style={styles.input}
-        />
-        
-        <Text style={styles.fieldLabel} category="s1">Access Key ID</Text>
-        <Input
-          placeholder="Access Key ID"
-          value={r2Config.accessKeyId}
-          onChangeText={(text) => setR2Config({...r2Config, accessKeyId: text})}
-          style={styles.input}
-        />
-        
-        <Text style={styles.fieldLabel} category="s1">Secret Access Key</Text>
-        <Input
-          placeholder="Secret Access Key"
-          value={r2Config.secretAccessKey}
-          onChangeText={(text) => setR2Config({...r2Config, secretAccessKey: text})}
-          style={styles.input}
-          secureTextEntry={true}
-        />
-        
-        <Text style={styles.fieldLabel} category="s1">Bucket Name</Text>
-        <Input
-          placeholder="Bucket Name"
-          value={r2Config.bucketName}
-          onChangeText={(text) => setR2Config({...r2Config, bucketName: text})}
-          style={styles.input}
-        />
-        
-        <Text style={styles.fieldLabel} category="s1">Public URL (可选)</Text>
-        <Input
-          placeholder="例如: https://your-domain.com"
-          value={r2Config.publicUrl}
-          onChangeText={(text) => setR2Config({...r2Config, publicUrl: text})}
-          style={styles.input}
-        />
-        
-        <Text appearance="hint" category="c1" style={styles.configHint}>
-          这些信息可以在Cloudflare控制台的R2部分找到。您需要创建一个API令牌才能使用此功能。
-        </Text>
-        
+
+        <ScrollView style={styles.configScrollView}>
+          <Text style={styles.fieldLabel} category="s1">Account ID</Text>
+          <Input
+            placeholder="Account ID"
+            value={r2Config.accountId}
+            onChangeText={(text) => setR2Config({ ...r2Config, accountId: text })}
+            style={styles.input}
+          />
+
+          <Text style={styles.fieldLabel} category="s1">Access Key ID</Text>
+          <Input
+            placeholder="Access Key ID"
+            value={r2Config.accessKeyId}
+            onChangeText={(text) => setR2Config({ ...r2Config, accessKeyId: text })}
+            style={styles.input}
+          />
+
+          <Text style={styles.fieldLabel} category="s1">Secret Access Key</Text>
+          <Input
+            placeholder="Secret Access Key"
+            value={r2Config.secretAccessKey}
+            onChangeText={(text) => setR2Config({ ...r2Config, secretAccessKey: text })}
+            style={styles.input}
+            secureTextEntry={true}
+          />
+
+          <Text style={styles.fieldLabel} category="s1">Bucket Name</Text>
+          <Input
+            placeholder="Bucket Name"
+            value={r2Config.bucketName}
+            onChangeText={(text) => setR2Config({ ...r2Config, bucketName: text })}
+            style={styles.input}
+          />
+
+          <Text style={styles.fieldLabel} category="s1">Public URL</Text>
+          <Input
+            placeholder="例如: https://your-domain.com"
+            value={r2Config.publicUrl}
+            onChangeText={(text) => setR2Config({ ...r2Config, publicUrl: text })}
+            style={styles.input}
+          />
+
+          <Text appearance="hint" category="c1" style={styles.configHint}>
+            这些信息可以在Cloudflare控制台的R2部分找到。您需要创建一个API令牌才能使用此功能。
+          </Text>
+        </ScrollView>
+
         <Button onPress={handleSaveR2Config} style={styles.saveButton}>
           保存配置
+        </Button>
+      </Card>
+    </Modal>
+  );
+
+  // Handle saving PlantNet API key
+  const handleSavePlantNetApiKey = async () =>
+  {
+    if (!plantNetApiKey.trim()) {
+      Alert.alert('错误', '请输入PlantNet API Key');
+      return;
+    }
+
+    try {
+      await ConfigManager.getInstance().setPlantNetApiKey(plantNetApiKey);
+      setPlantNetApiKeyModalVisible(false);
+      Alert.alert('成功', 'PlantNet API Key已保存');
+    } catch (error) {
+      console.error('Failed to save PlantNet API key:', error);
+      Alert.alert('错误', '保存PlantNet API Key失败');
+    }
+  };
+
+  // Render PlantNet API key configuration modal
+  const renderPlantNetApiKeyModal = () => (
+    <Modal
+      visible={plantNetApiKeyModalVisible}
+      backdropStyle={styles.backdrop}
+      onBackdropPress={() => setPlantNetApiKeyModalVisible(false)}
+    >
+      <Card
+        disabled
+        style={[
+          styles.modalCard,
+          { backgroundColor: themeMode === 'light' ? 'rgba(255, 255, 255, 0.98)' : 'rgba(43, 50, 65, 0.98)' }
+        ]}
+      >
+        <Text category="h6" style={styles.modalTitle}>PlantNet API Key</Text>
+
+        <Text style={styles.fieldLabel} category="s1">API Key</Text>
+        <Input
+          placeholder="请输入API Key"
+          value={plantNetApiKey}
+          onChangeText={setPlantNetApiKey}
+          style={styles.input}
+          secureTextEntry={false}
+        />
+
+        <Text appearance="hint" category="c1" style={styles.configHint}>
+          可在PlantNet官网申请API Key，该功能用于植物识别功能
+        </Text>
+
+        <Button onPress={handleSavePlantNetApiKey} style={styles.saveButton}>
+          保存
         </Button>
       </Card>
     </Modal>
@@ -1146,6 +1257,7 @@ const SettingsPage = () =>
       {renderResurrectModal()}
       {renderActionTypeModal()}
       {renderR2ConfigModal()}
+      {renderPlantNetApiKeyModal()}
     </LinearGradient>
   );
 };
@@ -1306,6 +1418,8 @@ const styles = StyleSheet.create({
     width: Dimensions.get('window').width * 0.85,
     maxWidth: 400,
     borderRadius: 16,
+    padding: 4,
+    maxHeight: 500,
   },
   customImageContainer: {
     marginBottom: 16,
@@ -1358,6 +1472,7 @@ const styles = StyleSheet.create({
     maxWidth: 400,
     borderRadius: 16,
     padding: 4,
+    maxHeight: 500,
   },
   fieldLabel: {
     marginBottom: 8,
@@ -1367,6 +1482,9 @@ const styles = StyleSheet.create({
     marginTop: 16,
     marginBottom: 16,
     textAlign: 'center',
+  },
+  configScrollView: {
+    maxHeight: 380,
   },
 });
 

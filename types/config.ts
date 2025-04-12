@@ -10,14 +10,17 @@ export const ActionTypesKey = "action_types";
 export const R2ConfigKey = "r2_config";
 //R2存储开关Key
 export const UseR2StorageKey = "use_r2_storage";
+//PlantNet API Key储存Key
+export const PlantNetApiKeyKey = "plantnet_api_key";
 
 /**
  * Cloudflare R2 配置接口
  */
-export interface R2Config {
+export interface R2Config
+{
   accountId: string;
   accessKeyId: string;
   secretAccessKey: string;
   bucketName: string;
-  publicUrl?: string;
+  publicUrl: string;
 }

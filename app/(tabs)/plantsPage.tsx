@@ -15,6 +15,8 @@ import { fileManager } from '@/models/FileManager';
 import { useFocusEffect } from 'expo-router';
 import { theme } from '@/theme/theme';
 import SlideUpModal from '@/components/SlideUpModal';
+import { identifyPlantWithPlantNet } from '@/utils/PlantNet';
+import LoadingModal from '@/components/LoadingModal';
 
 // Define interface for ImageViewer props
 interface ImageViewerProps
@@ -101,6 +103,7 @@ const PlantEditForm = ({
   const [imageLoading, setImageLoading] = React.useState(false);
   const [selectedImage, setSelectedImage] = React.useState('');
   const [showImageViewer, setShowImageViewer] = React.useState(false);
+  const [identifyLoading, setIdentifyLoading] = React.useState(false);
 
   // Set initial values when editingPlant changes
   React.useEffect(() =>
@@ -124,7 +127,8 @@ const PlantEditForm = ({
     }
   }, [editingPlant, categories]);
 
-  const handleSubmit = () => {
+  const handleSubmit = () =>
+  {
     if (!plantName.trim()) {
       Alert.alert('错误', '请输入植物名称');
       return;
@@ -149,6 +153,26 @@ const PlantEditForm = ({
         { text: "相机", onPress: () => takePhoto() }
       ]
     );
+  };
+
+  //根据选定的植物调用植物识别接口
+  const identifyPlant = async (imageUri: string) =>
+  {
+    const apiKey = await ConfigManager.getInstance().getPlantNetApiKey();
+    if (apiKey && imageUri) {
+      setIdentifyLoading(true);
+      const result = await identifyPlantWithPlantNet(imageUri, apiKey);
+      console.log(result);
+      if (result.success) {
+        setScientificName(result.scientificName);
+        setPlantName(result.commonName);
+      }
+      // Set the plant image after identification is done
+      setPlantImage(imageUri);
+      setIdentifyLoading(false);
+    } else {
+      setPlantImage(imageUri);
+    }
   };
 
   // Function to view the image in full screen
@@ -182,7 +206,7 @@ const PlantEditForm = ({
         // Save the image using FileManager and get the stored URL
         const imageUri = result.assets[0].uri;
         const savedImageUrl = await fileManager.saveImage(imageUri);
-        setPlantImage(savedImageUrl);
+        await identifyPlant(savedImageUrl);
       }
     } catch (error) {
       console.error("Error saving image:", error);
@@ -214,7 +238,7 @@ const PlantEditForm = ({
         // Save the image using FileManager and get the stored URL
         const imageUri = result.assets[0].uri;
         const savedImageUrl = await fileManager.saveImage(imageUri);
-        setPlantImage(savedImageUrl);
+        await identifyPlant(savedImageUrl);
       }
     } catch (error) {
       console.error("Error taking photo:", error);
@@ -275,7 +299,8 @@ const PlantEditForm = ({
       <Input
         placeholder="植物名称"
         value={plantName}
-        onChangeText={text => {
+        onChangeText={text =>
+        {
           setPlantName(text);
           if (!scientificName) {
             setScientificName(text);
@@ -295,7 +320,8 @@ const PlantEditForm = ({
         placeholder="选择类别"
         value={selectedCategory?.name}
         selectedIndex={selectedIndex}
-        onSelect={(index) => {
+        onSelect={(index) =>
+        {
           setSelectedIndex(index as IndexPath);
           if ((index as IndexPath).row !== undefined) {
             setSelectedCategory(categories[(index as IndexPath).row]);
@@ -322,6 +348,12 @@ const PlantEditForm = ({
         imageUri={selectedImage}
         onClose={() => setShowImageViewer(false)}
       />
+
+      {/* Loading Modal for plant identification */}
+      <LoadingModal
+        visible={identifyLoading}
+        message=""
+      />
     </SlideUpModal>
   );
 };
@@ -335,7 +367,6 @@ type PlantItem = {
   isDead?: boolean;
   lastAction?: { type: string; date: Date };
   nextAction?: { type: string; date: Date };
-  actionsLoading: boolean;
   selected?: boolean; // For multi-select mode
 }
 
@@ -370,7 +401,6 @@ const getPlantItem = (plant: Plant): PlantItem =>
     isDead: plant.isDead,
     lastAction: undefined,
     nextAction: undefined,
-    actionsLoading: true,
   };
 };
 
@@ -399,58 +429,62 @@ const PlantsPage = () =>
       PlantManager.getAllPlants().then((plants) =>
       {
         const plantItems = plants.map(getPlantItem);
-        setPlants(plantItems);
 
-        // Load actions for each plant
-        plantItems.forEach(plant =>
-        {
+        // Create an array of promises for all action queries
+        const actionPromises = plantItems.map(plant =>
           ActionManager.getLastAndNextAction(plant.id)
             .then(actionData =>
             {
-              // Process the action data and update the plant
-              setPlants(prevPlants =>
-              {
-                return prevPlants.map(p =>
-                {
-                  if (p.id === plant.id) {
-                    // Create a new plant object with updated data
-                    const updatedPlant: PlantItem = {
-                      ...p,
-                      actionsLoading: false
-                    };
-
-                    // Handle last action if available
-                    if (actionData.lastAction) {
-                      updatedPlant.lastAction = {
-                        type: actionData.lastAction.name,
-                        date: new Date(actionData.lastAction.time)
-                      };
-                    }
-
-                    // Handle next action if available
-                    if (actionData.nextAction) {
-                      updatedPlant.nextAction = {
-                        type: actionData.nextAction.name,
-                        date: new Date(actionData.nextAction.time)
-                      };
-                    }
-
-                    return updatedPlant;
-                  }
-                  return p;
-                });
-              });
+              return {
+                plantId: plant.id,
+                actionData,
+                success: true
+              };
             })
             .catch(error =>
             {
               console.error(`Failed to load actions for plant ${plant.id}:`, error);
-              setPlants(prevPlants =>
-                prevPlants.map(p =>
-                  p.id === plant.id ? { ...p, actionsLoading: false } : p
-                )
-              );
-            });
-        });
+              return {
+                plantId: plant.id,
+                actionData: null,
+                success: false
+              };
+            })
+        );
+
+        // Wait for all action queries to complete
+        Promise.all(actionPromises)
+          .then(results =>
+          {
+            // Update all plants at once with the action data
+            plantItems.forEach(p =>
+            {
+              const result = results.find(r => r.plantId === p.id);
+              if (result) {
+                // Create a new plant object with updated data
+
+                if (result.success && result.actionData) {
+                  // Handle last action if available
+                  if (result.actionData.lastAction) {
+                    p.lastAction = {
+                      type: result.actionData.lastAction.name,
+                      date: new Date(result.actionData.lastAction.time)
+                    };
+                  }
+
+                  // Handle next action if available
+                  if (result.actionData.nextAction) {
+                    p.nextAction = {
+                      type: result.actionData.nextAction.name,
+                      date: new Date(result.actionData.nextAction.time)
+                    };
+                  }
+                }
+              }
+              return p;
+            })
+            setPlants(plantItems);
+          });
       });
       ConfigManager.getInstance().getCategories().then(categories =>
       {
@@ -601,7 +635,6 @@ const PlantsPage = () =>
       category: formData.category,
       image: formData.image,
       isDead: false,
-      actionsLoading: false,
     };
 
     if (editingPlant) {
@@ -796,24 +829,18 @@ const PlantsPage = () =>
               <Text category="s1">{item.scientificName}</Text>
               <Text category="c1">{item.category}</Text>
               <Layout style={[styles.plantActions, { backgroundColor: 'transparent' }]}>
-                {item.actionsLoading ? (
-                  <>
-                    <Text category="p2" status="basic" appearance="hint">加载中...</Text>
-                  </>
-                ) : (
-                  <>
-                    {item.lastAction && (
-                      <Text category="p2" status="info">
-                        {item.lastAction.type}: {formatTimeDistance(item.lastAction.date)}
-                      </Text>
-                    )}
-                    {item.nextAction && (
-                      <Text category="p2" status="warning">
-                        {item.nextAction.type}: {formatTimeDistance(item.nextAction.date)}
-                      </Text>
-                    )}
-                  </>
-                )}
+                <>
+                  {item.lastAction && (
+                    <Text category="p2" status="info">
+                      {item.lastAction.type}: {formatTimeDistance(item.lastAction.date)}
+                    </Text>
+                  )}
+                  {item.nextAction && (
+                    <Text category="p2" status="warning">
+                      {item.nextAction.type}: {formatTimeDistance(item.nextAction.date)}
+                    </Text>
+                  )}
+                </>
               </Layout>
             </Layout>
           </Layout>
