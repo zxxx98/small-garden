@@ -32,9 +32,24 @@ export class PlantManager
             if (index !== -1) {
                 mock.splice(index, 1);
             }
-            return;
+            return true;
         }
-        await SQLitePlant.delete(id);
+        return await SQLitePlant.delete(id);
+    }
+
+    static async deletePlants(ids: string[])
+    {
+        if (Platform.OS === 'web') {
+            ids.forEach(id =>
+            {
+                const index = mock.findIndex(item => item.id === id);
+                if (index !== -1) {
+                    mock.splice(index, 1);
+                }
+            });
+            return true;
+        }
+        return await SQLitePlant.deletes(ids);
     }
 
     static async getPlant(id: string): Promise<Plant | null>

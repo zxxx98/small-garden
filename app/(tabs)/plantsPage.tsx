@@ -103,7 +103,7 @@ const PlantEditForm = ({
   const [imageLoading, setImageLoading] = React.useState(false);
   const [selectedImage, setSelectedImage] = React.useState('');
   const [showImageViewer, setShowImageViewer] = React.useState(false);
-  const [identifyLoading, setIdentifyLoading] = React.useState(false);
+  const [loading, setLoading] = React.useState(false);
 
   // Set initial values when editingPlant changes
   React.useEffect(() =>
@@ -160,7 +160,7 @@ const PlantEditForm = ({
   {
     const apiKey = await ConfigManager.getInstance().getPlantNetApiKey();
     if (apiKey && imageUri) {
-      setIdentifyLoading(true);
+      setLoading(true);
       const result = await identifyPlantWithPlantNet(imageUri, apiKey);
       console.log(result);
       if (result.success) {
@@ -169,7 +169,7 @@ const PlantEditForm = ({
       }
       // Set the plant image after identification is done
       setPlantImage(imageUri);
-      setIdentifyLoading(false);
+      setLoading(false);
     } else {
       setPlantImage(imageUri);
     }
@@ -351,7 +351,7 @@ const PlantEditForm = ({
 
       {/* Loading Modal for plant identification */}
       <LoadingModal
-        visible={identifyLoading}
+        visible={loading}
         message=""
       />
     </SlideUpModal>
@@ -371,8 +371,8 @@ type PlantItem = {
 }
 
 const PlusIcon = (props: IconProps) => <Icon fill={theme['color-primary-500']} {...props} name="plus-outline" />;
-const DeleteIcon = (props: IconProps) => <Icon {...props} name="trash-2-outline" fill="#FF3D71" width={24} height={24} />;
-const CemeteryIcon = (props: IconProps) => <Icon {...props} name="alert-triangle-outline" fill="#FFAA00" width={24} height={24} />;
+const DeleteIcon = (props: IconProps) => <Icon {...props} name="trash-2-outline" fill="#fff" width={24} height={24} />;
+const CemeteryIcon = (props: IconProps) => <Icon {...props} name="alert-triangle-outline" fill="#fff" width={24} height={24} />;
 const EditIcon = (props: IconProps) => <Icon {...props} name="edit-outline" fill={theme['color-primary-500']} width={24} height={24} />;
 const CloseIcon = (props: IconProps) => <Icon {...props} name="close-outline" fill="#8F9BB3" width={24} height={24} />;
 
@@ -560,11 +560,15 @@ const PlantsPage = () =>
         {
           text: '删除',
           style: 'destructive',
-          onPress: () =>
+          onPress: async () =>
           {
-            setPlants(plants.filter(plant => !selectedPlants.includes(plant.id)));
-            setSelectedPlants([]);
-            setIsAllSelected(false);
+
+            const success = await PlantManager.deletePlants(selectedPlants);
+            if (success) {
+              setPlants(plants.filter(plant => !selectedPlants.includes(plant.id)));
+              setSelectedPlants([]);
+              setIsAllSelected(false);
+            }
           }
         }
       ]
@@ -918,14 +922,14 @@ const PlantsPage = () =>
               style={[styles.batchActionButton, styles.dangerButton]}
               onPress={handleBatchDelete}
             >
-              <DeleteIcon fill="#FFFFFF" width={24} height={24} />
+              <DeleteIcon width={24} height={24} />
               <Text style={styles.actionButtonText}>删除 ({selectedPlants.length})</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.batchActionButton, styles.warningButton]}
               onPress={handleBatchMoveToCemetery}
             >
-              <CemeteryIcon fill="#FFFFFF" width={24} height={24} />
+              <CemeteryIcon width={24} height={24} />
               <Text style={styles.actionButtonText}>移入墓地 ({selectedPlants.length})</Text>
             </TouchableOpacity>
           </Layout>

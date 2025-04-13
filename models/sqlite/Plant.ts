@@ -1,8 +1,10 @@
 import { Plant as PlantType } from '../../types/plant';
 import { database, sqliteHelpers } from './database';
 
-export class Plant {
-    static async findById(id: string): Promise<PlantType | null> {
+export class Plant
+{
+    static async findById(id: string): Promise<PlantType | null>
+    {
         try {
             const result = await database.getFirstAsync<{
                 id: string;
@@ -13,9 +15,9 @@ export class Plant {
                 img: string | null;
                 is_dead: number;
             }>('SELECT * FROM plants WHERE id = ?', id);
-            
+
             if (!result) return null;
-            
+
             return {
                 id: result.id,
                 name: result.name,
@@ -30,8 +32,9 @@ export class Plant {
             return null;
         }
     }
-    
-    static async findAll(): Promise<PlantType[]> {
+
+    static async findAll(): Promise<PlantType[]>
+    {
         try {
             const results = await database.getAllAsync<{
                 id: string;
@@ -42,7 +45,7 @@ export class Plant {
                 img: string | null;
                 is_dead: number;
             }>('SELECT * FROM plants');
-            
+
             return results.map(row => ({
                 id: row.id,
                 name: row.name,
@@ -57,8 +60,9 @@ export class Plant {
             return [];
         }
     }
-    
-    static async create(plant: PlantType): Promise<boolean> {
+
+    static async create(plant: PlantType): Promise<boolean>
+    {
         try {
             const result = await database.runAsync(
                 'INSERT INTO plants (id, name, type, scientific_name, remark, img, is_dead) VALUES (?, ?, ?, ?, ?, ?, ?)',
@@ -70,15 +74,16 @@ export class Plant {
                 plant.img || null,
                 sqliteHelpers.boolToInt(plant.isDead)
             );
-            
+
             return result.changes > 0;
         } catch (error) {
             console.error('Error creating plant:', error);
             return false;
         }
     }
-    
-    static async update(plant: PlantType): Promise<boolean> {
+
+    static async update(plant: PlantType): Promise<boolean>
+    {
         try {
             const result = await database.runAsync(
                 'UPDATE plants SET name = ?, type = ?, scientific_name = ?, remark = ?, img = ?, is_dead = ? WHERE id = ?',
@@ -90,20 +95,32 @@ export class Plant {
                 sqliteHelpers.boolToInt(plant.isDead),
                 plant.id
             );
-            
+
             return result.changes > 0;
         } catch (error) {
             console.error('Error updating plant:', error);
             return false;
         }
     }
-    
-    static async delete(id: string): Promise<boolean> {
+
+    static async delete(id: string): Promise<boolean>
+    {
         try {
             const result = await database.runAsync('DELETE FROM plants WHERE id = ?', id);
             return result.changes > 0;
         } catch (error) {
             console.error('Error deleting plant:', error);
+            return false;
+        }
+    }
+
+    static async deletes(ids: string[]): Promise<boolean>
+    {
+        try {
+            const result = await database.runAsync('DELETE FROM plants WHERE id IN (' + ids.map(() => '?').join(',') + ')', ...ids);
+            return result.changes > 0;
+        } catch (error) {
+            console.error('Error deleting plants:', error);
             return false;
         }
     }
