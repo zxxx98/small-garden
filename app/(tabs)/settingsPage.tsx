@@ -28,10 +28,10 @@ import { Plant } from '@/types/plant';
 import { ConfigManager } from '@/models/ConfigManager';
 import { ActionType } from '@/types/action';
 import { clearActionTypesCache } from '@/utils/action';
-import { theme } from '@/theme/theme';
 import * as ImagePicker from 'expo-image-picker';
 import { FileManager } from '@/models/FileManager';
 import { R2Config } from '@/types/config';
+import { showMessage } from "react-native-flash-message";
 
 // Icons
 const SunIcon = (props: IconProps) => <Icon {...props} name="sun-outline" />;
@@ -138,7 +138,11 @@ const SettingsPage = () =>
       }
     } catch (error) {
       console.error('Failed to load PlantNet API key:', error);
-      Alert.alert('错误', '加载PlantNet API key失败');
+      showMessage({
+        message: '加载PlantNet API key失败',
+        duration: 1000,
+        type: "warning"
+      });
     } finally {
       setPlantNetApiKeyLoading(false);
     }
@@ -160,7 +164,11 @@ const SettingsPage = () =>
       setActionTypes(types);
     } catch (error) {
       console.error('Failed to load action types:', error);
-      Alert.alert('错误', '加载行为类型失败');
+      showMessage({
+        message: '加载行为类型失败',
+        duration: 1000,
+        type: "warning"
+      });
     } finally {
       setActionTypesLoading(false);
     }
@@ -189,7 +197,11 @@ const SettingsPage = () =>
   const handleSaveCategory = async () =>
   {
     if (!categoryName.trim()) {
-      Alert.alert('错误', '请输入类别名称');
+      showMessage({
+        message: '请输入类别名称',
+        duration: 1000,
+        type: "warning"
+      });
       return;
     }
 
@@ -202,7 +214,11 @@ const SettingsPage = () =>
       setCategoryModalVisible(false);
       resetCategoryForm();
     } catch (error) {
-      Alert.alert('错误', '保存类别失败');
+      showMessage({
+        message: '保存类别失败',
+        duration: 1000,
+        type: "warning"
+      });
     }
   };
 
@@ -222,7 +238,11 @@ const SettingsPage = () =>
             try {
               await deleteCategory(category.id);
             } catch (error) {
-              Alert.alert('错误', '删除类别失败');
+              showMessage({
+                message: '删除类别失败',
+                duration: 1000,
+                type: "warning"
+              });
             }
           }
         }
@@ -248,7 +268,11 @@ const SettingsPage = () =>
       setDeadPlants(deadPlants);
     } catch (error) {
       console.error('Failed to load dead plants:', error);
-      Alert.alert('错误', '加载墓地植物失败');
+      showMessage({
+        message: '加载墓地植物失败',
+        duration: 1000,
+        type: "warning"
+      });
     } finally {
       setCemeteryLoading(false);
     }
@@ -279,10 +303,18 @@ const SettingsPage = () =>
       setShowResurrectModal(false);
       setSelectedDeadPlant(null);
 
-      Alert.alert('成功', `${selectedDeadPlant.name} 已从墓地中复活`);
+      showMessage({
+        message: `${selectedDeadPlant.name} 已从墓地中复活`,
+        duration: 1000,
+        type: "success"
+      });
     } catch (error) {
       console.error('Failed to resurrect plant:', error);
-      Alert.alert('错误', '复活植物失败');
+      showMessage({
+        message: '复活植物失败',
+        duration: 1000,
+        type: "warning"
+      });
     }
   };
 
@@ -304,7 +336,11 @@ const SettingsPage = () =>
               setDeadPlants(deadPlants.filter(p => p.id !== plant.id));
             } catch (error) {
               console.error('Failed to delete plant:', error);
-              Alert.alert('错误', '删除植物失败');
+              showMessage({
+                message: '删除植物失败',
+                duration: 1000,
+                type: "warning"
+              });
             }
           }
         }
@@ -688,7 +724,11 @@ const SettingsPage = () =>
     if (actionType) {
       // Only allow editing custom image action types
       if (!actionType.useCustomImage) {
-        Alert.alert('系统行为类型', '系统内置行为类型不能编辑');
+        showMessage({
+          message: '系统行为类型不能编辑',
+          duration: 1000,
+          type: "warning"
+        });
         return;
       }
 
@@ -709,7 +749,11 @@ const SettingsPage = () =>
       // Request permission
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('权限拒绝', '需要访问相册权限才能选择图片');
+        showMessage({
+          message: '需要访问相册权限才能选择图片',
+          duration: 1000,
+          type: "info"
+        });
         return;
       }
 
@@ -733,7 +777,11 @@ const SettingsPage = () =>
       }
     } catch (error) {
       console.error('Error picking image:', error);
-      Alert.alert('错误', '选择图片时出错');
+      showMessage({
+        message: '选择图片时出错',
+        duration: 1000,
+        type: "warning"
+      });
     }
   };
 
@@ -741,12 +789,20 @@ const SettingsPage = () =>
   const handleSaveActionType = async () =>
   {
     if (!actionTypeName.trim()) {
-      Alert.alert('错误', '请输入行为类型名称');
+      showMessage({
+        message: '请输入行为类型名称',
+        duration: 1000,
+        type: "warning"
+      });
       return;
     }
 
     if (!iconImage) {
-      Alert.alert('错误', '请选择自定义图标');
+      showMessage({
+        message: '请选择自定义图标',
+        duration: 1000,
+        type: "warning"
+      });
       return;
     }
 
@@ -769,7 +825,11 @@ const SettingsPage = () =>
       } else {
         // Check for duplicates
         if (actionTypes.some(type => type.name === actionTypeName)) {
-          Alert.alert('错误', `行为类型 "${actionTypeName}" 已存在`);
+          showMessage({
+            message: `行为类型 "${actionTypeName}" 已存在`,
+            duration: 1000,
+            type: "info"
+          });
           return;
         }
         // Add new action type
@@ -788,11 +848,18 @@ const SettingsPage = () =>
       // Close modal and reset form
       setActionTypeModalVisible(false);
       resetActionTypeForm();
-
-      Alert.alert('成功', `行为类型已${editingActionType ? '更新' : '添加'}`);
+      showMessage({
+        message: `行为类型已${editingActionType ? '更新' : '添加'}`,
+        duration: 1000,
+        type: "success"
+      });
     } catch (error) {
       console.error('Failed to save action type:', error);
-      Alert.alert('错误', '保存行为类型失败');
+      showMessage({
+        message: '保存行为类型失败',
+        duration: 1000,
+        type: "warning"
+      });
     }
   };
 
@@ -801,7 +868,11 @@ const SettingsPage = () =>
   {
     // Prevent deletion of system action types
     if (!actionType.useCustomImage) {
-      Alert.alert('系统行为类型', '系统内置行为类型不能删除');
+      showMessage({
+        message: '系统行为类型不能删除',
+        duration: 1000,
+        type: "warning"
+      });
       return;
     }
 
@@ -834,7 +905,11 @@ const SettingsPage = () =>
               clearActionTypesCache();
             } catch (error) {
               console.error('Failed to delete action type:', error);
-              Alert.alert('错误', '删除行为类型失败');
+              showMessage({
+                message: '删除行为类型失败',
+                duration: 1000,
+                type: "warning"
+              });
             }
           }
         }
@@ -1025,7 +1100,11 @@ const SettingsPage = () =>
       }
     } catch (error) {
       console.error('Failed to load R2 configuration:', error);
-      Alert.alert('错误', '加载R2配置失败');
+      showMessage({
+        message: '加载R2配置失败',
+        duration: 1000,
+        type: "warning"
+      });
     } finally {
       setR2ConfigLoading(false);
     }
@@ -1054,10 +1133,18 @@ const SettingsPage = () =>
       // Update FileManager config
       await FileManager.getInstance().updateStorageConfig();
 
-      Alert.alert('成功', `已${checked ? '启用' : '禁用'}Cloudflare R2存储`);
+      showMessage({
+        message: `已${checked ? '启用' : '禁用'}Cloudflare R2存储`,
+        duration: 1000,
+        type: "success"
+      });
     } catch (error) {
       console.error('Failed to toggle R2 storage:', error);
-      Alert.alert('错误', '更改R2存储设置失败');
+      showMessage({
+        message: '更改R2存储设置失败',
+        duration: 1000,
+        type: "warning"
+      });
     }
   };
 
@@ -1077,14 +1164,22 @@ const SettingsPage = () =>
   {
     if (!r2Config.accountId || !r2Config.accessKeyId ||
       !r2Config.secretAccessKey || !r2Config.bucketName || !r2Config.publicUrl) {
-      Alert.alert('错误', '请填写所有必填字段');
+      showMessage({
+        message: '请填写所有必填字段',
+        duration: 1000,
+        type: "warning"
+      });
       return;
     }
 
     try {
       await ConfigManager.getInstance().saveR2Config(r2Config);
       setR2ConfigModalVisible(false);
-      Alert.alert('成功', 'R2配置已保存');
+      showMessage({
+        message: 'R2配置已保存',
+        duration: 1000,
+        type: "success"
+      });
 
       // If R2 storage is enabled, update FileManager config
       if (useR2Storage) {
@@ -1092,7 +1187,11 @@ const SettingsPage = () =>
       }
     } catch (error) {
       console.error('Failed to save R2 config:', error);
-      Alert.alert('错误', '保存R2配置失败');
+      showMessage({
+        message: '保存R2配置失败',
+        duration: 1000,
+        type: "warning"
+      });
     }
   };
 
@@ -1170,17 +1269,29 @@ const SettingsPage = () =>
   const handleSavePlantNetApiKey = async () =>
   {
     if (!plantNetApiKey.trim()) {
-      Alert.alert('错误', '请输入PlantNet API Key');
+      showMessage({
+        message: '请输入PlantNet API Key',
+        duration: 1000,
+        type: "info"
+      });
       return;
     }
 
     try {
       await ConfigManager.getInstance().setPlantNetApiKey(plantNetApiKey);
       setPlantNetApiKeyModalVisible(false);
-      Alert.alert('成功', 'PlantNet API Key已保存');
+      showMessage({
+        message: 'PlantNet API Key已保存',
+        duration: 1000,
+        type: "success"
+      });
     } catch (error) {
       console.error('Failed to save PlantNet API key:', error);
-      Alert.alert('错误', '保存PlantNet API Key失败');
+      showMessage({
+        message: '保存PlantNet API Key失败',
+        duration: 1000,
+        type: "warning"
+      });
     }
   };
 

@@ -14,6 +14,7 @@ import { useTheme } from '../../theme/themeContext';
 import { ConfigManager } from '@/models/ConfigManager';
 import { useFocusEffect } from 'expo-router';
 import SlideUpModal from '@/components/SlideUpModal';
+import { showMessage } from "react-native-flash-message";
 
 // 图片查看器组件接口定义
 interface ImageViewerProps
@@ -128,7 +129,11 @@ const TaskDetail = ({ action, plant, onClose, onDelete, onComplete }: TaskDetail
     {
         const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (!permissionResult.granted) {
-            Alert.alert("需要权限", "需要访问相册权限才能选择图片");
+            showMessage({
+                message: "需要权限",
+                duration: 1000,
+                type: "warning"
+            });
             return;
         }
 
@@ -153,7 +158,11 @@ const TaskDetail = ({ action, plant, onClose, onDelete, onComplete }: TaskDetail
             }
         } catch (error) {
             console.error("Error saving image:", error);
-            Alert.alert("错误", "保存图片失败，请重试");
+            showMessage({
+                message: "保存图片失败，请重试",
+                duration: 1000,
+                type: "warning"
+            });
         } finally {
             setLoading(false);
         }
@@ -176,7 +185,11 @@ const TaskDetail = ({ action, plant, onClose, onDelete, onComplete }: TaskDetail
             await onComplete(updatedAction);
             onClose();
         } catch (error) {
-            Alert.alert("错误", "保存失败，请重试");
+            showMessage({
+                message: "保存失败，请重试",
+                duration: 1000,
+                type: "warning"
+            });
             console.error(error);
         } finally {
             setLoading(false);
@@ -374,39 +387,53 @@ interface TodoFormProps
 // 添加待办表单组件 - 用于创建新的待办事项
 const TodoForm = ({ plants, actionTypes, onSubmit, onCancel, themeMode }: TodoFormProps) =>
 {
-    const [selectedPlant, setSelectedPlant] = React.useState<Plant | null>(null);
+    const [selectedPlantIndex, setSelectedPlantIndex] = React.useState<IndexPath>();
     const [selectedActionTypeIndex, setSelectedActionTypeIndex] = React.useState<IndexPath>();
     const [todoDate, setTodoDate] = React.useState(new Date());
     const [todoRemark, setTodoRemark] = React.useState('');
-    const [isSubmitting, setIsSubmitting] = React.useState(false);
 
     // Remove the incorrect useEffect that was trying to access non-existent properties
-    React.useEffect(() => {
-        if (selectedPlant) {
+    React.useEffect(() =>
+    {
+        if (selectedPlantIndex) {
             setTodoDate(new Date());
             setTodoRemark('');
         }
-    }, [selectedPlant]);
+    }, [selectedPlantIndex]);
 
-    const handleSubmit = () => {
-        if (!selectedPlant) {
-            Alert.alert('错误', '请选择一个植物');
+    const handleSubmit = () =>
+    {
+        if (!selectedPlantIndex) {
+            showMessage({
+                message: '请选择一个植物',
+                duration: 1000,
+                type: "warning"
+            });
             return;
         }
 
         if (selectedActionTypeIndex === undefined) {
-            Alert.alert('错误', '请选择一个待办类型');
+            showMessage({
+                message: '请选择一个待办类型',
+                duration: 1000,
+                type: "warning"
+            });
             return;
         }
 
         onSubmit({
-            plant: selectedPlant,
+            plant: plants[selectedPlantIndex.row],
             actionType: actionTypes[selectedActionTypeIndex.row],
             date: todoDate,
             remark: todoRemark
         });
     };
-
+    const items = React.useMemo(() =>
+    {
+        return plants.map((plant) => (
+            <SelectItem key={plant.id} title={plant.name} />
+        ))
+    }, [plants])
     return (
         <SlideUpModal visible={true} onClose={onCancel} themeMode={themeMode}>
             <View style={styles.formHeader}>
@@ -419,17 +446,16 @@ const TodoForm = ({ plants, actionTypes, onSubmit, onCancel, themeMode }: TodoFo
             <Select
                 style={styles.input}
                 placeholder="选择植物"
-                value={selectedPlant?.name}
-                onSelect={(index) => {
+                selectedIndex={selectedPlantIndex}
+                onSelect={(index) =>
+                {
                     const idx = index as IndexPath;
-                    if (idx && idx.row !== undefined) {
-                        setSelectedPlant(plants[idx.row]);
-                    }
+                    // if (idx && idx.row !== undefined) {
+                    // }
+                    setSelectedPlantIndex(idx);
                 }}
             >
-                {plants.map((plant) => (
-                    <SelectItem key={plant.id} title={plant.name} />
-                ))}
+                {items}
             </Select>
 
             <Text category='s1' style={styles.formLabel}>选择待办类型:</Text>
@@ -437,7 +463,8 @@ const TodoForm = ({ plants, actionTypes, onSubmit, onCancel, themeMode }: TodoFo
                 style={styles.input}
                 placeholder="选择类型"
                 selectedIndex={selectedActionTypeIndex}
-                onSelect={(index) => {
+                onSelect={(index) =>
+                {
                     const idx = index as IndexPath;
                     if (idx && idx.row !== undefined) {
                         setSelectedActionTypeIndex(idx);
@@ -470,8 +497,7 @@ const TodoForm = ({ plants, actionTypes, onSubmit, onCancel, themeMode }: TodoFo
             <Button
                 onPress={handleSubmit}
                 style={styles.submitButton}
-                accessoryLeft={isSubmitting ? (props) => <Spinner size="small" /> : undefined}
-                disabled={isSubmitting || !selectedPlant || selectedActionTypeIndex === undefined}
+                disabled={selectedPlantIndex === undefined || selectedActionTypeIndex === undefined}
             >
                 添加
             </Button>
@@ -594,7 +620,11 @@ const TodoPage = () =>
             setFutureTasks(prev => prev.filter(item => item.id !== id));
         } catch (error) {
             console.error("Error deleting task:", error);
-            Alert.alert("错误", "删除失败，请重试");
+            showMessage({
+                message: "删除失败，请重试",
+                duration: 1000,
+                type: "warning"
+            });
         }
     };
 
@@ -658,10 +688,18 @@ const TodoPage = () =>
             // 关闭表单
             setShowAddTodo(false);
 
-            Alert.alert('成功', '待办事项已添加');
+            showMessage({
+                message: '待办事项已添加',
+                duration: 1000,
+                type: "success"
+            });
         } catch (error) {
             console.error("Error adding todo:", error);
-            Alert.alert('错误', '添加待办事项失败，请重试');
+            showMessage({
+                message: '添加待办事项失败，请重试',
+                duration: 1000,
+                type: "warning"
+            });
         } finally {
             setIsSubmitting(false);
         }

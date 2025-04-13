@@ -63,9 +63,9 @@ export class FileManager
     /**
      * 生成唯一的文件名
      */
-    private generateUniqueFileName(extension: string = '.jpg'): string
+    private generateUniqueFileName(extension: string = 'jpg'): string
     {
-        return `${generateId()}${extension}`;
+        return `${generateId()}.${extension}`;
     }
 
     /**

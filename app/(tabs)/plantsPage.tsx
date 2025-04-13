@@ -1,6 +1,6 @@
 import * as React from 'react';
-import { StyleSheet, Image, TouchableOpacity, Dimensions, Alert, View, FlatList, ScrollView, Animated } from 'react-native';
-import { Layout, Text, Card, Button, Modal, Input, Select, SelectItem, Icon, IconProps, IndexPath, CheckBox, Spinner } from '@ui-kitten/components';
+import { StyleSheet, Image, TouchableOpacity, Dimensions, Alert, View, FlatList } from 'react-native';
+import { Layout, Text, Button, Modal, Input, Select, SelectItem, Icon, IconProps, IndexPath, CheckBox, Spinner } from '@ui-kitten/components';
 import { LinearGradient } from 'expo-linear-gradient';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import FlowerIcon from '@/assets/svgs/flower1.svg';
@@ -17,6 +17,7 @@ import { theme } from '@/theme/theme';
 import SlideUpModal from '@/components/SlideUpModal';
 import { identifyPlantWithPlantNet } from '@/utils/PlantNet';
 import LoadingModal from '@/components/LoadingModal';
+import { showMessage } from "react-native-flash-message";
 
 // Define interface for ImageViewer props
 interface ImageViewerProps
@@ -97,13 +98,14 @@ const PlantEditForm = ({
 {
   const [plantName, setPlantName] = React.useState(editingPlant?.name || '');
   const [scientificName, setScientificName] = React.useState(editingPlant?.scientificName || '');
-  const [selectedCategory, setSelectedCategory] = React.useState<any>(null);
-  const [selectedIndex, setSelectedIndex] = React.useState<IndexPath>();
   const [plantImage, setPlantImage] = React.useState(editingPlant?.image || '');
+  const [selectedCategory, setSelectedCategory] = React.useState<{ id: string; name: string } | null>(
+    editingPlant?.category ? { id: editingPlant.category, name: editingPlant.category } : null
+  );
+  const [selectedIndex, setSelectedIndex] = React.useState<IndexPath | undefined>(undefined);
   const [imageLoading, setImageLoading] = React.useState(false);
   const [selectedImage, setSelectedImage] = React.useState('');
   const [showImageViewer, setShowImageViewer] = React.useState(false);
-  const [loading, setLoading] = React.useState(false);
 
   // Set initial values when editingPlant changes
   React.useEffect(() =>
@@ -130,7 +132,11 @@ const PlantEditForm = ({
   const handleSubmit = () =>
   {
     if (!plantName.trim()) {
-      Alert.alert('错误', '请输入植物名称');
+      showMessage({
+        message: '请输入植物名称',
+        duration: 1000,
+        type: "warning"
+      });
       return;
     }
 
@@ -160,7 +166,7 @@ const PlantEditForm = ({
   {
     const apiKey = await ConfigManager.getInstance().getPlantNetApiKey();
     if (apiKey && imageUri) {
-      setLoading(true);
+      LoadingModal.show("识别中...");
       const result = await identifyPlantWithPlantNet(imageUri, apiKey);
       console.log(result);
       if (result.success) {
@@ -169,7 +175,7 @@ const PlantEditForm = ({
       }
       // Set the plant image after identification is done
       setPlantImage(imageUri);
-      setLoading(false);
+      LoadingModal.hide();
     } else {
       setPlantImage(imageUri);
     }
@@ -189,7 +195,11 @@ const PlantEditForm = ({
   {
     const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permissionResult.granted) {
-      Alert.alert("需要权限", "需要访问相册权限才能选择图片");
+      showMessage({
+        message: '需要权限，请在设置中开启相册权限',
+        duration: 1000,
+        type: "info"
+      });
       return;
     }
 
@@ -210,7 +220,11 @@ const PlantEditForm = ({
       }
     } catch (error) {
       console.error("Error saving image:", error);
-      Alert.alert("错误", "保存图片失败，请重试");
+      showMessage({
+        message: '保存图片失败，请重试',
+        duration: 1000,
+        type: "warning"
+      });
     } finally {
       setImageLoading(false);
     }
@@ -221,7 +235,11 @@ const PlantEditForm = ({
   {
     const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
     if (!permissionResult.granted) {
-      Alert.alert("需要权限", "需要访问相机权限才能拍照");
+      showMessage({
+        message: '需要权限，请在设置中开启相机权限',
+        duration: 1000,
+        type: "info"
+      });
       return;
     }
 
@@ -242,7 +260,11 @@ const PlantEditForm = ({
       }
     } catch (error) {
       console.error("Error taking photo:", error);
-      Alert.alert("错误", "拍照失败，请重试");
+      showMessage({
+        message: '拍照失败，请重试',
+        duration: 1000,
+        type: "warning"
+      });
     } finally {
       setImageLoading(false);
     }
@@ -347,12 +369,6 @@ const PlantEditForm = ({
         visible={showImageViewer}
         imageUri={selectedImage}
         onClose={() => setShowImageViewer(false)}
-      />
-
-      {/* Loading Modal for plant identification */}
-      <LoadingModal
-        visible={loading}
-        message=""
       />
     </SlideUpModal>
   );
@@ -562,12 +578,24 @@ const PlantsPage = () =>
           style: 'destructive',
           onPress: async () =>
           {
-
+            LoadingModal.show("删除中...");
             const success = await PlantManager.deletePlants(selectedPlants);
+            LoadingModal.hide();
             if (success) {
+              showMessage({
+                message: '删除成功',
+                duration: 1000,
+                type: "success"
+              });
               setPlants(plants.filter(plant => !selectedPlants.includes(plant.id)));
               setSelectedPlants([]);
               setIsAllSelected(false);
+            } else {
+              showMessage({
+                message: '删除失败',
+                duration: 1000,
+                type: "warning"
+              });
             }
           }
         }
@@ -622,7 +650,11 @@ const PlantsPage = () =>
               setIsAllSelected(false);
             } catch (error) {
               console.error('Failed to move plants to cemetery:', error);
-              Alert.alert('错误', '移入墓地失败');
+              showMessage({
+                message: '移入墓地失败',
+                duration: 1000,
+                type: "warning"
+              });
             }
           }
         }
@@ -658,7 +690,11 @@ const PlantsPage = () =>
       PlantManager.updatePlant(plantToUpdate).catch(error =>
       {
         console.error('Failed to update plant:', error);
-        Alert.alert('错误', '更新植物失败');
+        showMessage({
+          message: '更新植物失败',
+          duration: 1000,
+          type: "warning"
+        });
       });
     } else {
       setPlants([...plants, newPlant]);
@@ -677,7 +713,11 @@ const PlantsPage = () =>
       PlantManager.addPlant(plantToAdd).catch(error =>
       {
         console.error('Failed to add plant:', error);
-        Alert.alert('错误', '添加植物失败');
+        showMessage({
+          message: '添加植物失败',
+          duration: 3000,
+          type: "warning"
+        });
       });
     }
 
@@ -740,7 +780,11 @@ const PlantsPage = () =>
               }
             } catch (error) {
               console.error('Failed to move plant to cemetery:', error);
-              Alert.alert('错误', '移入墓地失败');
+              showMessage({
+                message: '移入墓地失败',
+                duration: 1000,
+                type: "warning"
+              });
             }
           }
         }
@@ -757,7 +801,11 @@ const PlantsPage = () =>
   const handleAddCategory = () =>
   {
     if (!newCategory.trim()) {
-      Alert.alert('错误', '请输入类别名称');
+      showMessage({
+        message: '请输入类别名称',
+        duration: 1000,
+        type: "warning"
+      });
       return;
     }
 
@@ -982,6 +1030,9 @@ const PlantsPage = () =>
         imageUri={selectedImage}
         onClose={() => setShowImageViewer(false)}
       />
+
+      {/* LoadingModal for static method rendering */}
+      <LoadingModal />
     </GestureHandlerRootView>
   );
 };

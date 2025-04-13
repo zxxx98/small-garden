@@ -9,6 +9,8 @@ import { FeatherIconsPack } from '../icons/FeatherIconsPack';
 import { IoniconsIconsPack } from '../icons/IoniconsIconsPack';
 import { MaterialCommunityIconsPack } from '../icons/MaterialCommunityIconsPack';
 import { AssetIconsPack } from '../icons/AssetIconsPack';
+import LoadingModal from '@/components/LoadingModal';
+import FlashMessage from 'react-native-flash-message';
 
 // Create theme-aware app component
 const ThemedApp = () =>
@@ -24,6 +26,10 @@ const ThemedApp = () =>
           <Stack.Screen name="+not-found" options={{ headerShown: false }} />
         </Stack>
       </CategoryProvider>
+
+      {/* LoadingModal for rendering */}
+      <LoadingModal />
+      <FlashMessage position="top" />
     </ApplicationProvider>
   );
 }
