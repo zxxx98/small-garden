@@ -2,19 +2,27 @@ import * as React from 'react';
 import { StyleSheet, TouchableOpacity, View, Animated, Dimensions, ScrollView } from 'react-native';
 import { BlurView } from 'expo-blur';
 
-interface SlideUpModalProps {
+interface SlideUpModalProps
+{
     visible: boolean;
     onClose: () => void;
     children: React.ReactNode;
     themeMode: 'light' | 'dark';
+    headerComponent?: React.ReactNode;
 }
 
-const SlideUpModal = ({ visible, onClose, children, themeMode }: SlideUpModalProps) => {
+const SlideUpModal = ({ visible, onClose, children, themeMode, headerComponent }: SlideUpModalProps) =>
+{
     // Animation value for sliding up
     const slideAnim = React.useRef(new Animated.Value(Dimensions.get('window').height)).current;
+    const windowHeight = Dimensions.get('window').height;
+
+    // 计算模态框高度 - 默认为屏幕高度的75%
+    const modalHeight = windowHeight * 0.75;
 
     // Start slide-up animation when component becomes visible
-    React.useEffect(() => {
+    React.useEffect(() =>
+    {
         if (visible) {
             Animated.spring(slideAnim, {
                 toValue: 0,
@@ -25,13 +33,15 @@ const SlideUpModal = ({ visible, onClose, children, themeMode }: SlideUpModalPro
         }
     }, [visible]);
 
-    const handleClose = () => {
+    const handleClose = () =>
+    {
         // Slide down animation
         Animated.timing(slideAnim, {
             toValue: Dimensions.get('window').height,
             duration: 300,
             useNativeDriver: true
-        }).start(() => {
+        }).start(() =>
+        {
             onClose();
         });
     };
@@ -59,18 +69,30 @@ const SlideUpModal = ({ visible, onClose, children, themeMode }: SlideUpModalPro
             <Animated.View
                 style={[
                     styles.animatedContainer,
-                    { transform: [{ translateY: slideAnim }] }
+                    { transform: [{ translateY: slideAnim }] },
+                    { height: modalHeight }
                 ]}
             >
-                <ScrollView
-                    style={[styles.container, { backgroundColor }]}
-                    contentContainerStyle={styles.contentContainer}
-                >
+                <View style={[styles.container, { backgroundColor }]}>
                     {/* Drag indicator */}
                     <View style={styles.dragIndicator} />
 
-                    {children}
-                </ScrollView>
+                    {/* 固定头部区域 */}
+                    {headerComponent && (
+                        <View style={styles.headerContainer}>
+                            {headerComponent}
+                        </View>
+                    )}
+
+                    {/* 可滚动内容区域 */}
+                    <ScrollView
+                        style={styles.scrollView}
+                        contentContainerStyle={styles.contentContainer}
+                        showsVerticalScrollIndicator={false}
+                    >
+                        {children}
+                    </ScrollView>
+                </View>
             </Animated.View>
         </View>
     );
@@ -87,7 +109,6 @@ const styles = StyleSheet.create({
         justifyContent: 'flex-end',
     },
     animatedContainer: {
-        maxHeight: '90%',
         width: '100%',
     },
     container: {
@@ -98,6 +119,13 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.1,
         shadowRadius: 10,
         elevation: 5,
+        flex: 1,
+        flexDirection: 'column',
+    },
+    headerContainer: {
+    },
+    scrollView: {
+        flex: 1,
     },
     contentContainer: {
         padding: 24,
@@ -109,8 +137,8 @@ const styles = StyleSheet.create({
         backgroundColor: 'rgba(150, 150, 150, 0.3)',
         alignSelf: 'center',
         borderRadius: 5,
-        marginBottom: 20,
-        marginTop: -10,
+        marginBottom: 10,
+        marginTop: 10,
     },
 });
 

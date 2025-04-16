@@ -32,6 +32,8 @@ import * as ImagePicker from 'expo-image-picker';
 import { FileManager } from '@/models/FileManager';
 import { R2Config } from '@/types/config';
 import { showMessage } from "react-native-flash-message";
+import { DatabaseInstance } from '@/models/sqlite/database';
+import LoadingModal from '@/components/LoadingModal';
 
 // Icons
 const SunIcon = (props: IconProps) => <Icon {...props} name="sun-outline" />;
@@ -497,23 +499,103 @@ const SettingsPage = () =>
 
   // Render main settings section
   const renderMainSection = () => (
-    <>
+    <ScrollView style={styles.container}>
       <Layout style={styles.section}>
         <Text category="h6" style={styles.sectionTitle}>外观</Text>
-        <Layout style={styles.settingRow}>
-          <Layout style={styles.settingInfo}>
-            <Text category="s1">暗黑模式</Text>
-            <Text appearance="hint" category="p2">切换应用的亮暗主题</Text>
-          </Layout>
-          <Toggle
-            checked={themeMode === 'dark'}
-            onChange={toggleTheme}
-            status="primary"
-          />
+        <Layout style={styles.settingItem}>
+          <Text>暗色模式</Text>
+          <Toggle checked={themeMode === 'dark'} onChange={toggleTheme} />
         </Layout>
       </Layout>
 
-      <Divider />
+      <Layout style={styles.section}>
+        <Text category="h6" style={styles.sectionTitle}>数据管理</Text>
+        <TouchableOpacity
+          style={styles.navItem}
+          onPress={() => setActiveSection('categories')}
+        >
+          <Layout style={styles.navItemInner}>
+            <CategoryIcon fill="#3366FF" style={styles.navItemIcon} />
+            <Layout style={styles.navItemContent}>
+              <Text category="s1">植物类别管理</Text>
+              <Text appearance="hint" category="p2">添加、编辑或删除植物类别</Text>
+            </Layout>
+            <Icon name="chevron-right-outline" fill="#8F9BB3" width={24} height={24} />
+          </Layout>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.navItem}
+          onPress={() => setActiveSection('actionTypes')}
+        >
+          <Layout style={styles.navItemInner}>
+            <ActionTypeIcon fill="#3366FF" style={styles.navItemIcon} />
+            <Layout style={styles.navItemContent}>
+              <Text category="s1">行为类型管理</Text>
+              <Text appearance="hint" category="p2">添加、编辑或删除自定义行为类型</Text>
+            </Layout>
+            <Icon name="chevron-right-outline" fill="#8F9BB3" width={24} height={24} />
+          </Layout>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.navItem}
+          onPress={() => setActiveSection('cemetery')}
+        >
+          <Layout style={styles.navItemInner}>
+            <CemeteryIcon fill="#3366FF" style={styles.navItemIcon} />
+            <Layout style={styles.navItemContent}>
+              <Text category="s1">植物墓地</Text>
+              <Text appearance="hint" category="p2">管理已标记为死亡的植物</Text>
+            </Layout>
+            <Icon name="chevron-right-outline" fill="#8F9BB3" width={24} height={24} />
+          </Layout>
+        </TouchableOpacity>
+
+        <Button
+          appearance="ghost"
+          status="danger"
+          accessoryLeft={(props) => <Icon {...props} name="refresh-outline" />}
+          onPress={() =>
+          {
+            Alert.alert(
+              '重置数据库',
+              '确定要重置数据库结构吗？这可能会修复一些应用错误，但不会删除您的数据。',
+              [
+                { text: '取消', style: 'cancel' },
+                {
+                  text: '确定',
+                  style: 'destructive',
+                  onPress: async () =>
+                  {
+                    try {
+                      LoadingModal.show("重置中...");
+                      await DatabaseInstance.resetSchema();
+                      LoadingModal.hide();
+                      showMessage({
+                        message: '数据库结构已重置',
+                        duration: 1000,
+                        type: "success"
+                      });
+                    } catch (error) {
+                      LoadingModal.hide();
+                      showMessage({
+                        message: '重置失败',
+                        duration: 1000,
+                        type: "danger"
+                      });
+                      console.error("Reset schema error:", error);
+                    }
+                  }
+                }
+              ]
+            );
+          }}
+          style={styles.navigationButton}
+        >
+          修复数据库
+        </Button>
+      </Layout>
 
       <Layout style={styles.section}>
         <Text category="h6" style={styles.sectionTitle}>云存储</Text>
@@ -566,53 +648,6 @@ const SettingsPage = () =>
       <Divider />
 
       <Layout style={styles.section}>
-        <Text category="h6" style={styles.sectionTitle}>内容管理</Text>
-        <TouchableOpacity
-          style={styles.navItem}
-          onPress={() => setActiveSection('categories')}
-        >
-          <Layout style={styles.navItemInner}>
-            <CategoryIcon fill="#8F9BB3" style={styles.navItemIcon} />
-            <Layout style={styles.navItemContent}>
-              <Text category="s1">管理植物类别</Text>
-              <Text appearance="hint" category="p2">添加、编辑或删除植物类别</Text>
-            </Layout>
-            <Icon name="chevron-right-outline" fill="#8F9BB3" width={24} height={24} />
-          </Layout>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.navItem}
-          onPress={() => setActiveSection('actionTypes')}
-        >
-          <Layout style={styles.navItemInner}>
-            <ActionTypeIcon fill="#3366FF" style={styles.navItemIcon} />
-            <Layout style={styles.navItemContent}>
-              <Text category="s1">管理行为类型</Text>
-              <Text appearance="hint" category="p2">添加、编辑或删除行为类型及图标</Text>
-            </Layout>
-            <Icon name="chevron-right-outline" fill="#8F9BB3" width={24} height={24} />
-          </Layout>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.navItem}
-          onPress={() => setActiveSection('cemetery')}
-        >
-          <Layout style={styles.navItemInner}>
-            <CemeteryIcon fill="#FFAA00" style={styles.navItemIcon} />
-            <Layout style={styles.navItemContent}>
-              <Text category="s1">查看墓地</Text>
-              <Text appearance="hint" category="p2">查看已死亡的植物，可以复活或永久删除</Text>
-            </Layout>
-            <Icon name="chevron-right-outline" fill="#8F9BB3" width={24} height={24} />
-          </Layout>
-        </TouchableOpacity>
-      </Layout>
-
-      <Divider />
-
-      <Layout style={styles.section}>
         <Text category="h6" style={styles.sectionTitle}>关于</Text>
         <Layout style={styles.aboutContent}>
           <Text category="s1" style={styles.appName}>小花园应用</Text>
@@ -620,7 +655,7 @@ const SettingsPage = () =>
           <Text appearance="hint" category="p2" style={styles.copyright}>© 2023 小花园团队</Text>
         </Layout>
       </Layout>
-    </>
+    </ScrollView>
   );
 
   // Render categories management section
@@ -1596,6 +1631,16 @@ const styles = StyleSheet.create({
   },
   configScrollView: {
     maxHeight: 380,
+  },
+  settingItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+    backgroundColor: 'transparent',
+  },
+  navigationButton: {
+    paddingVertical: 12,
   },
 });
 

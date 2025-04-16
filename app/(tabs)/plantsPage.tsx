@@ -271,13 +271,13 @@ const PlantEditForm = ({
   };
 
   return (
-    <SlideUpModal visible={true} onClose={onCancel} themeMode={themeMode}>
+    <SlideUpModal visible={true} onClose={onCancel} themeMode={themeMode} headerComponent={
       <View style={styles.formHeader}>
         <Text category="h5" style={styles.formTitle}>
           {editingPlant ? '编辑植物' : '添加植物'}
         </Text>
       </View>
-
+    }>
       {/* Image Picker */}
       <View style={styles.imagePickerContainer}>
         {plantImage ? (
@@ -1315,8 +1315,6 @@ const styles = StyleSheet.create({
   },
   formHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     marginBottom: 20,
   },
   formTitle: {

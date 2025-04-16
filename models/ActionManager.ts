@@ -25,7 +25,7 @@ export class ActionManager
         await SQLiteAction.update(action);
     }
 
-    static async deleteAction(id: number)
+    static async deleteAction(id: string)
     {
         if (Platform.OS === 'web') {
             const index = mockActions.findIndex(item => item.id === id);
@@ -37,12 +37,12 @@ export class ActionManager
         await SQLiteAction.delete(id);
     }
 
-    static async getAction(id: number): Promise<Action | null>
+    static async getAction(id: string): Promise<Action | null>
     {
         if (Platform.OS === 'web') {
             return mockActions.find(item => item.id === id) || null;
         }
-        return await SQLiteAction.findById(String(id));
+        return await SQLiteAction.findById(id);
     }
 
     static async getAllActions(): Promise<Action[]>
@@ -86,7 +86,7 @@ export class ActionManager
 
 const mockActions: Action[] = [
     {
-        id: 11,
+        id: '11',
         name: '浇水',
         plantId: '3', // 绿萝
         time: new Date().getTime(),
@@ -95,7 +95,7 @@ const mockActions: Action[] = [
         done: true,
     },
     {
-        id: 1,
+        id: '1',
         name: '施肥',
         plantId: '3', // 绿萝
         time: new Date().getTime(),
@@ -104,7 +104,7 @@ const mockActions: Action[] = [
         done: true,
     },
     {
-        id: 2,
+        id: '2',
         name: '施肥',
         plantId: '5', // 银杏
         time: new Date().getTime(),
@@ -113,7 +113,7 @@ const mockActions: Action[] = [
         done: true,
     },
     {
-        id: 3,
+        id: '3',
         name: '施肥',
         plantId: '5', // 银杏
         time: new Date().getTime(),
@@ -122,7 +122,7 @@ const mockActions: Action[] = [
         done: true,
     },
     {
-        id: 4,
+        id: '4',
         name: '施肥',
         plantId: '5', // 银杏
         time: new Date().getTime(),
@@ -131,7 +131,7 @@ const mockActions: Action[] = [
         done: true,
     },
     {
-        id: 5,
+        id: '5',
         name: '施肥',
         plantId: '5', // 银杏
         time: new Date().getTime(),
@@ -140,7 +140,7 @@ const mockActions: Action[] = [
         done: true,
     },
     {
-        id: 6,
+        id: '6',
         name: '施肥',
         plantId: '5', // 银杏
         time: new Date().getTime(),

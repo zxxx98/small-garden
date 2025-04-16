@@ -1,7 +1,8 @@
 import * as React from 'react';
-import { StyleSheet, FlatList, Image, TouchableOpacity, View, Dimensions, Alert, ScrollView, Animated } from 'react-native';
-import { Layout, Text, Card, Icon, Modal, Button, Input, IconProps, Spinner, Select, SelectItem, Datepicker, IndexPath } from '@ui-kitten/components';
+import { StyleSheet, FlatList, Image, TouchableOpacity, View, Dimensions, Alert, ScrollView, Animated, Platform } from 'react-native';
+import { Layout, Text, Card, Icon, Modal, Button, Input, IconProps, Spinner, Select, SelectItem, Datepicker, IndexPath, Toggle, CheckBox, Divider, useTheme as useKittenTheme } from '@ui-kitten/components';
 import { LinearGradient } from 'expo-linear-gradient';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { ActionManager } from '@/models/ActionManager';
 import { PlantManager } from '@/models/PlantManager';
 import { Action, ActionType } from '@/types/action';
@@ -15,6 +16,9 @@ import { ConfigManager } from '@/models/ConfigManager';
 import { useFocusEffect } from 'expo-router';
 import SlideUpModal from '@/components/SlideUpModal';
 import { showMessage } from "react-native-flash-message";
+import { generateId } from '@/utils/uuid';
+import LoadingModal from '@/components/LoadingModal';
+import { DatabaseInstance } from '@/models/sqlite/database';
 
 // 图片查看器组件接口定义
 interface ImageViewerProps
@@ -80,7 +84,7 @@ interface TaskDetailProps
     action: Action;           // 待办事项
     plant: Plant;            // 关联的植物
     onClose: () => void;     // 关闭回调
-    onDelete: (id: number) => void;  // 删除回调
+    onDelete: (id: string) => void;  // 删除回调
     onComplete: (action: Action) => void;  // 完成任务回调
 }
 
@@ -379,6 +383,10 @@ interface TodoFormProps
         actionType: ActionType;
         date: Date;
         remark: string;
+        isRecurring: boolean;  // 是否循环任务
+        recurringInterval: number;  // 循环间隔天数
+        recurringStartDate: Date;  // 循环开始日期
+        recurringEndDate: Date;  // 循环结束日期
     }) => void;
     onCancel: () => void;    // 取消回调
     themeMode: 'light' | 'dark';  // 主题模式
@@ -391,6 +399,27 @@ const TodoForm = ({ plants, actionTypes, onSubmit, onCancel, themeMode }: TodoFo
     const [selectedActionTypeIndex, setSelectedActionTypeIndex] = React.useState<IndexPath>();
     const [todoDate, setTodoDate] = React.useState(new Date());
     const [todoRemark, setTodoRemark] = React.useState('');
+    const [isRecurring, setIsRecurring] = React.useState(false);  // 是否为循环任务
+    const [recurringInterval, setRecurringInterval] = React.useState(1);  // 循环间隔天数，默认为1（每天）
+    const [recurringIntervalIndex, setRecurringIntervalIndex] = React.useState(new IndexPath(0));  // 循环间隔的索引
+    const [recurringStartDate, setRecurringStartDate] = React.useState(new Date());  // 循环开始日期
+    const [recurringEndDate, setRecurringEndDate] = React.useState(() =>
+    {
+        const endDate = new Date();
+        endDate.setDate(endDate.getDate() + 30); // 默认30天后
+        return endDate;
+    });  // 循环结束日期
+
+    // 生成循环间隔选项
+    const recurringIntervalOptions = [
+        { title: '每天', value: 1 },
+        { title: '隔1天', value: 2 },
+        { title: '隔2天', value: 3 },
+        { title: '隔3天', value: 4 },
+        { title: '隔4天', value: 5 },
+        { title: '隔5天', value: 6 },
+        { title: '隔6天', value: 7 }
+    ];
 
     // Remove the incorrect useEffect that was trying to access non-existent properties
     React.useEffect(() =>
@@ -421,11 +450,24 @@ const TodoForm = ({ plants, actionTypes, onSubmit, onCancel, themeMode }: TodoFo
             return;
         }
 
+        if (isRecurring && recurringEndDate < recurringStartDate) {
+            showMessage({
+                message: '结束日期必须晚于开始日期',
+                duration: 1000,
+                type: "warning"
+            });
+            return;
+        }
+
         onSubmit({
             plant: plants[selectedPlantIndex.row],
             actionType: actionTypes[selectedActionTypeIndex.row],
             date: todoDate,
-            remark: todoRemark
+            remark: todoRemark,
+            isRecurring: isRecurring,
+            recurringInterval: recurringIntervalOptions[recurringIntervalIndex.row].value,
+            recurringStartDate: recurringStartDate,
+            recurringEndDate: recurringEndDate
         });
     };
     const items = React.useMemo(() =>
@@ -434,82 +476,149 @@ const TodoForm = ({ plants, actionTypes, onSubmit, onCancel, themeMode }: TodoFo
             <SelectItem key={plant.id} title={plant.name} />
         ))
     }, [plants])
+
+    const headerComponent = (
+        <View style={styles.titleContainer}>
+            <Text category="h5" style={styles.formTitle}>
+                添加待办事项
+            </Text>
+        </View>
+    );
+
     return (
-        <SlideUpModal visible={true} onClose={onCancel} themeMode={themeMode}>
-            <View style={styles.formHeader}>
-                <Text category="h5" style={styles.formTitle}>
-                    添加待办事项
-                </Text>
+        <SlideUpModal
+            visible={true}
+            onClose={onCancel}
+            themeMode={themeMode}
+            headerComponent={headerComponent}
+        >
+            <View style={styles.formContent}>
+                <Text category='s1' style={styles.formLabel}>选择植物:</Text>
+                <Select
+                    style={styles.input}
+                    placeholder="选择植物"
+                    selectedIndex={selectedPlantIndex}
+                    onSelect={(index) =>
+                    {
+                        const idx = index as IndexPath;
+                        setSelectedPlantIndex(idx);
+                    }}
+                >
+                    {items}
+                </Select>
+
+                <Text category='s1' style={styles.formLabel}>选择待办类型:</Text>
+                <Select
+                    style={styles.input}
+                    placeholder="选择类型"
+                    selectedIndex={selectedActionTypeIndex}
+                    onSelect={(index) =>
+                    {
+                        const idx = index as IndexPath;
+                        if (idx && idx.row !== undefined) {
+                            setSelectedActionTypeIndex(idx);
+                        }
+                    }}
+                >
+                    {actionTypes.map((type, index) => (
+                        <SelectItem key={index.toString()} title={type.name} />
+                    ))}
+                </Select>
+
+                {!isRecurring && (
+                    <>
+                        <Text category='s1' style={styles.formLabel}>选择日期:</Text>
+                        <Datepicker
+                            style={styles.input}
+                            date={todoDate}
+                            onSelect={setTodoDate}
+                            min={new Date()}
+                        />
+                    </>
+                )}
+
+                <View style={styles.switchContainer}>
+                    <Text category='s1' style={styles.formLabel}>循环任务:</Text>
+                    <View style={styles.switchRow}>
+                        <Text>{isRecurring ? '开启' : '关闭'}</Text>
+                        <Toggle
+                            checked={isRecurring}
+                            onChange={() => setIsRecurring(!isRecurring)}
+                        />
+                    </View>
+                </View>
+
+                {isRecurring && (
+                    <>
+                        <Text category='s1' style={styles.formLabel}>循环周期:</Text>
+                        <Select
+                            style={styles.input}
+                            placeholder="选择循环周期"
+                            selectedIndex={recurringIntervalIndex}
+                            value={recurringIntervalOptions[recurringIntervalIndex.row].title}
+                            onSelect={(index) => 
+                            {
+                                const idx = index as IndexPath;
+                                if (idx && idx.row !== undefined) {
+                                    setRecurringIntervalIndex(idx);
+                                    setRecurringInterval(recurringIntervalOptions[idx.row].value);
+                                }
+                            }}
+                        >
+                            {recurringIntervalOptions.map((option, index) => (
+                                <SelectItem key={index.toString()} title={option.title} />
+                            ))}
+                        </Select>
+
+                        <Text category='s1' style={styles.formLabel}>循环开始日期:</Text>
+                        <Datepicker
+                            style={styles.input}
+                            date={recurringStartDate}
+                            onSelect={setRecurringStartDate}
+                            min={new Date()}
+                        />
+
+                        <Text category='s1' style={styles.formLabel}>循环结束日期:</Text>
+                        <Datepicker
+                            style={styles.input}
+                            date={recurringEndDate}
+                            onSelect={setRecurringEndDate}
+                            min={recurringStartDate}
+                        />
+
+                        <Text category='p2' style={styles.infoText}>
+                            将创建从{recurringStartDate.toLocaleDateString()}到{recurringEndDate.toLocaleDateString()}期间的循环任务，间隔为{recurringIntervalOptions[recurringIntervalIndex.row].title}
+                        </Text>
+                    </>
+                )}
+
+                <Text category='s1' style={styles.formLabel}>备注:</Text>
+                <Input
+                    style={styles.input}
+                    multiline={true}
+                    textStyle={{ minHeight: 64 }}
+                    placeholder="添加备注..."
+                    value={todoRemark}
+                    onChangeText={setTodoRemark}
+                />
+
+                <Button
+                    onPress={handleSubmit}
+                    style={styles.submitButton}
+                    disabled={selectedPlantIndex === undefined || selectedActionTypeIndex === undefined}
+                >
+                    添加
+                </Button>
+
+                <Button
+                    appearance="outline"
+                    status="basic"
+                    onPress={onCancel}
+                    style={styles.cancelButton}
+                >
+                    取消
+                </Button>
             </View>
-
-            <Text category='s1' style={styles.formLabel}>选择植物:</Text>
-            <Select
-                style={styles.input}
-                placeholder="选择植物"
-                selectedIndex={selectedPlantIndex}
-                onSelect={(index) =>
-                {
-                    const idx = index as IndexPath;
-                    // if (idx && idx.row !== undefined) {
-                    // }
-                    setSelectedPlantIndex(idx);
-                }}
-            >
-                {items}
-            </Select>
-
-            <Text category='s1' style={styles.formLabel}>选择待办类型:</Text>
-            <Select
-                style={styles.input}
-                placeholder="选择类型"
-                selectedIndex={selectedActionTypeIndex}
-                onSelect={(index) =>
-                {
-                    const idx = index as IndexPath;
-                    if (idx && idx.row !== undefined) {
-                        setSelectedActionTypeIndex(idx);
-                    }
-                }}
-            >
-                {actionTypes.map((type, index) => (
-                    <SelectItem key={index.toString()} title={type.name} />
-                ))}
-            </Select>
-
-            <Text category='s1' style={styles.formLabel}>选择日期:</Text>
-            <Datepicker
-                style={styles.input}
-                date={todoDate}
-                onSelect={setTodoDate}
-                min={new Date()}
-            />
-
-            <Text category='s1' style={styles.formLabel}>备注:</Text>
-            <Input
-                style={styles.input}
-                multiline={true}
-                textStyle={{ minHeight: 64 }}
-                placeholder="添加备注..."
-                value={todoRemark}
-                onChangeText={setTodoRemark}
-            />
-
-            <Button
-                onPress={handleSubmit}
-                style={styles.submitButton}
-                disabled={selectedPlantIndex === undefined || selectedActionTypeIndex === undefined}
-            >
-                添加
-            </Button>
-
-            <Button
-                appearance="outline"
-                status="basic"
-                onPress={onCancel}
-                style={styles.cancelButton}
-            >
-                取消
-            </Button>
         </SlideUpModal>
     );
 };
@@ -521,16 +630,25 @@ const TodoPage = () =>
     const [todoItems, setTodoItems] = React.useState<Action[]>([]); // 所有待办事项
     const [todayTasks, setTodayTasks] = React.useState<Action[]>([]); // 今日待办
     const [futureTasks, setFutureTasks] = React.useState<Action[]>([]); // 未来待办
+    const [displayedFutureTasks, setDisplayedFutureTasks] = React.useState<Action[]>([]); // 当前显示的未来待办
     const [loading, setLoading] = React.useState(true); // 加载状态
+    const [loadingMore, setLoadingMore] = React.useState(false); // 加载更多状态
     const [selectedTask, setSelectedTask] = React.useState<{ action: Action, plant: Plant } | null>(null); // 选中的任务
     const [showDetail, setShowDetail] = React.useState(false); // 是否显示详情
     const { themeMode } = useTheme(); // 主题模式
+
+    // 未来待办显示控制
+    const MAX_INITIAL_FUTURE_TASKS = 10; // 初始显示的未来待办数量
+    const LOAD_MORE_COUNT = 10; // 每次加载的待办数量
 
     // 添加待办相关状态
     const [showAddTodo, setShowAddTodo] = React.useState(false); // 是否显示添加表单
     const [plants, setPlants] = React.useState<Plant[]>([]); // 植物列表
     const [actionTypes, setActionTypes] = React.useState<ActionType[]>([]); // 操作类型列表
     const [isSubmitting, setIsSubmitting] = React.useState(false); // 提交状态
+
+    // 滚动视图引用，用于监听滚动事件
+    const scrollViewRef = React.useRef<ScrollView>(null);
 
     // 加载数据的回调函数
     const loadData = React.useCallback(() =>
@@ -541,6 +659,36 @@ const TodoPage = () =>
 
     // 页面聚焦时重新加载数据
     useFocusEffect(loadData);
+
+    // 处理滚动到底部时加载更多未来待办
+    const handleLoadMoreFutureTasks = () =>
+    {
+        if (loadingMore || displayedFutureTasks.length >= futureTasks.length) {
+            return; // 已经在加载或已显示全部
+        }
+
+        setLoadingMore(true);
+        const currentCount = displayedFutureTasks.length;
+        const newTasksToShow = futureTasks.slice(0, currentCount + LOAD_MORE_COUNT);
+
+        // 模拟异步加载
+        setTimeout(() =>
+        {
+            setDisplayedFutureTasks(newTasksToShow);
+            setLoadingMore(false);
+        }, 300);
+    };
+
+    // 监听滚动事件
+    const handleScroll = (event: any) =>
+    {
+        const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
+        const paddingToBottom = 20; // 距离底部多少距离开始加载
+
+        if (layoutMeasurement.height + contentOffset.y >= contentSize.height - paddingToBottom) {
+            handleLoadMoreFutureTasks();
+        }
+    };
 
     // 将待办事项分为今日和未来
     const separateTodoItems = (actions: Action[]) =>
@@ -586,6 +734,9 @@ const TodoPage = () =>
             setTodoItems(pendingActions);
             setTodayTasks(todayItems);
             setFutureTasks(futureItems);
+
+            // 初始时只显示一部分未来待办
+            setDisplayedFutureTasks(futureItems.slice(0, MAX_INITIAL_FUTURE_TASKS));
         } catch (error) {
             console.error("Error loading todo items:", error);
         } finally {
@@ -610,7 +761,7 @@ const TodoPage = () =>
     };
 
     // 删除待办事项
-    const handleDelete = async (id: number) =>
+    const handleDelete = async (id: string) =>
     {
         try {
             await ActionManager.deleteAction(id);
@@ -618,6 +769,7 @@ const TodoPage = () =>
             setTodoItems(prev => prev.filter(item => item.id !== id));
             setTodayTasks(prev => prev.filter(item => item.id !== id));
             setFutureTasks(prev => prev.filter(item => item.id !== id));
+            setDisplayedFutureTasks(prev => prev.filter(item => item.id !== id));
         } catch (error) {
             console.error("Error deleting task:", error);
             showMessage({
@@ -637,6 +789,7 @@ const TodoPage = () =>
             setTodoItems(prev => prev.filter(item => item.id !== updatedAction.id));
             setTodayTasks(prev => prev.filter(item => item.id !== updatedAction.id));
             setFutureTasks(prev => prev.filter(item => item.id !== updatedAction.id));
+            setDisplayedFutureTasks(prev => prev.filter(item => item.id !== updatedAction.id));
         } catch (error) {
             console.error("Error completing task:", error);
             throw error; // Let the calling component handle the error
@@ -657,42 +810,119 @@ const TodoPage = () =>
         }
     };
 
+    // 创建循环任务
+    const createRecurringTasks = async (baseAction: Action, recurringInterval: number, recurringPeriod: number) =>
+    {
+        const tasks: Action[] = [];
+        const maxDays = recurringPeriod; // 使用自定义的天数
+        const startDate = new Date(baseAction.time);
+
+        // 创建指定天数内所有的循环任务
+        for (let i = 0; i < maxDays; i += recurringInterval) {
+            const taskDate = new Date(startDate);
+            taskDate.setDate(startDate.getDate() + i);
+
+            // 创建新的待办事项
+            const newAction: Action = {
+                ...baseAction,
+                id: i === 0 ? baseAction.id : generateId(), // 原始任务保持ID不变，其他任务生成新ID
+                time: taskDate.getTime(),
+                parentRecurringId: i === 0 ? undefined : baseAction.id, // 第一个任务是父任务
+            };
+            tasks.push(newAction);
+        }
+
+        return tasks;
+    };
+
     // 添加新的待办事项
     const handleAddTodo = async (formData: {
         plant: Plant;
         actionType: ActionType;
         date: Date;
         remark: string;
+        isRecurring: boolean;
+        recurringInterval: number;
+        recurringStartDate: Date;
+        recurringEndDate: Date;
     }) =>
     {
         setIsSubmitting(true);
 
         try {
-            // 创建新的待办事项，使用时间戳作为唯一ID
-            const newAction: Action = {
-                id: Date.now(),
+            // 创建基础待办事项
+            const baseAction: Action = {
+                id: generateId(),
                 name: formData.actionType.name,
                 plantId: formData.plant.id,
                 time: formData.date.getTime(),
                 remark: formData.remark,
                 imgs: [],
-                done: false
+                done: false,
+                isRecurring: formData.isRecurring,
+                recurringInterval: formData.recurringInterval
             };
 
-            // 保存新待办
-            await ActionManager.addAction(newAction);
+            if (formData.isRecurring) {
+                // 计算开始日期和结束日期之间的天数
+                const startDate = new Date(formData.recurringStartDate);
+                const endDate = new Date(formData.recurringEndDate);
+                const diffTime = Math.abs(endDate.getTime() - startDate.getTime());
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1; // +1 to include end date
+
+                // 使用计算的天数和开始日期创建循环任务
+                baseAction.time = startDate.getTime(); // 使用指定的开始日期
+                const recurringTasks = await createRecurringTasks(baseAction, formData.recurringInterval, diffDays);
+
+                try {
+                    // 批量保存所有循环任务
+                    for (const task of recurringTasks) {
+                        await ActionManager.addAction(task);
+                    }
+
+                    showMessage({
+                        message: `已创建${recurringTasks.length}个循环待办事项`,
+                        duration: 1000,
+                        type: "success"
+                    });
+                } catch (error: any) {
+                    console.error("Error adding recurring tasks:", error);
+
+                    // 检查错误是否与数据库结构有关
+                    if (error.toString().includes("table actions has no column named is_recurring")) {
+                        // 如果是缺少列的错误，尝试重置数据库结构
+                        await resetDatabaseSchema();
+
+                        // 再次尝试添加循环任务
+                        for (const task of recurringTasks) {
+                            await ActionManager.addAction(task);
+                        }
+
+                        showMessage({
+                            message: `数据库已更新，成功创建${recurringTasks.length}个循环待办事项`,
+                            duration: 1000,
+                            type: "success"
+                        });
+                    } else {
+                        throw error; // 重新抛出其他类型的错误
+                    }
+                }
+            } else {
+                // 保存单个待办
+                await ActionManager.addAction(baseAction);
+
+                showMessage({
+                    message: '待办事项已添加',
+                    duration: 1000,
+                    type: "success"
+                });
+            }
 
             // 刷新待办列表
             await loadTodoItems();
 
             // 关闭表单
             setShowAddTodo(false);
-
-            showMessage({
-                message: '待办事项已添加',
-                duration: 1000,
-                type: "success"
-            });
         } catch (error) {
             console.error("Error adding todo:", error);
             showMessage({
@@ -705,12 +935,51 @@ const TodoPage = () =>
         }
     };
 
+    // 重置数据库结构
+    const resetDatabaseSchema = async () =>
+    {
+        try {
+            LoadingModal.show("更新数据库...");
+            await DatabaseInstance.resetSchema();
+            LoadingModal.hide();
+            return true;
+        } catch (error) {
+            console.error("Failed to reset database schema:", error);
+            LoadingModal.hide();
+            showMessage({
+                message: '数据库更新失败',
+                duration: 1000,
+                type: "danger"
+            });
+            return false;
+        }
+    };
+
     // 渲染分区标题
     const renderSectionHeader = (title: string) => (
         <View style={styles.sectionHeader}>
             <Text category="h6" style={styles.sectionTitle}>{title}</Text>
         </View>
     );
+
+    // 渲染加载更多指示器
+    const renderLoadMoreIndicator = () =>
+    {
+        if (displayedFutureTasks.length < futureTasks.length) {
+            return (
+                <View style={styles.loadMoreContainer}>
+                    {loadingMore ? (
+                        <Spinner size="small" />
+                    ) : (
+                        <Text category="p2" style={styles.loadMoreText}>
+                            下拉加载更多...
+                        </Text>
+                    )}
+                </View>
+            );
+        }
+        return null;
+    };
 
     return (
         <LinearGradient
@@ -739,13 +1008,18 @@ const TodoPage = () =>
                         <Text category='s1' style={styles.loadingText}>加载中...</Text>
                     </View>
                 ) : todoItems.length > 0 ? (
-                    <ScrollView contentContainerStyle={styles.listContainer}>
+                    <ScrollView
+                        ref={scrollViewRef}
+                        contentContainerStyle={styles.listContainer}
+                        onScroll={handleScroll}
+                        scrollEventThrottle={400} // 控制滚动事件触发频率
+                    >
                         {todayTasks.length > 0 && (
                             <>
                                 {renderSectionHeader('今日待办')}
                                 {todayTasks.map(item => (
                                     <RenderTodoItem
-                                        key={item.id.toString()}
+                                        key={item.id}
                                         item={item}
                                         onPress={() => handleTaskPress(item)}
                                     />
@@ -756,13 +1030,14 @@ const TodoPage = () =>
                         {futureTasks.length > 0 && (
                             <>
                                 {renderSectionHeader('未来待办')}
-                                {futureTasks.map(item => (
+                                {displayedFutureTasks.map(item => (
                                     <RenderTodoItem
-                                        key={item.id.toString()}
+                                        key={item.id}
                                         item={item}
                                         onPress={() => handleTaskPress(item)}
                                     />
                                 ))}
+                                {renderLoadMoreIndicator()}
                             </>
                         )}
                     </ScrollView>
@@ -822,7 +1097,7 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
     },
-    header: {  // 页面头部样式
+    header: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
@@ -831,14 +1106,14 @@ const styles = StyleSheet.create({
         paddingBottom: 8,
         backgroundColor: 'transparent',
     },
-    content: {  // 主要内容区域样式
+    content: {
         flex: 1,
         backgroundColor: 'transparent',
     },
-    listContainer: {  // 列表容器样式
+    listContainer: {
         padding: 16,
     },
-    todoItem: {  // 待办事项卡片样式
+    todoItem: {
         marginBottom: 12,
         borderRadius: 10,
         elevation: 2,
@@ -1062,7 +1337,7 @@ const styles = StyleSheet.create({
         width: 24,
         height: 24,
     },
-    formOverlay: {  // 表单遮罩层样式
+    formOverlay: {
         position: 'absolute',
         top: 0,
         left: 0,
@@ -1094,6 +1369,28 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         marginBottom: 20,
     },
+    formHeaderFixed: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 20,
+        paddingHorizontal: 24,
+        paddingTop: 24,
+        borderBottomWidth: 1,
+        borderBottomColor: 'rgba(143, 155, 179, 0.2)',
+    },
+    formScrollView: {
+        flex: 1,
+        maxHeight: '80%',
+    },
+    formScrollContent: {
+        paddingHorizontal: 24,
+        paddingTop: 10,
+        paddingBottom: 40,
+    },
+    formContent: {
+        flex: 1,
+    },
     formTitle: {
         textAlign: 'center',
         flex: 1,
@@ -1124,15 +1421,54 @@ const styles = StyleSheet.create({
     loadingText: {
         marginTop: 16,
     },
-    sectionHeader: {  // 分区标题样式
+    sectionHeader: {
         paddingVertical: 10,
         paddingHorizontal: 6,
         marginBottom: 8,
         borderBottomWidth: 1,
         borderBottomColor: 'rgba(143, 155, 179, 0.2)',
     },
-    sectionTitle: {  // 分区标题文字样式
+    sectionTitle: {
         color: theme['color-primary-500'],
+    },
+    loadMoreContainer: {
+        padding: 16,
+        alignItems: 'center',
+    },
+    loadMoreText: {
+        color: theme['color-primary-500'],
+    },
+    switchContainer: {
+        marginBottom: 16,
+    },
+    switchRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginTop: 4,
+    },
+    toggleButton: {
+        borderRadius: 20,
+        paddingHorizontal: 16,
+        height: 32,
+    },
+    toggleActive: {
+        backgroundColor: theme['color-primary-500'],
+    },
+    toggleInactive: {
+        backgroundColor: 'transparent',
+        borderColor: theme['color-primary-300'],
+    },
+    infoText: {
+        marginTop: 4,
+        marginBottom: 16,
+        fontSize: 12,
+        color: theme['color-basic-600'],
+        fontStyle: 'italic',
+    },
+    titleContainer: {
+        flexDirection: 'row',
+        marginBottom: 20,
     },
 });
 
