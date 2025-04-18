@@ -22,9 +22,9 @@ jobs:
         run: npm install -g eas-cli && npm install
 
       - name: Login to Expo
-        run: eas login --token ${{ secrets.EXPO_TOKEN }}
+        run: eas login --non-interactive
         env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }} # 在 GitHub Secrets 中设置
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}  # 确保已在 GitHub Secrets 设置
 
       - name: Build with EAS
         run: eas build --platform android --profile production --non-interactive --no-wait
