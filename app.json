@@ -46,6 +46,12 @@
     },
     "android": {
       "package": "com.xiaodibao.smallgarden"
+    },
+    "ios": {
+      "bundleIdentifier": "com.xiaodibao.smallgarden",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     }
   }
 }
