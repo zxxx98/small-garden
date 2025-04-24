@@ -52,10 +52,20 @@ jobs:
       - name: Wait for build to complete
         run: |
           while true; do
-            BUILD_STATUS=$(eas build:list --platform android --status=finished --json | jq -r '.[0].status')
+            BUILD_LIST=$(eas build:list --platform android --status=finished --json || echo "[]")
+            if [ "$BUILD_LIST" = "[]" ]; then
+              echo "No finished builds found yet. Waiting..."
+              sleep 30
+              continue
+            fi
+            
+            BUILD_STATUS=$(echo "$BUILD_LIST" | jq -r '.[0].status // empty')
             if [ "$BUILD_STATUS" = "finished" ]; then
+              echo "Build completed successfully!"
               break
             fi
+            
+            echo "Current build status: $BUILD_STATUS"
             echo "Waiting for build to complete..."
             sleep 30
           done
