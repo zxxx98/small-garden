@@ -17,8 +17,8 @@ const SlideUpModal = ({ visible, onClose, children, themeMode, headerComponent }
     const slideAnim = React.useRef(new Animated.Value(Dimensions.get('window').height)).current;
     const windowHeight = Dimensions.get('window').height;
 
-    // 计算模态框高度 - 默认为屏幕高度的75%
-    const modalHeight = windowHeight * 0.75;
+    // 计算模态框高度 - 默认为屏幕高度的80%
+    const modalHeight = windowHeight * 0.8;
 
     // Start slide-up animation when component becomes visible
     React.useEffect(() =>

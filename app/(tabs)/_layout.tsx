@@ -2,6 +2,7 @@ import { BottomNavigation, BottomNavigationTab, Icon } from '@ui-kitten/componen
 import { Tabs } from 'expo-router';
 import { StyleSheet } from 'react-native';
 import React from 'react';
+import { useAddAction } from '@/context/AddActionContext';
 
 // 定义标签数据接口
 interface TabDataItem {
@@ -20,8 +21,9 @@ const tabData: TabDataItem[] = [
     { name: 'settingsPage', title: '设置', iconName: 'settings-2-outline' }
 ];
 
-
 export default function TabLayout() {
+    const { open } = useAddAction();
+
     return (
         <Tabs
             screenOptions={{
@@ -34,6 +36,7 @@ export default function TabLayout() {
                     onSelect={index => {
                         if (index === 2) {
                             //打开添加行为面板
+                            open();
                         } else {
                             props.navigation.navigate(props.state.routeNames[index]);
                         }
@@ -46,7 +49,6 @@ export default function TabLayout() {
                         let style:any = props.state.index === index ? styles.activeTab : styles.inactiveTab;
                         if(index === 2)
                         {
-                            //  Object.assign(style, styles.circleTab);
                             style = styles.circleTab;
                         }
                         return (
@@ -67,8 +69,14 @@ export default function TabLayout() {
                 </BottomNavigation>
             )}
         >
-            {tabData.map(tab => (
-                <Tabs.Screen key={tab.name} name={tab.name} />
+            {tabData.map((tab, index) => (
+                <Tabs.Screen
+                    key={index}
+                    name={tab.name}
+                    options={{
+                        title: tab.title,
+                    }}
+                />
             ))}
         </Tabs>
     );
@@ -78,15 +86,19 @@ const styles = StyleSheet.create({
     activeTab: {
         opacity: 1,
         flex: 1,
+        minWidth: "12%",
+        alignItems: 'center',
     },
     inactiveTab: {
         opacity: 0.5,
         flex: 1,
+        minWidth: "12%",
+        alignItems: 'center',
     },
     circleTab: {
         height: 40,
-        borderRadius: 15,
-        backgroundColor: '#2B3A67',  // 深色背景
+        borderRadius: 20,
+        backgroundColor: '#2B3A67',
         margin: 8,
         shadowColor: "#000",
         shadowOffset: {
@@ -95,6 +107,8 @@ const styles = StyleSheet.create({
         },
         shadowOpacity: 0.25,
         shadowRadius: 3.84,
-        elevation: 5
+        elevation: 5,
+        alignItems: 'center',
+        justifyContent: 'center',
     }
 });
