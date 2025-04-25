@@ -98,17 +98,21 @@ jobs:
 
       - name: Download build artifacts
         run: |
-          # 获取最新的已完成构建ID
-          EAS_BUILD_ID=$(eas build:list --platform android --status=finished --json --non-interactive --limit 1 | jq -r '.[0].id')
-          echo "获取到最新的构建ID: $EAS_BUILD_ID"
-          eas build:download --platform android --id $EAS_BUILD_ID --output=./build.apk
+          # 获取最新的已完成构建的下载URL
+          BUILD_URL=$(eas build:list --platform android --status=finished --json --non-interactive --limit 1 | jq -r '.[0].artifacts.buildUrl')
+          echo "获取到构建下载URL: $BUILD_URL"
+          curl -L "$BUILD_URL" -o ./build.apk
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
           files: ./build.apk
-          tag_name: v${{ github.run_number }}
-          name: Release v${{ github.run_number }}
-          body: "Android Release Build #${{ github.run_number }}"
+          tag_name: ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}
+          body: |
+            Android Release Build
+            
+            Git Commit: ${{ github.sha }}
+            Commit Message: ${{ github.event.head_commit.message }}
         env: 
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
