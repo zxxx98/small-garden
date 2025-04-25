@@ -99,7 +99,7 @@ jobs:
       - name: Download build artifacts
         run: |
           # 获取最新的已完成构建ID
-          EAS_BUILD_ID=$(eas build:list --platform android --status=FINISHED --json --non-interactive --limit 1 | jq -r '.[0].id')
+          EAS_BUILD_ID=$(eas build:list --platform android --status=finished --json --non-interactive --limit 1 | jq -r '.[0].id')
           echo "获取到最新的构建ID: $EAS_BUILD_ID"
           eas build:download --platform android --id $EAS_BUILD_ID --output=./build.apk
 
