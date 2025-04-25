@@ -52,9 +52,19 @@ jobs:
       - name: Wait for build to complete
         run: |
           while true; do
+            echo "Checking build status..."
             BUILD_LIST=$(eas build:list --platform android --status=finished --json || echo "[]")
+            echo "Raw build list output: $BUILD_LIST"
+            
             if [ "$BUILD_LIST" = "[]" ]; then
               echo "No finished builds found yet. Waiting..."
+              sleep 30
+              continue
+            fi
+            
+            if ! echo "$BUILD_LIST" | jq . >/dev/null 2>&1; then
+              echo "Error: Invalid JSON received from eas build:list"
+              echo "Raw output: $BUILD_LIST"
               sleep 30
               continue
             fi
