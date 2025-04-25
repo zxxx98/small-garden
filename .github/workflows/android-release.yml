@@ -64,11 +64,12 @@ jobs:
             fi
             
             echo "Checking build status... (已等待 $((elapsed_time/60)) 分钟)"
-            BUILD_LIST=$(eas build:list --platform android --status=finished --json --non-interactive || echo "[]")
+            # 获取最新的构建（包括正在进行的）
+            BUILD_LIST=$(eas build:list --platform android --json --non-interactive || echo "[]")
             echo "Raw build list output: $BUILD_LIST"
             
             if [ "$BUILD_LIST" = "[]" ]; then
-              echo "No finished builds found yet. Waiting..."
+              echo "No builds found yet. Waiting..."
               sleep 600
               continue
             fi
@@ -80,10 +81,14 @@ jobs:
               continue
             fi
             
-            BUILD_STATUS=$(echo "$BUILD_LIST" | jq -r '.[0].status // empty')
-            if [ "$BUILD_STATUS" = "finished" ]; then
+            # 获取最新的构建状态
+            BUILD_STATUS=$(echo "$BUILD_LIST" | jq -r 'sort_by(.createdAt) | reverse | .[0].status // empty')
+            if [ "$BUILD_STATUS" = "FINISHED" ]; then
               echo "Build completed successfully!"
               break
+            elif [ "$BUILD_STATUS" = "ERROR" ]; then
+              echo "Build failed with status: $BUILD_STATUS"
+              exit 1
             fi
             
             echo "Current build status: $BUILD_STATUS"
@@ -93,7 +98,9 @@ jobs:
 
       - name: Download build artifacts
         run: |
-          EAS_BUILD_ID=$(eas build:list --platform android --status=finished --json --non-interactive | jq -r '.[0].id')
+          # 获取最新的已完成构建ID
+          EAS_BUILD_ID=$(eas build:list --platform android --status=FINISHED --json --non-interactive | jq -r 'sort_by(.completedAt) | reverse | .[0].id')
+          echo "获取到最新的构建ID: $EAS_BUILD_ID"
           eas build:download --platform android --id $EAS_BUILD_ID --output=./build.apk
 
       - name: Create GitHub Release
@@ -103,5 +110,5 @@ jobs:
           tag_name: v${{ github.run_number }}
           name: Release v${{ github.run_number }}
           body: "Android Release Build #${{ github.run_number }}"
-        env:
+        env: 
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
