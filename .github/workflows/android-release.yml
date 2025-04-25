@@ -65,7 +65,7 @@ jobs:
             
             echo "Checking build status... (已等待 $((elapsed_time/60)) 分钟)"
             # 获取最新的构建（包括正在进行的）
-            BUILD_LIST=$(eas build:list --platform android --json --non-interactive || echo "[]")
+            BUILD_LIST=$(eas build:list --platform android --json --non-interactive --limit 1 || echo "[]")
             echo "Raw build list output: $BUILD_LIST"
             
             if [ "$BUILD_LIST" = "[]" ]; then
@@ -82,7 +82,7 @@ jobs:
             fi
             
             # 获取最新的构建状态
-            BUILD_STATUS=$(echo "$BUILD_LIST" | jq -r 'sort_by(.createdAt) | reverse | .[0].status // empty')
+            BUILD_STATUS=$(echo "$BUILD_LIST" | jq -r '.[0].status // empty')
             if [ "$BUILD_STATUS" = "FINISHED" ]; then
               echo "Build completed successfully!"
               break
@@ -99,7 +99,7 @@ jobs:
       - name: Download build artifacts
         run: |
           # 获取最新的已完成构建ID
-          EAS_BUILD_ID=$(eas build:list --platform android --status=FINISHED --json --non-interactive | jq -r 'sort_by(.completedAt) | reverse | .[0].id')
+          EAS_BUILD_ID=$(eas build:list --platform android --status=FINISHED --json --non-interactive --limit 1 | jq -r '.[0].id')
           echo "获取到最新的构建ID: $EAS_BUILD_ID"
           eas build:download --platform android --id $EAS_BUILD_ID --output=./build.apk
 
