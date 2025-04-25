@@ -53,7 +53,7 @@ jobs:
         run: |
           while true; do
             echo "Checking build status..."
-            BUILD_LIST=$(eas build:list --platform android --status=finished --json || echo "[]")
+            BUILD_LIST=$(eas build:list --platform android --status=finished --json --non-interactive || echo "[]")
             echo "Raw build list output: $BUILD_LIST"
             
             if [ "$BUILD_LIST" = "[]" ]; then
@@ -82,7 +82,7 @@ jobs:
 
       - name: Download build artifacts
         run: |
-          EAS_BUILD_ID=$(eas build:list --platform android --status=finished --json | jq -r '.[0].id')
+          EAS_BUILD_ID=$(eas build:list --platform android --status=finished --json --non-interactive | jq -r '.[0].id')
           eas build:download --platform android --id $EAS_BUILD_ID --output=./build.apk
 
       - name: Create GitHub Release
