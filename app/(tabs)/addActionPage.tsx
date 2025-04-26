@@ -221,7 +221,7 @@ const AddActionPage = () => {
                     <Select
                         style={styles.select}
                         placeholder="选择植物"
-                        value={plants[selectedPlantIndex?.row ?? 0].name}
+                        value={plants.length > 0 && selectedPlantIndex?.row !== undefined ? plants[selectedPlantIndex.row].name : ''}
                         selectedIndex={selectedPlantIndex}
                         onSelect={(index) => setSelectedPlantIndex(index as IndexPath)}
                     >
@@ -234,7 +234,7 @@ const AddActionPage = () => {
                     <Select
                         style={styles.select}
                         placeholder="选择行为类型"
-                        value={actionTypes[selectedActionTypeIndex?.row ?? 0].name}
+                        value={actionTypes.length > 0 && selectedActionTypeIndex?.row !== undefined ? actionTypes[selectedActionTypeIndex.row].name : ''}
                         selectedIndex={selectedActionTypeIndex}
                         onSelect={(index) => setSelectedActionTypeIndex(index as IndexPath)}
                     >
