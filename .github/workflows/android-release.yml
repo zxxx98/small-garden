@@ -14,6 +14,10 @@ jobs:
       contents: write
       pull-requests: write
     
+    env:
+      GOTIFY_URL: ${{ secrets.GOTIFY_URL }}
+      GOTIFY_TOKEN: ${{ secrets.GOTIFY_TOKEN }}
+    
     steps:
       - name: Check for EXPO_TOKEN
         run: |
@@ -115,4 +119,24 @@ jobs:
             Git Commit: ${{ github.sha }}
             Commit Message: ${{ github.event.head_commit.message }}
         env: 
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Send Gotify Notification
+        if: always()
+        run: |
+          if [ "${{ job.status }}" = "success" ]; then
+            STATUS="✅ 构建成功"
+          else
+            STATUS="❌ 构建失败"
+          fi
+          
+          RELEASE_URL="https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }}"
+          
+          curl -X POST "$GOTIFY_URL/message" \
+            -H "X-Gotify-Key: $GOTIFY_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"title\": \"Android 应用构建通知\",
+              \"message\": \"$STATUS\n\n版本: ${{ github.ref_name }}\n提交信息: ${{ github.event.head_commit.message }}\n\n下载链接: $RELEASE_URL\",
+              \"priority\": 5
+            }" 
