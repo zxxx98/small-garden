@@ -34,6 +34,7 @@ import { R2Config } from '@/types/config';
 import { showMessage } from "react-native-flash-message";
 import { DatabaseInstance } from '@/models/sqlite/database';
 import LoadingModal from '@/components/LoadingModal';
+import { CloudflareR2Manager } from '@/models/CloudflareR2Manager';
 
 // Icons
 const SunIcon = (props: IconProps) => <Icon {...props} name="sun-outline" />;
@@ -48,6 +49,7 @@ const ResurrectIcon = (props: IconProps) => <Icon {...props} name="activity-outl
 const ActionTypeIcon = (props: IconProps) => <Icon {...props} name="droplet-outline" />;
 const CloudIcon = (props: IconProps) => <Icon {...props} name="cloud-upload-outline" />;
 const FlowerIcon = (props: IconProps) => <Icon {...props} name="keypad-outline" />;
+const TrashIcon2 = (props: IconProps) => <Icon {...props} name="trash-outline" />;
 
 // Available icon packs for selection
 const iconPacks = [
@@ -117,6 +119,9 @@ const SettingsPage = () =>
   const [plantNetApiKey, setPlantNetApiKey] = React.useState<string>('');
   const [plantNetApiKeyModalVisible, setPlantNetApiKeyModalVisible] = React.useState(false);
   const [plantNetApiKeyLoading, setPlantNetApiKeyLoading] = React.useState(false);
+  
+  // 缓存清理状态
+  const [clearCacheLoading, setClearCacheLoading] = React.useState(false);
 
   // Load dead plants when entering cemetery view
   React.useEffect(() =>
@@ -551,6 +556,20 @@ const SettingsPage = () =>
             <Icon name="chevron-right-outline" fill="#8F9BB3" width={24} height={24} />
           </Layout>
         </TouchableOpacity>
+        
+        <TouchableOpacity
+          style={styles.navItem}
+          onPress={handleClearCache}
+        >
+          <Layout style={styles.navItemInner}>
+            <TrashIcon2 fill="#3366FF" style={styles.navItemIcon} />
+            <Layout style={styles.navItemContent}>
+              <Text category="s1">清理图片缓存</Text>
+              <Text appearance="hint" category="p2">清理所有已缓存的图片，释放存储空间</Text>
+            </Layout>
+            <Icon name="chevron-right-outline" fill="#8F9BB3" width={24} height={24} />
+          </Layout>
+        </TouchableOpacity>
 
         <Button
           appearance="ghost"
@@ -651,7 +670,7 @@ const SettingsPage = () =>
         <Text category="h6" style={styles.sectionTitle}>关于</Text>
         <Layout style={styles.aboutContent}>
           <Text category="s1" style={styles.appName}>小花园应用</Text>
-          <Text appearance="hint" category="p2">版本 1.0.0</Text>
+          <Text appearance="hint" category="p2">版本 1.0.3</Text>
           <Text appearance="hint" category="p2" style={styles.copyright}>© 2023 小花园团队</Text>
         </Layout>
       </Layout>
@@ -1370,6 +1389,35 @@ const SettingsPage = () =>
   const gradientColors = themeMode === 'light'
     ? ['#F5F5F5', '#F3E5F5', '#F5F5F5'] as const
     : ['#222B45', '#1A2138', '#222B45'] as const;
+
+  // 清理缓存的方法
+  const handleClearCache = async () => {
+    try {
+      setClearCacheLoading(true);
+      LoadingModal.show("正在清理缓存...");
+      
+      // 清理R2缓存
+      const r2Manager = CloudflareR2Manager.getInstance();
+      await r2Manager.clearCache();
+      
+      LoadingModal.hide();
+      showMessage({
+        message: "缓存清理成功",
+        description: "已清理所有图片缓存",
+        type: "success",
+      });
+    } catch (error) {
+      console.error("清理缓存失败:", error);
+      LoadingModal.hide();
+      showMessage({
+        message: "清理缓存失败",
+        description: "请稍后重试",
+        type: "danger",
+      });
+    } finally {
+      setClearCacheLoading(false);
+    }
+  };
 
   return (
     <LinearGradient
