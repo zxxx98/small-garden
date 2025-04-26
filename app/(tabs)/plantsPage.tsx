@@ -165,7 +165,16 @@ const PlantEditForm = ({
   const identifyPlant = async (imageUri: string) =>
   {
     const apiKey = await ConfigManager.getInstance().getPlantNetApiKey();
-    if (apiKey && imageUri) {
+    if (!apiKey) {
+      showMessage({
+        message: '未配置植物识别API密钥，请在设置中配置',
+        duration: 2000,
+        type: "warning"
+      });
+      return;
+    }
+    
+    if (imageUri) {
       LoadingModal.show("识别中...");
       const result = await identifyPlantWithPlantNet(imageUri, apiKey);
       console.log(result);
@@ -173,11 +182,7 @@ const PlantEditForm = ({
         setScientificName(result.scientificName);
         setPlantName(result.commonName);
       }
-      // Set the plant image after identification is done
-      setPlantImage(imageUri);
       LoadingModal.hide();
-    } else {
-      setPlantImage(imageUri);
     }
   };
 
@@ -216,7 +221,8 @@ const PlantEditForm = ({
         // Save the image using FileManager and get the stored URL
         const imageUri = result.assets[0].uri;
         const savedImageUrl = await fileManager.saveImage(imageUri);
-        await identifyPlant(savedImageUrl);
+        // 不再自动调用识别
+        setPlantImage(savedImageUrl);
       }
     } catch (error) {
       console.error("Error saving image:", error);
@@ -256,7 +262,8 @@ const PlantEditForm = ({
         // Save the image using FileManager and get the stored URL
         const imageUri = result.assets[0].uri;
         const savedImageUrl = await fileManager.saveImage(imageUri);
-        await identifyPlant(savedImageUrl);
+        // 不再自动调用识别
+        setPlantImage(savedImageUrl);
       }
     } catch (error) {
       console.error("Error taking photo:", error);
@@ -294,6 +301,9 @@ const PlantEditForm = ({
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.imageOverlayIconButton} onPress={viewImage}>
                   <Icon name="eye-outline" fill="#FFFFFF" width={24} height={24} />
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.imageOverlayIconButton} onPress={() => identifyPlant(plantImage)}>
+                  <IdentifyIcon width={24} height={24} />
                 </TouchableOpacity>
               </View>
             </View>
@@ -391,6 +401,7 @@ const DeleteIcon = (props: IconProps) => <Icon {...props} name="trash-2-outline"
 const CemeteryIcon = (props: IconProps) => <Icon {...props} name="alert-triangle-outline" fill="#fff" width={24} height={24} />;
 const EditIcon = (props: IconProps) => <Icon {...props} name="edit-outline" fill={theme['color-primary-500']} width={24} height={24} />;
 const CloseIcon = (props: IconProps) => <Icon {...props} name="close-outline" fill="#8F9BB3" width={24} height={24} />;
+const IdentifyIcon = (props: IconProps) => <Icon {...props} name="search-outline" fill="#FFFFFF" width={24} height={24} />;
 
 // Calculate days ago/from now
 const formatTimeDistance = (date: Date) =>
