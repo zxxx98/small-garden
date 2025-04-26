@@ -96,18 +96,12 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     circleTab: {
-        height: 40,
-        borderRadius: 20,
+        aspectRatio: 1,
+        borderRadius: 9999,
         backgroundColor: '#2B3A67',
         margin: 8,
-        shadowColor: "#000",
-        shadowOffset: {
-            width: 0,
-            height: 2,
-        },
-        shadowOpacity: 0.25,
-        shadowRadius: 3.84,
-        elevation: 5,
+        shadowColor: "#000", 
+        elevation: 1,
         alignItems: 'center',
         justifyContent: 'center',
     }

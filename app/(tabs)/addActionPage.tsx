@@ -15,6 +15,53 @@ import SlideUpModal from '@/components/SlideUpModal';
 import { showMessage } from "react-native-flash-message";
 import { useRouter } from 'expo-router';
 import { useAddAction } from '@/context/AddActionContext';
+import { theme } from '@/theme/theme';
+import PhotoSelectList from '@/components/PhotoSelectList';
+
+// 图片查看器组件接口定义
+interface ImageViewerProps {
+    visible: boolean;    // 是否显示查看器
+    imageUri: string;    // 图片URI
+    onClose: () => void; // 关闭回调
+}
+
+// 图片查看器组件 - 用于全屏查看图片
+const ImageViewer = ({ visible, imageUri, onClose }: ImageViewerProps) => {
+    const [rotation, setRotation] = React.useState(0);
+
+    const rotateLeft = () => {
+        setRotation((prevRotation) => (prevRotation - 90) % 360);
+    };
+
+    const rotateRight = () => {
+        setRotation((prevRotation) => (prevRotation + 90) % 360);
+    };
+
+    if (!visible) return null;
+
+    return (
+        <View style={styles.imageViewerContainer}>
+            <View style={styles.fullScreenImageContainer}>
+                <Image
+                    source={{ uri: imageUri }}
+                    style={[styles.fullScreenImage, { transform: [{ rotate: `${rotation}deg` }] }]}
+                    resizeMode="contain"
+                />
+            </View>
+            <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+                <Icon name="close-outline" style={{ width: 24, height: 24 }} fill="white" />
+            </TouchableOpacity>
+            <View style={styles.rotationButtonsContainer}>
+                <TouchableOpacity style={styles.rotateButton} onPress={rotateLeft}>
+                    <Icon name="refresh-outline" style={{ width: 24, height: 24 }} fill="white" />
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.rotateButton} onPress={rotateRight}>
+                    <Icon name="refresh-outline" style={{ width: 24, height: 24, transform: [{ scaleX: -1 }] }} fill="white" />
+                </TouchableOpacity>
+            </View>
+        </View>
+    );
+};
 
 const AddActionPage = () => {
     const [plants, setPlants] = React.useState<Plant[]>([]);
@@ -25,6 +72,8 @@ const AddActionPage = () => {
     const [images, setImages] = React.useState<string[]>([]);
     const [isLoading, setIsLoading] = React.useState(false);
     const [isSubmitting, setIsSubmitting] = React.useState(false);
+    const [selectedImage, setSelectedImage] = React.useState('');
+    const [showImageViewer, setShowImageViewer] = React.useState(false);
     const { themeMode } = useTheme();
     const router = useRouter();
     const { visible, hide } = useAddAction();
@@ -35,6 +84,20 @@ const AddActionPage = () => {
             loadData();
         }
     }, [visible]);
+
+    // 请求相机权限
+    React.useEffect(() => {
+        (async () => {
+            const { status } = await ImagePicker.requestCameraPermissionsAsync();
+            if (status !== 'granted') {
+                showMessage({
+                    message: '需要相机权限才能拍照',
+                    type: 'warning',
+                    duration: 3000,
+                });
+            }
+        })();
+    }, []);
 
     const loadData = async () => {
         setIsLoading(true);
@@ -56,37 +119,6 @@ const AddActionPage = () => {
         } finally {
             setIsLoading(false);
         }
-    };
-
-    // 选择图片
-    const pickImage = async () => {
-        try {
-            const result = await ImagePicker.launchImageLibraryAsync({
-                mediaTypes: ImagePicker.MediaTypeOptions.Images,
-                allowsEditing: true,
-                aspect: [4, 3],
-                quality: 0.8,
-            });
-
-            if (!result.canceled && result.assets && result.assets.length > 0) {
-                const newImageUri = result.assets[0].uri;
-                setImages([...images, newImageUri]);
-            }
-        } catch (error) {
-            console.error('选择图片失败:', error);
-            showMessage({
-                message: '选择图片失败',
-                type: 'danger',
-                duration: 3000,
-            });
-        }
-    };
-
-    // 删除图片
-    const removeImage = (index: number) => {
-        const newImages = [...images];
-        newImages.splice(index, 1);
-        setImages(newImages);
     };
 
     // 提交行为
@@ -164,39 +196,10 @@ const AddActionPage = () => {
         resetForm();
     };
 
-    // 渲染图片预览
-    const renderImagePreview = () => {
-        if (images.length === 0) {
-            return (
-                <TouchableOpacity style={styles.addImageButton} onPress={pickImage}>
-                    <Icon name="image-outline" style={styles.addImageIcon} fill="#8F9BB3" />
-                    <Text category="c1">添加图片</Text>
-                </TouchableOpacity>
-            );
-        }
-
-        return (
-            <View style={styles.imagesContainer}>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                    {images.map((uri, index) => (
-                        <View key={index} style={styles.imageItem}>
-                            <Image source={{ uri }} style={styles.imagePreview} />
-                            <TouchableOpacity
-                                style={styles.removeImageButton}
-                                onPress={() => removeImage(index)}
-                            >
-                                <Icon name="close-circle" fill="#FF3D71" style={styles.removeImageIcon} />
-                            </TouchableOpacity>
-                        </View>
-                    ))}
-                </ScrollView>
-                {images.length < 9 && (
-                    <TouchableOpacity style={styles.addMoreImageButton} onPress={pickImage}>
-                        <Icon name="plus-outline" style={styles.addImageIcon} fill="#8F9BB3" />
-                    </TouchableOpacity>
-                )}
-            </View>
-        );
+    // 处理图片点击事件
+    const handleImagePress = (imageUri: string) => {
+        setSelectedImage(imageUri);
+        setShowImageViewer(true);
     };
 
     return (
@@ -254,7 +257,11 @@ const AddActionPage = () => {
                     />
 
                     <Text category="s1" style={styles.label}>记录图片</Text>
-                    {renderImagePreview()}
+                    <PhotoSelectList 
+                        photos={images} 
+                        onPhotosChange={setImages}
+                        onPhotoPress={handleImagePress}
+                    />
 
                     <View style={styles.buttonContainer}>
                         <Button
@@ -276,6 +283,12 @@ const AddActionPage = () => {
                     </View>
                 </View>
             )}
+
+            <ImageViewer
+                visible={showImageViewer}
+                imageUri={selectedImage}
+                onClose={() => setShowImageViewer(false)}
+            />
         </SlideUpModal>
     );
 };
@@ -324,54 +337,49 @@ const styles = StyleSheet.create({
     loadingText: {
         marginTop: 16,
     },
-    addImageButton: {
-        height: 120,
-        borderWidth: 1,
-        borderColor: '#E4E9F2',
-        borderStyle: 'dashed',
-        borderRadius: 8,
+    imageViewerContainer: {
+        width: '100%',
+        height: '100%',
+        backgroundColor: 'rgba(0, 0, 0, 0.9)',
         justifyContent: 'center',
         alignItems: 'center',
-        marginBottom: 16,
-    },
-    addImageIcon: {
-        width: 32,
-        height: 32,
-        marginBottom: 8,
-    },
-    imagesContainer: {
-        flexDirection: 'row',
-        marginBottom: 16,
-    },
-    imageItem: {
-        marginRight: 8,
-        position: 'relative',
-    },
-    imagePreview: {
-        width: 100,
-        height: 100,
-        borderRadius: 8,
-    },
-    removeImageButton: {
         position: 'absolute',
-        top: -8,
-        right: -8,
-        backgroundColor: 'white',
-        borderRadius: 12,
+        top: 0,
+        left: 0,
+        zIndex: 1000,
     },
-    removeImageIcon: {
-        width: 24,
-        height: 24,
-    },
-    addMoreImageButton: {
-        width: 100,
-        height: 100,
-        borderWidth: 1,
-        borderColor: '#E4E9F2',
-        borderStyle: 'dashed',
-        borderRadius: 8,
+    fullScreenImageContainer: {
+        width: '100%',
+        height: '100%',
         justifyContent: 'center',
         alignItems: 'center',
+    },
+    fullScreenImage: {
+        width: '100%',
+        height: '100%',
+    },
+    closeButton: {
+        position: 'absolute',
+        top: 40,
+        right: 20,
+        zIndex: 10,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        borderRadius: 20,
+        padding: 8,
+    },
+    rotationButtonsContainer: {
+        position: 'absolute',
+        bottom: 40,
+        alignSelf: 'center',
+        flexDirection: 'row',
+        zIndex: 10,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        borderRadius: 20,
+        padding: 4,
+    },
+    rotateButton: {
+        padding: 8,
+        marginHorizontal: 10,
     },
 });
 

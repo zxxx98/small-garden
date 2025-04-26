@@ -128,7 +128,7 @@ const ImageViewer = ({ visible, imageUri, onClose }: ImageViewerProps) =>
     );
 };
 
-const Detail = ({ action, plant }: { action?: Action, plant?: Plant }) =>
+const Detail = ({ action, plant, onDelete }: { action?: Action, plant?: Plant, onDelete?: (action: Action) => void }) =>
 {
     const screenHeight = Dimensions.get('window').height;
     const screenWidth = Dimensions.get('window').width;
@@ -199,6 +199,17 @@ const Detail = ({ action, plant }: { action?: Action, plant?: Plant }) =>
                 imageUri={selectedImage}
                 onClose={() => setShowImageViewer(false)}
             />
+            
+            {onDelete && (
+                <Button 
+                    status="danger" 
+                    accessoryLeft={(props) => <Icon {...props} name="trash-outline" />}
+                    onPress={() => onDelete(action)}
+                    style={styles.deleteButton}
+                >
+                    删除记录
+                </Button>
+            )}
         </View>)
     }
     const cardStyle = [
@@ -256,6 +267,19 @@ const TimelinePage = () =>
     const onCntentClick = React.useCallback((action: Action, plant: Plant) =>
     {
         setDetailInfo({ show: true, action, plant });
+    }, []);
+
+    // 添加删除功能
+    const handleDeleteAction = React.useCallback(async (action: Action) => {
+        try {
+            await ActionManager.deleteAction(action.id);
+            // 从时间线数据中移除已删除的操作
+            setTimelineData(prev => prev.filter(item => item.id !== action.id));
+            // 关闭详情弹窗
+            setDetailInfo({ show: false });
+        } catch (error) {
+            console.error("删除操作失败:", error);
+        }
     }, []);
 
     const renderCustomTime = React.useCallback((data: Action) =>
@@ -340,7 +364,11 @@ const TimelinePage = () =>
                 backdropStyle={styles.backdrop}
                 onBackdropPress={() => setDetailInfo({ show: false })}
             >
-                <Detail action={detailInfo.action} plant={detailInfo.plant} />
+                <Detail 
+                    action={detailInfo.action} 
+                    plant={detailInfo.plant} 
+                    onDelete={handleDeleteAction}
+                />
             </Modal>
         </LinearGradient>
     );
@@ -523,6 +551,10 @@ const styles = StyleSheet.create({
         bottom: -10,
         left: 10,
         color: theme['color-dark-500'],
+    },
+    deleteButton: {
+        marginTop: 20,
+        alignSelf: 'center',
     },
 });
 

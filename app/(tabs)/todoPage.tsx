@@ -19,6 +19,7 @@ import { showMessage } from "react-native-flash-message";
 import { generateId } from '@/utils/uuid';
 import LoadingModal from '@/components/LoadingModal';
 import { DatabaseInstance } from '@/models/sqlite/database';
+import PhotoSelectList from '@/components/PhotoSelectList';
 
 // 图片查看器组件接口定义
 interface ImageViewerProps
@@ -129,47 +130,9 @@ const TaskDetail = ({ action, plant, onClose, onDelete, onComplete }: TaskDetail
         );
     };
 
-    const pickImage = async () =>
-    {
-        const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-        if (!permissionResult.granted) {
-            showMessage({
-                message: "需要权限",
-                duration: 1000,
-                type: "warning"
-            });
-            return;
-        }
-
-        try {
-            setLoading(true);
-            const result = await ImagePicker.launchImageLibraryAsync({
-                mediaTypes: ImagePicker.MediaTypeOptions.Images,
-                allowsEditing: true,
-                aspect: [4, 3],
-                quality: 0.8,
-            });
-
-            if (!result.canceled && result.assets && result.assets.length > 0) {
-                // Save the image using FileManager and get the stored URL
-                const imageUri = result.assets[0].uri;
-
-                const savedImageUrl = await fileManager.saveImage(imageUri);
-
-                // Add the saved image URL to the images array
-                const newImages = [...images, savedImageUrl];
-                setImages(newImages);
-            }
-        } catch (error) {
-            console.error("Error saving image:", error);
-            showMessage({
-                message: "保存图片失败，请重试",
-                duration: 1000,
-                type: "warning"
-            });
-        } finally {
-            setLoading(false);
-        }
+    const handleImagePress = (photo: string) => {
+        setSelectedImage(photo);
+        setShowImageViewer(true);
     };
 
     const handleComplete = async () =>
@@ -249,39 +212,11 @@ const TaskDetail = ({ action, plant, onClose, onDelete, onComplete }: TaskDetail
                         />
 
                         <Text category='s1' style={styles.completeFormLabel}>添加图片记录:</Text>
-                        <View style={styles.imageContainer}>
-                            {images.length > 0 && (
-                                <FlatList
-                                    style={{ width: '100%' }}
-                                    data={images}
-                                    horizontal
-                                    showsHorizontalScrollIndicator={false}
-                                    renderItem={({ item }) => (
-                                        <TouchableOpacity
-                                            onPress={() =>
-                                            {
-                                                setSelectedImage(item);
-                                                setShowImageViewer(true);
-                                            }}
-                                        >
-                                            <Image
-                                                source={{ uri: item }}
-                                                style={styles.thumbnailImage}
-                                                resizeMode="cover"
-                                            />
-                                        </TouchableOpacity>
-                                    )}
-                                    keyExtractor={(item, index) => index.toString()}
-                                    ItemSeparatorComponent={() => <View style={{ width: 5 }} />}
-                                />
-                            )}
-                            <TouchableOpacity
-                                style={styles.addImageButton}
-                                onPress={pickImage}
-                            >
-                                <Icon name="plus-outline" style={{ width: 24, height: 24 }} />
-                            </TouchableOpacity>
-                        </View>
+                        <PhotoSelectList 
+                            photos={images} 
+                            onPhotosChange={setImages}
+                            onPhotoPress={handleImagePress}
+                        />
 
                         <View style={styles.buttonGroup}>
                             <Button
@@ -410,6 +345,23 @@ const TodoForm = ({ plants, actionTypes, onSubmit, onCancel, themeMode }: TodoFo
         return endDate;
     });  // 循环结束日期
 
+    // 重置表单状态
+    const resetForm = () => {
+        setSelectedPlantIndex(undefined);
+        setSelectedActionTypeIndex(undefined);
+        setTodoDate(new Date());
+        setTodoRemark('');
+        setIsRecurring(false);
+        setRecurringInterval(1);
+        setRecurringIntervalIndex(new IndexPath(0));
+        setRecurringStartDate(new Date());
+        setRecurringEndDate(() => {
+            const endDate = new Date();
+            endDate.setDate(endDate.getDate() + 30);
+            return endDate;
+        });
+    };
+
     // 生成循环间隔选项
     const recurringIntervalOptions = [
         { title: '每天', value: 1 },
@@ -469,7 +421,18 @@ const TodoForm = ({ plants, actionTypes, onSubmit, onCancel, themeMode }: TodoFo
             recurringStartDate: recurringStartDate,
             recurringEndDate: recurringEndDate
         });
+        
+        // 提交后重置表单
+        resetForm();
     };
+    
+    // 处理取消按钮点击
+    const handleCancel = () => {
+        // 取消时重置表单
+        resetForm();
+        onCancel();
+    };
+    
     const items = React.useMemo(() =>
     {
         return plants.map((plant) => (
@@ -488,7 +451,7 @@ const TodoForm = ({ plants, actionTypes, onSubmit, onCancel, themeMode }: TodoFo
     return (
         <SlideUpModal
             visible={true}
-            onClose={onCancel}
+            onClose={handleCancel}
             themeMode={themeMode}
             headerComponent={headerComponent}
         >
@@ -497,6 +460,7 @@ const TodoForm = ({ plants, actionTypes, onSubmit, onCancel, themeMode }: TodoFo
                 <Select
                     style={styles.input}
                     placeholder="选择植物"
+                    value={plants[selectedPlantIndex?.row ?? 0].name}
                     selectedIndex={selectedPlantIndex}
                     onSelect={(index) =>
                     {
@@ -511,6 +475,7 @@ const TodoForm = ({ plants, actionTypes, onSubmit, onCancel, themeMode }: TodoFo
                 <Select
                     style={styles.input}
                     placeholder="选择类型"
+                    value={actionTypes[selectedActionTypeIndex?.row ?? 0].name}
                     selectedIndex={selectedActionTypeIndex}
                     onSelect={(index) =>
                     {
@@ -613,7 +578,7 @@ const TodoForm = ({ plants, actionTypes, onSubmit, onCancel, themeMode }: TodoFo
                 <Button
                     appearance="outline"
                     status="basic"
-                    onPress={onCancel}
+                    onPress={handleCancel}
                     style={styles.cancelButton}
                 >
                     取消
@@ -1224,30 +1189,6 @@ const styles = StyleSheet.create({
     },
     remarkInput: {
         marginBottom: 16,
-    },
-    imageContainer: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        marginBottom: 16,
-        alignItems: 'center',
-    },
-    thumbnailImage: {
-        width: 80,
-        height: 80,
-        borderRadius: 8,
-        marginRight: 8,
-        marginBottom: 8,
-    },
-    addImageButton: {
-        width: 40,
-        height: 40,
-        borderRadius: 8,
-        borderWidth: 1,
-        borderColor: theme['color-basic-400'],
-        borderStyle: 'dashed',
-        justifyContent: 'center',
-        alignItems: 'center',
-        backgroundColor: theme['color-basic-200'],
     },
     imageViewerContainer: {
         width: Dimensions.get('window').width,
