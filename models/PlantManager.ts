@@ -25,6 +25,20 @@ export class PlantManager
         await SQLitePlant.update(plant);
     }
 
+    static async updatePlants(plants: Plant[])
+    {
+        if (Platform.OS === 'web') {
+            plants.forEach(plant => {
+                const index = mock.findIndex(item => item.id === plant.id);
+                if (index !== -1) {
+                    mock[index] = plant;
+                }
+            });
+            return true;
+        }
+        return await SQLitePlant.updates(plants);
+    }
+
     static async deletePlant(id: string)
     {
         if (Platform.OS === 'web') {

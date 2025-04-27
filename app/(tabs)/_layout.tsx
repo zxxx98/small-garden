@@ -16,14 +16,11 @@ interface TabDataItem {
 const tabData: TabDataItem[] = [
     { name: 'timelinePage', title: '时间线', iconName: 'clock-outline' },
     { name: 'todoPage', title: '待办', iconName: 'list-outline' },
-    { name: 'addActionPage', title: '', iconName: 'plus-outline' },
     { name: 'plantsPage', title: '花园', iconName: 'flower-outline', iconPack: 'ionicons' },
     { name: 'settingsPage', title: '设置', iconName: 'settings-2-outline' }
 ];
 
 export default function TabLayout() {
-    const { open } = useAddAction();
-
     return (
         <Tabs
             screenOptions={{
@@ -34,23 +31,13 @@ export default function TabLayout() {
                 <BottomNavigation
                     selectedIndex={props.state.index}
                     onSelect={index => {
-                        if (index === 2) {
-                            //打开添加行为面板
-                            open();
-                        } else {
-                            props.navigation.navigate(props.state.routeNames[index]);
-                        }
+                        props.navigation.navigate(props.state.routeNames[index]);
                     }}
                     appearance='noIndicator'
                     style={{ height: 60 }}
                 >
                     {tabData.map((tab, index) => {
-                        const realIndex = props.state.index > 1 ? props.state.index + 1 : props.state.index;
                         let style:any = props.state.index === index ? styles.activeTab : styles.inactiveTab;
-                        if(index === 2)
-                        {
-                            style = styles.circleTab;
-                        }
                         return (
                             <BottomNavigationTab
                                 key={tab.name}

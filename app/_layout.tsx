@@ -6,6 +6,7 @@ import { Stack } from 'expo-router';
 import { ThemeProvider, useTheme } from '../theme/themeContext';
 import { CategoryProvider } from '../context/CategoryContext';
 import { AddActionProvider } from '../context/AddActionContext';
+import { AreaProvider } from '../context/AreaContext';
 import { FeatherIconsPack } from '../icons/FeatherIconsPack';
 import { IoniconsIconsPack } from '../icons/IoniconsIconsPack';
 import { MaterialCommunityIconsPack } from '../icons/MaterialCommunityIconsPack';
@@ -21,16 +22,20 @@ const ThemedApp = () =>
 
   return (
     <ApplicationProvider {...eva} theme={theme}>
-      <CategoryProvider>
-        <AddActionProvider>
-          <Stack>
-            <Stack.Screen name="index" options={{ headerShown: false }} />
-            <Stack.Screen name='(tabs)' options={{ headerShown: false }} />
-            <Stack.Screen name="+not-found" options={{ headerShown: false }} />
-          </Stack>
-          <AddActionPage />
-        </AddActionProvider>
-      </CategoryProvider>
+        <CategoryProvider>
+          <AreaProvider>
+            <AddActionProvider>
+              <Stack>
+                <Stack.Screen name="index" options={{ headerShown: false }} />
+                <Stack.Screen name='(tabs)' options={{ headerShown: false }} />
+                <Stack.Screen name="+not-found" options={{ headerShown: false }} />
+                <Stack.Screen name="PlantEditPage" options={{ headerShown: false }} />
+                <Stack.Screen name="TodoEditPage" options={{ headerShown: false }} />
+              </Stack>
+              <AddActionPage />
+            </AddActionProvider>
+          </AreaProvider>
+        </CategoryProvider>
 
       {/* LoadingModal for rendering */}
       <LoadingModal />

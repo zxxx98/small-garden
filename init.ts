@@ -1,9 +1,8 @@
-import { Platform } from "react-native";
 import { DatabaseInstance } from "./models/sqlite/database";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { initRootStore } from "./stores/RootStore";
 
-export default async function init()
-{
+export default async function init() {
     try {
         // Initialize the database
         await DatabaseInstance.init();
@@ -20,7 +19,7 @@ export default async function init()
             await AsyncStorage.setItem('app_last_version', currentVersion);
             console.log('Database schema reset due to version change');
         }
-
+        initRootStore();
         return Promise.resolve();
     } catch (error) {
         console.error("Initialization error:", error);

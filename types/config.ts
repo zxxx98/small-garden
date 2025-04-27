@@ -12,6 +12,8 @@ export const R2ConfigKey = "r2_config";
 export const UseR2StorageKey = "use_r2_storage";
 //PlantNet API Key储存Key
 export const PlantNetApiKeyKey = "plantnet_api_key";
+//区域管理储存Key
+export const AreasKey = "plant_areas";
 
 /**
  * Cloudflare R2 配置接口
@@ -23,4 +25,12 @@ export interface R2Config
   secretAccessKey: string;
   bucketName: string;
   publicUrl: string;
+}
+
+/**
+ * 区域接口
+ */
+export interface Area {
+  id: string;
+  name: string;
 }

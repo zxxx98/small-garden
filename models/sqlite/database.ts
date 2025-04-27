@@ -63,17 +63,27 @@ export const DatabaseInstance = {
                             recurring_interval INTEGER,
                             parent_recurring_id TEXT
                         );
-                        
-                        CREATE INDEX IF NOT EXISTS idx_actions_plant_id ON actions (plant_id);
-                        CREATE INDEX IF NOT EXISTS idx_actions_parent_recurring_id ON actions (parent_recurring_id);
+                    `);
+                    await database.execAsync(`
+                        CREATE INDEX idx_actions_plant_id ON actions (plant_id);
+                        CREATE INDEX idx_actions_parent_recurring_id ON actions (parent_recurring_id);
                     `);
                 } else {
-                    // If data exists, try to alter the table
-                    await database.execAsync(`
-                        ALTER TABLE actions ADD COLUMN IF NOT EXISTS is_recurring INTEGER;
-                        ALTER TABLE actions ADD COLUMN IF NOT EXISTS recurring_interval INTEGER;
-                        ALTER TABLE actions ADD COLUMN IF NOT EXISTS parent_recurring_id TEXT;
-                    `);
+                    // If data exists, check if columns exist before adding them
+                    const tableInfo = await database.getAllAsync<{ name: string }>("PRAGMA table_info(actions)");
+                    const columnNames = tableInfo.map(col => col.name);
+                    
+                    if (!columnNames.includes('is_recurring')) {
+                        await database.execAsync('ALTER TABLE actions ADD COLUMN is_recurring INTEGER');
+                    }
+                    
+                    if (!columnNames.includes('recurring_interval')) {
+                        await database.execAsync('ALTER TABLE actions ADD COLUMN recurring_interval INTEGER');
+                    }
+                    
+                    if (!columnNames.includes('parent_recurring_id')) {
+                        await database.execAsync('ALTER TABLE actions ADD COLUMN parent_recurring_id TEXT');
+                    }
                 }
             } catch (error) {
                 console.log("Migration attempt failed:", error);

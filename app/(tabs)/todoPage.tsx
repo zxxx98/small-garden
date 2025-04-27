@@ -20,6 +20,7 @@ import { generateId } from '@/utils/uuid';
 import LoadingModal from '@/components/LoadingModal';
 import { DatabaseInstance } from '@/models/sqlite/database';
 import PhotoSelectList from '@/components/PhotoSelectList';
+import { useRouter } from 'expo-router';
 
 // 图片查看器组件接口定义
 interface ImageViewerProps
@@ -601,16 +602,11 @@ const TodoPage = () =>
     const [selectedTask, setSelectedTask] = React.useState<{ action: Action, plant: Plant } | null>(null); // 选中的任务
     const [showDetail, setShowDetail] = React.useState(false); // 是否显示详情
     const { themeMode } = useTheme(); // 主题模式
+    const router = useRouter(); // 路由
 
     // 未来待办显示控制
     const MAX_INITIAL_FUTURE_TASKS = 10; // 初始显示的未来待办数量
     const LOAD_MORE_COUNT = 10; // 每次加载的待办数量
-
-    // 添加待办相关状态
-    const [showAddTodo, setShowAddTodo] = React.useState(false); // 是否显示添加表单
-    const [plants, setPlants] = React.useState<Plant[]>([]); // 植物列表
-    const [actionTypes, setActionTypes] = React.useState<ActionType[]>([]); // 操作类型列表
-    const [isSubmitting, setIsSubmitting] = React.useState(false); // 提交状态
 
     // 滚动视图引用，用于监听滚动事件
     const scrollViewRef = React.useRef<ScrollView>(null);
@@ -619,7 +615,6 @@ const TodoPage = () =>
     const loadData = React.useCallback(() =>
     {
         loadTodoItems();
-        loadPlantsAndActionTypes();
     }, []);
 
     // 页面聚焦时重新加载数据
@@ -709,22 +704,6 @@ const TodoPage = () =>
         }
     };
 
-    // 加载植物和操作类型数据
-    const loadPlantsAndActionTypes = async () =>
-    {
-        try {
-            // 加载所有植物
-            const allPlants = await PlantManager.getAllPlants();
-            setPlants(allPlants.filter(plant => !plant.isDead)); // 排除死亡的植物
-
-            // 加载行为类型
-            const types = await ConfigManager.getInstance().getActionTypes();
-            setActionTypes(types);
-        } catch (error) {
-            console.error("Error loading plants or action types:", error);
-        }
-    };
-
     // 删除待办事项
     const handleDelete = async (id: string) =>
     {
@@ -775,149 +754,9 @@ const TodoPage = () =>
         }
     };
 
-    // 创建循环任务
-    const createRecurringTasks = async (baseAction: Action, recurringInterval: number, recurringPeriod: number) =>
-    {
-        const tasks: Action[] = [];
-        const maxDays = recurringPeriod; // 使用自定义的天数
-        const startDate = new Date(baseAction.time);
-
-        // 创建指定天数内所有的循环任务
-        for (let i = 0; i < maxDays; i += recurringInterval) {
-            const taskDate = new Date(startDate);
-            taskDate.setDate(startDate.getDate() + i);
-
-            // 创建新的待办事项
-            const newAction: Action = {
-                ...baseAction,
-                id: i === 0 ? baseAction.id : generateId(), // 原始任务保持ID不变，其他任务生成新ID
-                time: taskDate.getTime(),
-                parentRecurringId: i === 0 ? undefined : baseAction.id, // 第一个任务是父任务
-            };
-            tasks.push(newAction);
-        }
-
-        return tasks;
-    };
-
-    // 添加新的待办事项
-    const handleAddTodo = async (formData: {
-        plant: Plant;
-        actionType: ActionType;
-        date: Date;
-        remark: string;
-        isRecurring: boolean;
-        recurringInterval: number;
-        recurringStartDate: Date;
-        recurringEndDate: Date;
-    }) =>
-    {
-        setIsSubmitting(true);
-
-        try {
-            // 创建基础待办事项
-            const baseAction: Action = {
-                id: generateId(),
-                name: formData.actionType.name,
-                plantId: formData.plant.id,
-                time: formData.date.getTime(),
-                remark: formData.remark,
-                imgs: [],
-                done: false,
-                isRecurring: formData.isRecurring,
-                recurringInterval: formData.recurringInterval
-            };
-
-            if (formData.isRecurring) {
-                // 计算开始日期和结束日期之间的天数
-                const startDate = new Date(formData.recurringStartDate);
-                const endDate = new Date(formData.recurringEndDate);
-                const diffTime = Math.abs(endDate.getTime() - startDate.getTime());
-                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1; // +1 to include end date
-
-                // 使用计算的天数和开始日期创建循环任务
-                baseAction.time = startDate.getTime(); // 使用指定的开始日期
-                const recurringTasks = await createRecurringTasks(baseAction, formData.recurringInterval, diffDays);
-
-                try {
-                    // 批量保存所有循环任务
-                    for (const task of recurringTasks) {
-                        await ActionManager.addAction(task);
-                    }
-
-                    showMessage({
-                        message: `已创建${recurringTasks.length}个循环待办事项`,
-                        duration: 1000,
-                        type: "success"
-                    });
-                } catch (error: any) {
-                    console.error("Error adding recurring tasks:", error);
-
-                    // 检查错误是否与数据库结构有关
-                    if (error.toString().includes("table actions has no column named is_recurring")) {
-                        // 如果是缺少列的错误，尝试重置数据库结构
-                        await resetDatabaseSchema();
-
-                        // 再次尝试添加循环任务
-                        for (const task of recurringTasks) {
-                            await ActionManager.addAction(task);
-                        }
-
-                        showMessage({
-                            message: `数据库已更新，成功创建${recurringTasks.length}个循环待办事项`,
-                            duration: 1000,
-                            type: "success"
-                        });
-                    } else {
-                        throw error; // 重新抛出其他类型的错误
-                    }
-                }
-            } else {
-                // 保存单个待办
-                await ActionManager.addAction(baseAction);
-
-                showMessage({
-                    message: '待办事项已添加',
-                    duration: 1000,
-                    type: "success"
-                });
-            }
-
-            // 刷新待办列表
-            await loadTodoItems();
-
-            // 关闭表单
-            setShowAddTodo(false);
-        } catch (error) {
-            console.error("Error adding todo:", error);
-            showMessage({
-                message: '添加待办事项失败，请重试',
-                duration: 1000,
-                type: "warning"
-            });
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
-
-    // 重置数据库结构
-    const resetDatabaseSchema = async () =>
-    {
-        try {
-            LoadingModal.show("更新数据库...");
-            await DatabaseInstance.resetSchema();
-            LoadingModal.hide();
-            return true;
-        } catch (error) {
-            console.error("Failed to reset database schema:", error);
-            LoadingModal.hide();
-            showMessage({
-                message: '数据库更新失败',
-                duration: 1000,
-                type: "danger"
-            });
-            return false;
-        }
+    // 处理添加待办按钮点击
+    const handleAddTodoPress = () => {
+        router.push('/TodoEditPage');
     };
 
     // 渲染分区标题
@@ -957,7 +796,7 @@ const TodoPage = () =>
                 <Text category="h1">待办</Text>
                 <TouchableOpacity
                     style={styles.iconButton}
-                    onPress={() => setShowAddTodo(true)}
+                    onPress={handleAddTodoPress}
                 >
                     <Icon
                         name="plus-outline"
@@ -1010,7 +849,7 @@ const TodoPage = () =>
                     <TouchableOpacity
                         style={styles.emptyContainer}
                         activeOpacity={0.7}
-                        onPress={() => setShowAddTodo(true)}
+                        onPress={handleAddTodoPress}
                     >
                         <Icon
                             name="checkmark-circle-2-outline"
@@ -1043,17 +882,6 @@ const TodoPage = () =>
                     />
                 )}
             </Modal>
-
-            {/* 添加待办表单 - 只在showAddTodo为true时渲染 */}
-            {showAddTodo && (
-                <TodoForm
-                    plants={plants}
-                    actionTypes={actionTypes}
-                    onSubmit={handleAddTodo}
-                    onCancel={() => setShowAddTodo(false)}
-                    themeMode={themeMode}
-                />
-            )}
         </LinearGradient>
     );
 };

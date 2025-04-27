@@ -22,7 +22,7 @@ export class Plant
                 id: result.id,
                 name: result.name,
                 type: result.type,
-                scientificName: result.scientific_name || undefined,
+                scientificName: result.scientific_name,
                 remark: result.remark || '',
                 img: result.img || '',
                 isDead: sqliteHelpers.intToBool(result.is_dead)
@@ -50,7 +50,7 @@ export class Plant
                 id: row.id,
                 name: row.name,
                 type: row.type,
-                scientificName: row.scientific_name || undefined,
+                scientificName: row.scientific_name,
                 remark: row.remark || '',
                 img: row.img || '',
                 isDead: sqliteHelpers.intToBool(row.is_dead)
@@ -99,6 +99,17 @@ export class Plant
             return result.changes > 0;
         } catch (error) {
             console.error('Error updating plant:', error);
+            return false;
+        }
+    }
+
+    static async updates(plants: PlantType[]): Promise<boolean>
+    {
+        try {
+            const result = await database.runAsync('UPDATE plants SET is_dead = ? WHERE id IN (' + plants.map(() => '?').join(',') + ')', ...plants.map(p => sqliteHelpers.boolToInt(p.isDead)), ...plants.map(p => p.id));
+            return result.changes > 0;
+        } catch (error) {
+            console.error('Error updating plants:', error);
             return false;
         }
     }

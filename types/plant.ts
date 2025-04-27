@@ -5,7 +5,7 @@ export type Plant = {
     //类型
     type: string,
     //学名
-    scientificName?: string,
+    scientificName: string | null,
     //备注
     remark: string,
     //图片

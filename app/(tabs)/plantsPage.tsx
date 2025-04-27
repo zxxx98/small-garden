@@ -4,20 +4,19 @@ import { Layout, Text, Button, Modal, Input, Select, SelectItem, Icon, IconProps
 import { LinearGradient } from 'expo-linear-gradient';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import FlowerIcon from '@/assets/svgs/flower1.svg';
-import { PlantManager } from '@/models/PlantManager';
 import { Plant } from '@/types/plant';
-import { ActionManager } from '@/models/ActionManager';
 import { generateId } from '@/utils/uuid';
 import { ConfigManager } from '@/models/ConfigManager';
 import { useTheme } from '../../theme/themeContext';
 import * as ImagePicker from 'expo-image-picker';
 import { fileManager } from '@/models/FileManager';
-import { useFocusEffect } from 'expo-router';
 import { theme } from '@/theme/theme';
-import SlideUpModal from '@/components/SlideUpModal';
 import { identifyPlantWithPlantNet } from '@/utils/PlantNet';
 import LoadingModal from '@/components/LoadingModal';
 import { showMessage } from "react-native-flash-message";
+import { observer } from 'mobx-react-lite';
+import { rootStore } from '@/stores/RootStore';
+import { useRouter } from 'expo-router';
 
 // Define interface for ImageViewer props
 interface ImageViewerProps
@@ -77,313 +76,6 @@ const ImageViewer = ({ visible, imageUri, onClose }: ImageViewerProps) =>
   );
 };
 
-// New interface for PlantEditForm component
-interface PlantEditFormProps
-{
-  editingPlant: PlantItem | null;
-  categories: { id: string; name: string }[];
-  themeMode: 'light' | 'dark';
-  onSubmit: (formData: any) => void;
-  onCancel: () => void;
-}
-
-// PlantEditForm component to replace the modal
-const PlantEditForm = ({
-  editingPlant,
-  categories,
-  themeMode,
-  onSubmit,
-  onCancel
-}: PlantEditFormProps) =>
-{
-  const [plantName, setPlantName] = React.useState(editingPlant?.name || '');
-  const [scientificName, setScientificName] = React.useState(editingPlant?.scientificName || '');
-  const [plantImage, setPlantImage] = React.useState(editingPlant?.image || '');
-  const [selectedCategory, setSelectedCategory] = React.useState<{ id: string; name: string } | null>(
-    editingPlant?.category ? { id: editingPlant.category, name: editingPlant.category } : null
-  );
-  const [selectedIndex, setSelectedIndex] = React.useState<IndexPath | undefined>(undefined);
-  const [imageLoading, setImageLoading] = React.useState(false);
-  const [selectedImage, setSelectedImage] = React.useState('');
-  const [showImageViewer, setShowImageViewer] = React.useState(false);
-
-  // Set initial values when editingPlant changes
-  React.useEffect(() =>
-  {
-    if (editingPlant) {
-      setPlantName(editingPlant.name);
-      setScientificName(editingPlant.scientificName);
-      setPlantImage(editingPlant.image);
-
-      const categoryIndex = categories.findIndex(c => c.name === editingPlant.category);
-      if (categoryIndex !== -1) {
-        setSelectedCategory(categories[categoryIndex]);
-        setSelectedIndex(new IndexPath(categoryIndex));
-      }
-    } else {
-      setPlantName('');
-      setScientificName('');
-      setPlantImage('');
-      setSelectedCategory(null);
-      setSelectedIndex(undefined);
-    }
-  }, [editingPlant, categories]);
-
-  const handleSubmit = () =>
-  {
-    if (!plantName.trim()) {
-      showMessage({
-        message: '请输入植物名称',
-        duration: 1000,
-        type: "warning"
-      });
-      return;
-    }
-
-    onSubmit({
-      plantName,
-      scientificName: scientificName || plantName,
-      category: selectedCategory?.name || '未分类',
-      image: plantImage || 'https://via.placeholder.com/150'
-    });
-  };
-
-  const showImageOptions = () =>
-  {
-    Alert.alert(
-      "选择图片来源",
-      "请选择图片来源",
-      [
-        { text: "取消", style: "cancel" },
-        { text: "相册", onPress: () => pickImage() },
-        { text: "相机", onPress: () => takePhoto() }
-      ]
-    );
-  };
-
-  //根据选定的植物调用植物识别接口
-  const identifyPlant = async (imageUri: string) =>
-  {
-    const apiKey = await ConfigManager.getInstance().getPlantNetApiKey();
-    if (!apiKey) {
-      showMessage({
-        message: '未配置植物识别API密钥，请在设置中配置',
-        duration: 2000,
-        type: "warning"
-      });
-      return;
-    }
-    
-    if (imageUri) {
-      LoadingModal.show("识别中...");
-      const result = await identifyPlantWithPlantNet(imageUri, apiKey);
-      console.log(result);
-      if (result.success) {
-        setScientificName(result.scientificName);
-        setPlantName(result.commonName);
-      }
-      LoadingModal.hide();
-    }
-  };
-
-  // Function to view the image in full screen
-  const viewImage = () =>
-  {
-    if (plantImage) {
-      setSelectedImage(plantImage);
-      setShowImageViewer(true);
-    }
-  };
-
-  // Image picking function
-  const pickImage = async () =>
-  {
-    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permissionResult.granted) {
-      showMessage({
-        message: '需要权限，请在设置中开启相册权限',
-        duration: 1000,
-        type: "info"
-      });
-      return;
-    }
-
-    try {
-      setImageLoading(true);
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.8,
-      });
-
-      if (!result.canceled && result.assets && result.assets.length > 0) {
-        // Save the image using FileManager and get the stored URL
-        const imageUri = result.assets[0].uri;
-        const savedImageUrl = await fileManager.saveImage(imageUri);
-        // 不再自动调用识别
-        setPlantImage(savedImageUrl);
-      }
-    } catch (error) {
-      console.error("Error saving image:", error);
-      showMessage({
-        message: '保存图片失败，请重试',
-        duration: 1000,
-        type: "warning"
-      });
-    } finally {
-      setImageLoading(false);
-    }
-  };
-
-  // Camera function
-  const takePhoto = async () =>
-  {
-    const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
-    if (!permissionResult.granted) {
-      showMessage({
-        message: '需要权限，请在设置中开启相机权限',
-        duration: 1000,
-        type: "info"
-      });
-      return;
-    }
-
-    try {
-      setImageLoading(true);
-      const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.8,
-      });
-
-      if (!result.canceled && result.assets && result.assets.length > 0) {
-        // Save the image using FileManager and get the stored URL
-        const imageUri = result.assets[0].uri;
-        const savedImageUrl = await fileManager.saveImage(imageUri);
-        // 不再自动调用识别
-        setPlantImage(savedImageUrl);
-      }
-    } catch (error) {
-      console.error("Error taking photo:", error);
-      showMessage({
-        message: '拍照失败，请重试',
-        duration: 1000,
-        type: "warning"
-      });
-    } finally {
-      setImageLoading(false);
-    }
-  };
-
-  return (
-    <SlideUpModal visible={true} onClose={onCancel} themeMode={themeMode} headerComponent={
-      <View style={styles.formHeader}>
-        <Text category="h5" style={styles.formTitle}>
-          {editingPlant ? '编辑植物' : '添加植物'}
-        </Text>
-      </View>
-    }>
-      {/* Image Picker */}
-      <View style={styles.imagePickerContainer}>
-        {plantImage ? (
-          <View>
-            <Image
-              source={{ uri: plantImage }}
-              style={styles.plantImagePreview}
-              resizeMode="cover"
-            />
-            <View style={styles.imageOverlay}>
-              <View style={styles.imageOverlayIcons}>
-                <TouchableOpacity style={styles.imageOverlayIconButton} onPress={showImageOptions}>
-                  <Icon name="edit-2-outline" fill="#FFFFFF" width={24} height={24} />
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.imageOverlayIconButton} onPress={viewImage}>
-                  <Icon name="eye-outline" fill="#FFFFFF" width={24} height={24} />
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.imageOverlayIconButton} onPress={() => identifyPlant(plantImage)}>
-                  <IdentifyIcon width={24} height={24} />
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
-        ) : (
-          <TouchableOpacity
-            style={styles.addImageButton}
-            onPress={showImageOptions}
-            disabled={imageLoading}
-          >
-            {imageLoading ? (
-              <Spinner size="medium" />
-            ) : (
-              <>
-                <Icon name="camera-outline" fill="#8F9BB3" width={32} height={32} />
-                <Text category="c1" style={{ marginTop: 8, textAlign: 'center' }}>
-                  添加图片
-                </Text>
-              </>
-            )}
-          </TouchableOpacity>
-        )}
-      </View>
-
-      <Input
-        placeholder="植物名称"
-        value={plantName}
-        onChangeText={text =>
-        {
-          setPlantName(text);
-          if (!scientificName) {
-            setScientificName(text);
-          }
-        }}
-        style={styles.input}
-      />
-
-      <Input
-        placeholder="植物学名"
-        value={scientificName}
-        onChangeText={setScientificName}
-        style={styles.input}
-      />
-
-      <Select
-        placeholder="选择类别"
-        value={selectedCategory?.name}
-        selectedIndex={selectedIndex}
-        onSelect={(index) =>
-        {
-          setSelectedIndex(index as IndexPath);
-          if ((index as IndexPath).row !== undefined) {
-            setSelectedCategory(categories[(index as IndexPath).row]);
-          }
-        }}
-        style={styles.input}
-      >
-        {categories.map(category => (
-          <SelectItem key={category.id} title={category.name} />
-        ))}
-      </Select>
-
-      <Button onPress={handleSubmit} style={styles.submitButton}>
-        {editingPlant ? '保存' : '添加'}
-      </Button>
-
-      <Button appearance="outline" status="basic" onPress={onCancel} style={styles.cancelButton}>
-        取消
-      </Button>
-
-      {/* Image Viewer */}
-      <ImageViewer
-        visible={showImageViewer}
-        imageUri={selectedImage}
-        onClose={() => setShowImageViewer(false)}
-      />
-    </SlideUpModal>
-  );
-};
-
 type PlantItem = {
   id: string;
   name: string;
@@ -431,17 +123,14 @@ const getPlantItem = (plant: Plant): PlantItem =>
   };
 };
 
-const PlantsPage = () =>
-{
-  const [plants, setPlants] = React.useState<PlantItem[]>([]);
-  const [categories, setCategories] = React.useState<{ id: string; name: string }[]>([]);
-  const [showForm, setShowForm] = React.useState(false); // Replace visible modal state
-  const [editingPlant, setEditingPlant] = React.useState<PlantItem | null>(null);
+const PlantsPage = observer(() => {
+  const router = useRouter();
+  const plants = rootStore.plantStore.alivePlants;
+  const categories = rootStore.settingStore.categories;
   const [editMode, setEditMode] = React.useState(false);
   const [selectedPlants, setSelectedPlants] = React.useState<string[]>([]);
   const [isAllSelected, setIsAllSelected] = React.useState(false);
   const { themeMode } = useTheme();
-  const [newCategory, setNewCategory] = React.useState('');
   const [selectedImage, setSelectedImage] = React.useState('');
   const [showImageViewer, setShowImageViewer] = React.useState(false);
 
@@ -449,87 +138,6 @@ const PlantsPage = () =>
   const itemBackgroundColor = themeMode === 'light'
     ? 'rgba(255, 255, 255, 0.95)'
     : 'rgba(43, 50, 65, 0.95)';
-
-  const updatePlants = React.useCallback(
-    () =>
-    {
-      PlantManager.getAllPlants().then((plants) =>
-      {
-        const plantItems = plants.map(getPlantItem);
-
-        // Create an array of promises for all action queries
-        const actionPromises = plantItems.map(plant =>
-          ActionManager.getLastAndNextAction(plant.id)
-            .then(actionData =>
-            {
-              return {
-                plantId: plant.id,
-                actionData,
-                success: true
-              };
-            })
-            .catch(error =>
-            {
-              console.error(`Failed to load actions for plant ${plant.id}:`, error);
-              return {
-                plantId: plant.id,
-                actionData: null,
-                success: false
-              };
-            })
-        );
-
-        // Wait for all action queries to complete
-        Promise.all(actionPromises)
-          .then(results =>
-          {
-            // Update all plants at once with the action data
-            plantItems.forEach(p =>
-            {
-              const result = results.find(r => r.plantId === p.id);
-              if (result) {
-                // Create a new plant object with updated data
-
-                if (result.success && result.actionData) {
-                  // Handle last action if available
-                  if (result.actionData.lastAction) {
-                    p.lastAction = {
-                      type: result.actionData.lastAction.name,
-                      date: new Date(result.actionData.lastAction.time)
-                    };
-                  }
-
-                  // Handle next action if available
-                  if (result.actionData.nextAction) {
-                    p.nextAction = {
-                      type: result.actionData.nextAction.name,
-                      date: new Date(result.actionData.nextAction.time)
-                    };
-                  }
-                }
-              }
-              return p;
-            })
-            setPlants(plantItems);
-          });
-      });
-      ConfigManager.getInstance().getCategories().then(categories =>
-      {
-        setCategories(categories);
-      });
-    }, [])
-
-  React.useEffect(() =>
-  {
-    updatePlants();
-  }, []);
-
-  useFocusEffect(updatePlants);
-
-  const resetForm = () =>
-  {
-    setEditingPlant(null);
-  };
 
   const toggleEditMode = () =>
   {
@@ -590,7 +198,7 @@ const PlantsPage = () =>
           onPress: async () =>
           {
             LoadingModal.show("删除中...");
-            const success = await PlantManager.deletePlants(selectedPlants);
+            const success = await rootStore.plantStore.deletePlants(selectedPlants);
             LoadingModal.hide();
             if (success) {
               showMessage({
@@ -598,7 +206,6 @@ const PlantsPage = () =>
                 duration: 1000,
                 type: "success"
               });
-              setPlants(plants.filter(plant => !selectedPlants.includes(plant.id)));
               setSelectedPlants([]);
               setIsAllSelected(false);
             } else {
@@ -629,34 +236,7 @@ const PlantsPage = () =>
           {
             try {
               // Update plants in the database
-              const updatedPlants = await Promise.all(
-                selectedPlants.map(async (id) =>
-                {
-                  const plant = plants.find(p => p.id === id);
-                  if (plant) {
-                    const updatedPlant = {
-                      id: plant.id,
-                      name: plant.name,
-                      type: plant.category,
-                      scientificName: plant.scientificName,
-                      remark: '',
-                      img: plant.image,
-                      isDead: true
-                    };
-
-                    // Update in database
-                    await PlantManager.updatePlant(updatedPlant);
-                    return id;
-                  }
-                  return null;
-                })
-              );
-
-              // Update local state
-              setPlants(plants.map(p =>
-                selectedPlants.includes(p.id) ? { ...p, isDead: true } : p
-              ));
-
+               await rootStore.plantStore.moveToCemeterys(selectedPlants);
               setSelectedPlants([]);
               setIsAllSelected(false);
             } catch (error) {
@@ -673,160 +253,14 @@ const PlantsPage = () =>
     );
   };
 
-  const handleAddPlant = (formData: any) =>
-  {
-    const newPlant: PlantItem = {
-      id: generateId(),
-      name: formData.plantName,
-      scientificName: formData.scientificName,
-      category: formData.category,
-      image: formData.image,
-      isDead: false,
-    };
-
-    if (editingPlant) {
-      setPlants(plants.map(p => p.id === editingPlant.id ? { ...p, ...newPlant, id: p.id } : p));
-
-      // Update in database
-      const plantToUpdate: Plant = {
-        id: editingPlant.id,
-        name: formData.plantName,
-        type: formData.category,
-        scientificName: formData.scientificName,
-        remark: '',
-        img: formData.image,
-        isDead: false
-      };
-
-      PlantManager.updatePlant(plantToUpdate).catch(error =>
-      {
-        console.error('Failed to update plant:', error);
-        showMessage({
-          message: '更新植物失败',
-          duration: 1000,
-          type: "warning"
-        });
-      });
-    } else {
-      setPlants([...plants, newPlant]);
-
-      // Add to database
-      const plantToAdd: Plant = {
-        id: newPlant.id,
-        name: formData.plantName,
-        type: formData.category,
-        scientificName: formData.scientificName,
-        remark: '',
-        img: formData.image,
-        isDead: false
-      };
-
-      PlantManager.addPlant(plantToAdd).catch(error =>
-      {
-        console.error('Failed to add plant:', error);
-        showMessage({
-          message: '添加植物失败',
-          duration: 3000,
-          type: "warning"
-        });
-      });
-    }
-
-    setShowForm(false);
-    resetForm();
-  };
-
-  const handleDeletePlant = (id: string) =>
-  {
-    Alert.alert(
-      '确认删除',
-      '确定要删除这个植物吗？',
-      [
-        { text: '取消', style: 'cancel' },
-        {
-          text: '删除',
-          style: 'destructive',
-          onPress: () =>
-          {
-            setPlants(plants.filter(plant => plant.id !== id));
-            setIsAllSelected(false);
-          }
-        }
-      ]
-    );
-  };
-
-  const handleMoveToCemetery = (id: string) =>
-  {
-    Alert.alert(
-      '确认移入墓地',
-      '确定要将这个植物移入墓地吗？',
-      [
-        { text: '取消', style: 'cancel' },
-        {
-          text: '确定',
-          onPress: async () =>
-          {
-            try {
-              // Update the plant in database
-              const plant = plants.find(p => p.id === id);
-              if (plant) {
-                const updatedPlant = {
-                  id: plant.id,
-                  name: plant.name,
-                  type: plant.category,
-                  scientificName: plant.scientificName,
-                  remark: '',
-                  img: plant.image,
-                  isDead: true
-                };
-
-                // Update in database
-                await PlantManager.updatePlant(updatedPlant);
-
-                // Update local state
-                setPlants(plants.map(p =>
-                  p.id === id ? { ...p, isDead: true } : p
-                ));
-              }
-            } catch (error) {
-              console.error('Failed to move plant to cemetery:', error);
-              showMessage({
-                message: '移入墓地失败',
-                duration: 1000,
-                type: "warning"
-              });
-            }
-          }
-        }
-      ]
-    );
-  };
-
   const handleEditPlant = (plant: PlantItem) =>
   {
-    setEditingPlant(plant);
-    setShowForm(true);
+    router.push(`/PlantEditPage?id=${plant.id}`);
   };
 
-  const handleAddCategory = () =>
+  const handleAddPlant = () =>
   {
-    if (!newCategory.trim()) {
-      showMessage({
-        message: '请输入类别名称',
-        duration: 1000,
-        type: "warning"
-      });
-      return;
-    }
-
-    const newCategoryObj = {
-      id: generateId(),
-      name: newCategory
-    };
-
-    setCategories([...categories, newCategoryObj]);
-    setNewCategory('');
+    router.push('/PlantEditPage');
   };
 
   // Render each plant item
@@ -963,11 +397,7 @@ const PlantsPage = () =>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.iconButton}
-                onPress={() =>
-                {
-                  resetForm();
-                  setShowForm(true);
-                }}
+                onPress={handleAddPlant}
               >
                 <PlusIcon width={24} height={24} />
               </TouchableOpacity>
@@ -998,7 +428,7 @@ const PlantsPage = () =>
         {plants.length > 0 ? (
           <Layout style={[styles.contentContainer, { backgroundColor: 'transparent' }]}>
             <FlatList
-              data={plants.filter(plant => !plant.isDead)}
+              data={rootStore.plantStore.alivePlants.map(getPlantItem)}
               keyExtractor={(item) => item.id}
               renderItem={renderItem}
               contentContainerStyle={[styles.list]}
@@ -1008,30 +438,11 @@ const PlantsPage = () =>
         ) : (
           <TouchableOpacity
             style={styles.emptyStateContainer}
-            onPress={() =>
-            {
-              resetForm();
-              setShowForm(true);
-            }}
+            onPress={handleAddPlant}
             activeOpacity={0.7}
           >
             {renderEmptyState()}
           </TouchableOpacity>
-        )}
-
-        {/* Render the form overlay only when showForm is true */}
-        {showForm && (
-          <PlantEditForm
-            editingPlant={editingPlant}
-            categories={categories}
-            themeMode={themeMode}
-            onSubmit={handleAddPlant}
-            onCancel={() =>
-            {
-              setShowForm(false);
-              resetForm();
-            }}
-          />
         )}
       </LinearGradient>
 
@@ -1046,7 +457,7 @@ const PlantsPage = () =>
       <LoadingModal />
     </GestureHandlerRootView>
   );
-};
+});
 
 const styles = StyleSheet.create({
   container: {
@@ -1297,55 +708,6 @@ const styles = StyleSheet.create({
   },
   checkbox: {
     marginRight: 8,
-  },
-  formOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    zIndex: 9,
-    justifyContent: 'flex-end',
-  },
-  animatedFormContainer: {
-    maxHeight: '90%',
-    width: '100%',
-  },
-  formContainer: {
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    elevation: 5,
-  },
-  formContentContainer: {
-    padding: 24,
-    paddingBottom: 40,
-  },
-  formHeader: {
-    flexDirection: 'row',
-    marginBottom: 20,
-  },
-  formTitle: {
-    textAlign: 'center',
-    flex: 1,
-  },
-  dragIndicator: {
-    width: 40,
-    height: 5,
-    backgroundColor: 'rgba(150, 150, 150, 0.3)',
-    alignSelf: 'center',
-    borderRadius: 5,
-    marginBottom: 20,
-    marginTop: -10,
-  },
-  submitButton: {
-    marginBottom: 12,
-  },
-  cancelButton: {
-    marginBottom: 20,
   },
 });
 

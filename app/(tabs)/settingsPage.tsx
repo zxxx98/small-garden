@@ -23,6 +23,8 @@ import
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../../theme/themeContext';
 import { useCategories, Category } from '../../context/CategoryContext';
+import { useAreas } from '../../context/AreaContext';
+import { Area } from '../../types/config';
 import { PlantManager } from '@/models/PlantManager';
 import { Plant } from '@/types/plant';
 import { ConfigManager } from '@/models/ConfigManager';
@@ -50,6 +52,7 @@ const ActionTypeIcon = (props: IconProps) => <Icon {...props} name="droplet-outl
 const CloudIcon = (props: IconProps) => <Icon {...props} name="cloud-upload-outline" />;
 const FlowerIcon = (props: IconProps) => <Icon {...props} name="keypad-outline" />;
 const TrashIcon2 = (props: IconProps) => <Icon {...props} name="trash-outline" />;
+const AreaIcon = (props: IconProps) => <Icon {...props} name="home-outline" />;
 
 // Available icon packs for selection
 const iconPacks = [
@@ -77,10 +80,18 @@ const SettingsPage = () =>
   // Categories context
   const { categories, addCategory, updateCategory, deleteCategory, loading } = useCategories();
 
+  // Areas context
+  const { areas, addArea, updateArea, deleteArea, loading: areasLoading } = useAreas();
+
   // State for category management
   const [categoryModalVisible, setCategoryModalVisible] = React.useState(false);
   const [editingCategory, setEditingCategory] = React.useState<Category | null>(null);
   const [categoryName, setCategoryName] = React.useState('');
+
+  // State for area management
+  const [areaModalVisible, setAreaModalVisible] = React.useState(false);
+  const [editingArea, setEditingArea] = React.useState<Area | null>(null);
+  const [areaName, setAreaName] = React.useState('');
 
   // State for action types management
   const [actionTypes, setActionTypes] = React.useState<ActionType[]>([]);
@@ -95,7 +106,7 @@ const SettingsPage = () =>
   const [selectedIconPackIndex, setSelectedIconPackIndex] = React.useState<number>(0); // Default UI Kitten
 
   // Section management state
-  const [activeSection, setActiveSection] = React.useState<'main' | 'categories' | 'cemetery' | 'actionTypes'>('main');
+  const [activeSection, setActiveSection] = React.useState<'main' | 'categories' | 'cemetery' | 'actionTypes' | 'areas'>('main');
 
   // Cemetery state
   const [deadPlants, setDeadPlants] = React.useState<PlantItem[]>([]);
@@ -502,6 +513,140 @@ const SettingsPage = () =>
     </Modal>
   );
 
+  // Reset area form
+  const resetAreaForm = () =>
+  {
+    setEditingArea(null);
+    setAreaName('');
+  };
+
+  // Handle showing add/edit area modal
+  const handleShowAreaModal = (area?: Area) =>
+  {
+    if (area) {
+      setEditingArea(area);
+      setAreaName(area.name);
+    } else {
+      resetAreaForm();
+    }
+    setAreaModalVisible(true);
+  };
+
+  // Handle adding/editing area
+  const handleSaveArea = async () =>
+  {
+    if (!areaName.trim()) {
+      showMessage({
+        message: '请输入区域名称',
+        duration: 1000,
+        type: "warning"
+      });
+      return;
+    }
+
+    try {
+      if (editingArea) {
+        await updateArea(editingArea.id, areaName);
+      } else {
+        await addArea(areaName);
+      }
+      setAreaModalVisible(false);
+      resetAreaForm();
+    } catch (error) {
+      showMessage({
+        message: '保存区域失败',
+        duration: 1000,
+        type: "warning"
+      });
+    }
+  };
+
+  // Handle deleting area
+  const handleDeleteArea = (area: Area) =>
+  {
+    Alert.alert(
+      '确认删除',
+      `确定要删除 "${area.name}" 区域吗？这可能会影响已经分配到该区域的植物。`,
+      [
+        { text: '取消', style: 'cancel' },
+        {
+          text: '删除',
+          style: 'destructive',
+          onPress: async () =>
+          {
+            try {
+              await deleteArea(area.id);
+            } catch (error) {
+              showMessage({
+                message: '删除区域失败',
+                duration: 1000,
+                type: "warning"
+              });
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  // Render area item
+  const renderAreaItem = ({ item }: { item: Area }) => (
+    <ListItem
+      title={item.name}
+      accessoryLeft={(props) => <AreaIcon {...props} />}
+      accessoryRight={() => (
+        <View style={styles.categoryItemActions}>
+          <TouchableOpacity
+            style={styles.categoryActionButton}
+            onPress={() => handleShowAreaModal(item)}
+          >
+            <EditIcon fill="#8F9BB3" width={20} height={20} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.categoryActionButton}
+            onPress={() => handleDeleteArea(item)}
+          >
+            <TrashIcon fill="#FF3D71" width={20} height={20} />
+          </TouchableOpacity>
+        </View>
+      )}
+    />
+  );
+
+  // Render area management modal
+  const renderAreaModal = () => (
+    <Modal
+      visible={areaModalVisible}
+      backdropStyle={styles.backdrop}
+      onBackdropPress={() =>
+      {
+        setAreaModalVisible(false);
+        resetAreaForm();
+      }}
+    >
+      <Card
+        disabled
+        style={[
+          styles.modalCard,
+          { backgroundColor: themeMode === 'light' ? 'rgba(255, 255, 255, 0.98)' : 'rgba(43, 50, 65, 0.98)' }
+        ]}
+      >
+        <Text category="h6" style={styles.modalTitle}>
+          {editingArea ? '编辑区域' : '添加区域'}
+        </Text>
+        <Input
+          placeholder="区域名称"
+          value={areaName}
+          onChangeText={setAreaName}
+          style={styles.input}
+        />
+        <Button onPress={handleSaveArea}>
+          {editingArea ? '保存' : '添加'}
+        </Button>
+      </Card>
+    </Modal>
+  );
+
   // Render main settings section
   const renderMainSection = () => (
     <ScrollView style={styles.container}>
@@ -524,6 +669,20 @@ const SettingsPage = () =>
             <Layout style={styles.navItemContent}>
               <Text category="s1">植物类别管理</Text>
               <Text appearance="hint" category="p2">添加、编辑或删除植物类别</Text>
+            </Layout>
+            <Icon name="chevron-right-outline" fill="#8F9BB3" width={24} height={24} />
+          </Layout>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.navItem}
+          onPress={() => setActiveSection('areas')}
+        >
+          <Layout style={styles.navItemInner}>
+            <AreaIcon fill="#3366FF" style={styles.navItemIcon} />
+            <Layout style={styles.navItemContent}>
+              <Text category="s1">植物区域管理</Text>
+              <Text appearance="hint" category="p2">添加、编辑或删除植物区域</Text>
             </Layout>
             <Icon name="chevron-right-outline" fill="#8F9BB3" width={24} height={24} />
           </Layout>
@@ -712,6 +871,48 @@ const SettingsPage = () =>
           ListEmptyComponent={() => (
             <Layout style={styles.emptyContainer}>
               <Text appearance="hint">没有植物类别，点击右上角添加</Text>
+            </Layout>
+          )}
+        />
+      )}
+    </>
+  );
+
+  // Render areas management section
+  const renderAreasSection = () => (
+    <>
+      <TopNavigation
+        title="管理植物区域"
+        alignment="center"
+        accessoryLeft={() => (
+          <TopNavigationAction
+            icon={BackIcon}
+            onPress={() => setActiveSection('main')}
+          />
+        )}
+        accessoryRight={() => (
+          <TopNavigationAction
+            icon={PlusIcon}
+            onPress={() => handleShowAreaModal()}
+          />
+        )}
+      />
+
+      <Divider />
+
+      {areasLoading ? (
+        <Layout style={styles.loadingContainer}>
+          <Text appearance="hint">加载中...</Text>
+        </Layout>
+      ) : (
+        <List
+          data={areas}
+          renderItem={renderAreaItem}
+          ItemSeparatorComponent={Divider}
+          contentContainerStyle={styles.categoriesList}
+          ListEmptyComponent={() => (
+            <Layout style={styles.emptyContainer}>
+              <Text appearance="hint">没有植物区域，点击右上角添加</Text>
             </Layout>
           )}
         />
@@ -1437,6 +1638,10 @@ const SettingsPage = () =>
         <Layout style={styles.sectionContainer}>
           {renderCategoriesSection()}
         </Layout>
+      ) : activeSection === 'areas' ? (
+        <Layout style={styles.sectionContainer}>
+          {renderAreasSection()}
+        </Layout>
       ) : activeSection === 'cemetery' ? (
         <Layout style={styles.sectionContainer}>
           {renderCemeterySection()}
@@ -1448,6 +1653,7 @@ const SettingsPage = () =>
       )}
 
       {renderCategoryModal()}
+      {renderAreaModal()}
       {renderResurrectModal()}
       {renderActionTypeModal()}
       {renderR2ConfigModal()}
