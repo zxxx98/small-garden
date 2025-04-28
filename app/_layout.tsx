@@ -13,7 +13,7 @@ import { MaterialCommunityIconsPack } from '../icons/MaterialCommunityIconsPack'
 import { AssetIconsPack } from '../icons/AssetIconsPack';
 import LoadingModal from '@/components/LoadingModal';
 import FlashMessage from 'react-native-flash-message';
-import AddActionPage from './(tabs)/addActionPage';
+import AddActionPage from './add-action';
 
 // Create theme-aware app component
 const ThemedApp = () =>
@@ -29,8 +29,13 @@ const ThemedApp = () =>
                 <Stack.Screen name="index" options={{ headerShown: false }} />
                 <Stack.Screen name='(tabs)' options={{ headerShown: false }} />
                 <Stack.Screen name="+not-found" options={{ headerShown: false }} />
-                <Stack.Screen name="PlantEditPage" options={{ headerShown: false }} />
-                <Stack.Screen name="TodoEditPage" options={{ headerShown: false }} />
+                <Stack.Screen name="plant-edit" options={{ headerShown: false }} />
+                <Stack.Screen name="todo-edit" options={{ headerShown: false }} />
+                <Stack.Screen name="category-management" options={{ headerShown: false }} />
+                <Stack.Screen name="area-management" options={{ headerShown: false }} />
+                <Stack.Screen name="action-type-management" options={{ headerShown: false }} />
+                <Stack.Screen name="cemetery" options={{ headerShown: false }} />
+                <Stack.Screen name="add-action" options={{ headerShown: false }} />
               </Stack>
               <AddActionPage />
             </AddActionProvider>

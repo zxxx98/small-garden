@@ -1,7 +1,6 @@
 import * as React from 'react';
 import { FlatList, Image, StyleSheet, View, Dimensions, TouchableOpacity } from 'react-native';
 import { Layout, Text, Card, Icon, RangeCalendar, CalendarRange, Button, Modal, IconProps } from '@ui-kitten/components';
-import { LinearGradient } from 'expo-linear-gradient';
 import Timeline from '../../components/Timeline';
 import { theme } from '@/theme/theme';
 import { Action } from '@/types/action';
@@ -11,7 +10,7 @@ import { ActionManager } from '@/models/ActionManager';
 import { useTheme } from '../../theme/themeContext';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
-import { getActionIcon } from '@/utils/action';
+import GradientBackground from '@/components/GradientBackground';
 
 // Create a separate TimelineContent component to handle plant loading
 const TimelineContent = React.memo(({ data, onContentClick }: {
@@ -324,7 +323,7 @@ const TimelinePage = () =>
     }, []);
 
     return (
-        <LinearGradient
+        <GradientBackground
             colors={themeMode === 'light'
                 ? ['#F5F5F5', '#E3F2FD', '#F5F5F5']
                 : ['#222B45', '#1A2138', '#222B45']}
@@ -370,7 +369,7 @@ const TimelinePage = () =>
                     onDelete={handleDeleteAction}
                 />
             </Modal>
-        </LinearGradient>
+        </GradientBackground>
     );
 };
 

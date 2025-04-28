@@ -17,6 +17,7 @@ import { PlantManager } from '@/models/PlantManager';
 import LoadingModal from '@/components/LoadingModal';
 import Datepicker from '@/components/Datepicker';
 import PageHeader from '../components/PageHeader';
+import GradientBackground from '@/components/GradientBackground';
 
 const TodoEditPage = observer(() => {
   const router = useRouter();
@@ -244,7 +245,7 @@ const TodoEditPage = observer(() => {
   };
 
   return (
-    <LinearGradient
+    <GradientBackground
       colors={themeMode === 'light'
         ? ['#F5F5F5', '#FFF3E0', '#F5F5F5']
         : ['#222B45', '#1A2138', '#222B45']}
@@ -380,7 +381,7 @@ const TodoEditPage = observer(() => {
 
       {/* LoadingModal for static method rendering */}
       <LoadingModal />
-    </LinearGradient>
+    </GradientBackground>
   );
 });
 

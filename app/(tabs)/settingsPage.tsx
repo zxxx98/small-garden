@@ -1,26 +1,22 @@
 import * as React from 'react';
 import { StyleSheet, TouchableOpacity, ScrollView, Alert, View, Dimensions, Image } from 'react-native';
-import
-{
-  Layout,
-  Text,
-  Toggle,
-  Divider,
-  List,
-  ListItem,
-  Icon,
-  IconProps,
-  Button,
-  Card,
-  Modal,
-  Input,
-  TopNavigation,
-  TopNavigationAction,
-  Select,
-  SelectItem,
-  IndexPath as IconPath
+import {
+Layout,
+Text,
+Toggle,
+Divider,
+List,
+ListItem,
+Icon,
+IconProps,
+Button,
+Card,
+Modal,
+Input,
+TopNavigation,
+TopNavigationAction,
+IndexPath as IconPath
 } from '@ui-kitten/components';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../../theme/themeContext';
 import { useCategories, Category } from '../../context/CategoryContext';
 import { useAreas } from '../../context/AreaContext';
@@ -37,6 +33,8 @@ import { showMessage } from "react-native-flash-message";
 import { DatabaseInstance } from '@/models/sqlite/database';
 import LoadingModal from '@/components/LoadingModal';
 import { CloudflareR2Manager } from '@/models/CloudflareR2Manager';
+import { useRouter } from 'expo-router';
+import GradientBackground from '@/components/GradientBackground';
 
 // Icons
 const SunIcon = (props: IconProps) => <Icon {...props} name="sun-outline" />;
@@ -72,8 +70,8 @@ type PlantItem = {
   isDead: boolean;
 };
 
-const SettingsPage = () =>
-{
+const SettingsPage = () => {
+  const router = useRouter();
   // Theme context
   const { themeMode, toggleTheme } = useTheme();
 
@@ -130,13 +128,12 @@ const SettingsPage = () =>
   const [plantNetApiKey, setPlantNetApiKey] = React.useState<string>('');
   const [plantNetApiKeyModalVisible, setPlantNetApiKeyModalVisible] = React.useState(false);
   const [plantNetApiKeyLoading, setPlantNetApiKeyLoading] = React.useState(false);
-  
+
   // 缓存清理状态
   const [clearCacheLoading, setClearCacheLoading] = React.useState(false);
 
   // Load dead plants when entering cemetery view
-  React.useEffect(() =>
-  {
+  React.useEffect(() => {
     if (activeSection === 'cemetery') {
       loadDeadPlants();
     } else if (activeSection === 'actionTypes') {
@@ -145,8 +142,7 @@ const SettingsPage = () =>
   }, [activeSection]);
 
   // Load PlantNet API key
-  const loadPlantNetApiKey = async () =>
-  {
+  const loadPlantNetApiKey = async () => {
     setPlantNetApiKeyLoading(true);
     try {
       const configManager = ConfigManager.getInstance();
@@ -167,15 +163,13 @@ const SettingsPage = () =>
   };
 
   // Load R2 configuration when the component mounts
-  React.useEffect(() =>
-  {
+  React.useEffect(() => {
     loadR2Config();
     loadPlantNetApiKey();
   }, []);
 
   // Load action types
-  const loadActionTypes = async () =>
-  {
+  const loadActionTypes = async () => {
     setActionTypesLoading(true);
     try {
       const types = await ConfigManager.getInstance().getActionTypes();
@@ -193,15 +187,13 @@ const SettingsPage = () =>
   };
 
   // Reset category form
-  const resetCategoryForm = () =>
-  {
+  const resetCategoryForm = () => {
     setEditingCategory(null);
     setCategoryName('');
   };
 
   // Handle showing add/edit category modal
-  const handleShowCategoryModal = (category?: Category) =>
-  {
+  const handleShowCategoryModal = (category?: Category) => {
     if (category) {
       setEditingCategory(category);
       setCategoryName(category.name);
@@ -212,8 +204,7 @@ const SettingsPage = () =>
   };
 
   // Handle adding/editing category
-  const handleSaveCategory = async () =>
-  {
+  const handleSaveCategory = async () => {
     if (!categoryName.trim()) {
       showMessage({
         message: '请输入类别名称',
@@ -241,8 +232,7 @@ const SettingsPage = () =>
   };
 
   // Handle deleting category
-  const handleDeleteCategory = (category: Category) =>
-  {
+  const handleDeleteCategory = (category: Category) => {
     Alert.alert(
       '确认删除',
       `确定要删除 "${category.name}" 类别吗？这可能会影响已经分配到该类别的植物。`,
@@ -251,8 +241,7 @@ const SettingsPage = () =>
         {
           text: '删除',
           style: 'destructive',
-          onPress: async () =>
-          {
+          onPress: async () => {
             try {
               await deleteCategory(category.id);
             } catch (error) {
@@ -269,8 +258,7 @@ const SettingsPage = () =>
   };
 
   // Load dead plants from database
-  const loadDeadPlants = async () =>
-  {
+  const loadDeadPlants = async () => {
     setCemeteryLoading(true);
     try {
       const plants = await PlantManager.getAllPlants();
@@ -297,8 +285,7 @@ const SettingsPage = () =>
   };
 
   // Handle resurrect plant (set isDead to false)
-  const handleResurrectPlant = async () =>
-  {
+  const handleResurrectPlant = async () => {
     if (!selectedDeadPlant) return;
 
     try {
@@ -337,8 +324,7 @@ const SettingsPage = () =>
   };
 
   // Handle permanently delete dead plant
-  const handlePermanentlyDeletePlant = (plant: PlantItem) =>
-  {
+  const handlePermanentlyDeletePlant = (plant: PlantItem) => {
     Alert.alert(
       '确认永久删除',
       `确定要永久删除植物 "${plant.name}" 吗？此操作无法撤销。`,
@@ -347,8 +333,7 @@ const SettingsPage = () =>
         {
           text: '永久删除',
           style: 'destructive',
-          onPress: async () =>
-          {
+          onPress: async () => {
             try {
               await PlantManager.deletePlant(plant.id);
               setDeadPlants(deadPlants.filter(p => p.id !== plant.id));
@@ -414,8 +399,7 @@ const SettingsPage = () =>
         <View style={styles.categoryItemActions}>
           <TouchableOpacity
             style={styles.categoryActionButton}
-            onPress={() =>
-            {
+            onPress={() => {
               setSelectedDeadPlant(item);
               setShowResurrectModal(true);
             }}
@@ -438,8 +422,7 @@ const SettingsPage = () =>
     <Modal
       visible={categoryModalVisible}
       backdropStyle={styles.backdrop}
-      onBackdropPress={() =>
-      {
+      onBackdropPress={() => {
         setCategoryModalVisible(false);
         resetCategoryForm();
       }}
@@ -472,8 +455,7 @@ const SettingsPage = () =>
     <Modal
       visible={showResurrectModal}
       backdropStyle={styles.backdrop}
-      onBackdropPress={() =>
-      {
+      onBackdropPress={() => {
         setShowResurrectModal(false);
         setSelectedDeadPlant(null);
       }}
@@ -493,8 +475,7 @@ const SettingsPage = () =>
           <Button
             status="basic"
             style={styles.resurrectButton}
-            onPress={() =>
-            {
+            onPress={() => {
               setShowResurrectModal(false);
               setSelectedDeadPlant(null);
             }}
@@ -514,15 +495,13 @@ const SettingsPage = () =>
   );
 
   // Reset area form
-  const resetAreaForm = () =>
-  {
+  const resetAreaForm = () => {
     setEditingArea(null);
     setAreaName('');
   };
 
   // Handle showing add/edit area modal
-  const handleShowAreaModal = (area?: Area) =>
-  {
+  const handleShowAreaModal = (area?: Area) => {
     if (area) {
       setEditingArea(area);
       setAreaName(area.name);
@@ -533,8 +512,7 @@ const SettingsPage = () =>
   };
 
   // Handle adding/editing area
-  const handleSaveArea = async () =>
-  {
+  const handleSaveArea = async () => {
     if (!areaName.trim()) {
       showMessage({
         message: '请输入区域名称',
@@ -562,8 +540,7 @@ const SettingsPage = () =>
   };
 
   // Handle deleting area
-  const handleDeleteArea = (area: Area) =>
-  {
+  const handleDeleteArea = (area: Area) => {
     Alert.alert(
       '确认删除',
       `确定要删除 "${area.name}" 区域吗？这可能会影响已经分配到该区域的植物。`,
@@ -572,8 +549,7 @@ const SettingsPage = () =>
         {
           text: '删除',
           style: 'destructive',
-          onPress: async () =>
-          {
+          onPress: async () => {
             try {
               await deleteArea(area.id);
             } catch (error) {
@@ -618,8 +594,7 @@ const SettingsPage = () =>
     <Modal
       visible={areaModalVisible}
       backdropStyle={styles.backdrop}
-      onBackdropPress={() =>
-      {
+      onBackdropPress={() => {
         setAreaModalVisible(false);
         resetAreaForm();
       }}
@@ -662,7 +637,7 @@ const SettingsPage = () =>
         <Text category="h6" style={styles.sectionTitle}>数据管理</Text>
         <TouchableOpacity
           style={styles.navItem}
-          onPress={() => setActiveSection('categories')}
+          onPress={() => router.push('/category-management')}
         >
           <Layout style={styles.navItemInner}>
             <CategoryIcon fill="#3366FF" style={styles.navItemIcon} />
@@ -676,7 +651,7 @@ const SettingsPage = () =>
 
         <TouchableOpacity
           style={styles.navItem}
-          onPress={() => setActiveSection('areas')}
+          onPress={() => router.push('/area-management')}
         >
           <Layout style={styles.navItemInner}>
             <AreaIcon fill="#3366FF" style={styles.navItemIcon} />
@@ -690,7 +665,7 @@ const SettingsPage = () =>
 
         <TouchableOpacity
           style={styles.navItem}
-          onPress={() => setActiveSection('actionTypes')}
+          onPress={() => router.push('/action-type-management')}
         >
           <Layout style={styles.navItemInner}>
             <ActionTypeIcon fill="#3366FF" style={styles.navItemIcon} />
@@ -704,7 +679,7 @@ const SettingsPage = () =>
 
         <TouchableOpacity
           style={styles.navItem}
-          onPress={() => setActiveSection('cemetery')}
+          onPress={() => router.push('/cemetery')}
         >
           <Layout style={styles.navItemInner}>
             <CemeteryIcon fill="#3366FF" style={styles.navItemIcon} />
@@ -715,7 +690,7 @@ const SettingsPage = () =>
             <Icon name="chevron-right-outline" fill="#8F9BB3" width={24} height={24} />
           </Layout>
         </TouchableOpacity>
-        
+
         <TouchableOpacity
           style={styles.navItem}
           onPress={handleClearCache}
@@ -734,8 +709,7 @@ const SettingsPage = () =>
           appearance="ghost"
           status="danger"
           accessoryLeft={(props) => <Icon {...props} name="refresh-outline" />}
-          onPress={() =>
-          {
+          onPress={() => {
             Alert.alert(
               '重置数据库',
               '确定要重置数据库结构吗？这可能会修复一些应用错误，但不会删除您的数据。',
@@ -744,8 +718,7 @@ const SettingsPage = () =>
                 {
                   text: '确定',
                   style: 'destructive',
-                  onPress: async () =>
-                  {
+                  onPress: async () => {
                     try {
                       LoadingModal.show("重置中...");
                       await DatabaseInstance.resetSchema();
@@ -961,8 +934,7 @@ const SettingsPage = () =>
   );
 
   // Reset action type form
-  const resetActionTypeForm = () =>
-  {
+  const resetActionTypeForm = () => {
     setEditingActionType(null);
     setActionTypeName('');
     setIconName('');
@@ -973,8 +945,7 @@ const SettingsPage = () =>
   };
 
   // Handle showing add/edit action type modal
-  const handleShowActionTypeModal = (actionType?: ActionType) =>
-  {
+  const handleShowActionTypeModal = (actionType?: ActionType) => {
     console.log('Opening modal with action type:', actionType);
     if (actionType) {
       // Only allow editing custom image action types
@@ -998,8 +969,7 @@ const SettingsPage = () =>
   };
 
   // Handle picking custom image
-  const handlePickImage = async () =>
-  {
+  const handlePickImage = async () => {
     try {
       // Request permission
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -1041,8 +1011,7 @@ const SettingsPage = () =>
   };
 
   // Handle adding/editing action type
-  const handleSaveActionType = async () =>
-  {
+  const handleSaveActionType = async () => {
     if (!actionTypeName.trim()) {
       showMessage({
         message: '请输入行为类型名称',
@@ -1119,8 +1088,7 @@ const SettingsPage = () =>
   };
 
   // Handle deleting action type
-  const handleDeleteActionType = (actionType: ActionType) =>
-  {
+  const handleDeleteActionType = (actionType: ActionType) => {
     // Prevent deletion of system action types
     if (!actionType.useCustomImage) {
       showMessage({
@@ -1139,8 +1107,7 @@ const SettingsPage = () =>
         {
           text: '删除',
           style: 'destructive',
-          onPress: async () =>
-          {
+          onPress: async () => {
             try {
               const updatedActionTypes = actionTypes.filter(type => type.name !== actionType.name);
               await ConfigManager.getInstance().saveActionTypes(updatedActionTypes);
@@ -1193,8 +1160,7 @@ const SettingsPage = () =>
           )}
         </View>
       )}
-      accessoryRight={() =>
-      {
+      accessoryRight={() => {
         if (item.useCustomImage) {
           return (<View style={styles.categoryItemActions}>
             <TouchableOpacity
@@ -1221,8 +1187,7 @@ const SettingsPage = () =>
     <Modal
       visible={actionTypeModalVisible}
       backdropStyle={styles.backdrop}
-      onBackdropPress={() =>
-      {
+      onBackdropPress={() => {
         setActionTypeModalVisible(false);
         resetActionTypeForm();
       }}
@@ -1331,15 +1296,13 @@ const SettingsPage = () =>
   );
 
   // Load R2 configuration when the component mounts
-  React.useEffect(() =>
-  {
+  React.useEffect(() => {
     loadR2Config();
     loadPlantNetApiKey();
   }, []);
 
   // Load R2 configuration
-  const loadR2Config = async () =>
-  {
+  const loadR2Config = async () => {
     setR2ConfigLoading(true);
     try {
       const configManager = ConfigManager.getInstance();
@@ -1366,8 +1329,7 @@ const SettingsPage = () =>
   };
 
   // Toggle R2 storage
-  const toggleR2Storage = async (checked: boolean) =>
-  {
+  const toggleR2Storage = async (checked: boolean) => {
     try {
       // If turning on R2, check if we have valid configuration
       if (checked) {
@@ -1404,8 +1366,7 @@ const SettingsPage = () =>
   };
 
   // Check if R2 configuration is valid
-  const isR2ConfigValid = (): boolean =>
-  {
+  const isR2ConfigValid = (): boolean => {
     return !!(
       r2Config.accountId &&
       r2Config.accessKeyId &&
@@ -1415,8 +1376,7 @@ const SettingsPage = () =>
   };
 
   // Handle saving R2 configuration
-  const handleSaveR2Config = async () =>
-  {
+  const handleSaveR2Config = async () => {
     if (!r2Config.accountId || !r2Config.accessKeyId ||
       !r2Config.secretAccessKey || !r2Config.bucketName || !r2Config.publicUrl) {
       showMessage({
@@ -1521,8 +1481,7 @@ const SettingsPage = () =>
   );
 
   // Handle saving PlantNet API key
-  const handleSavePlantNetApiKey = async () =>
-  {
+  const handleSavePlantNetApiKey = async () => {
     if (!plantNetApiKey.trim()) {
       showMessage({
         message: '请输入PlantNet API Key',
@@ -1596,11 +1555,11 @@ const SettingsPage = () =>
     try {
       setClearCacheLoading(true);
       LoadingModal.show("正在清理缓存...");
-      
+
       // 清理R2缓存
       const r2Manager = CloudflareR2Manager.getInstance();
       await r2Manager.clearCache();
-      
+
       LoadingModal.hide();
       showMessage({
         message: "缓存清理成功",
@@ -1621,10 +1580,9 @@ const SettingsPage = () =>
   };
 
   return (
-    <LinearGradient
+    <GradientBackground
       colors={gradientColors}
-      style={styles.container}
-    >
+      style={styles.container}>
       {activeSection === 'main' ? (
         <>
           <Layout style={styles.header}>
@@ -1658,7 +1616,7 @@ const SettingsPage = () =>
       {renderActionTypeModal()}
       {renderR2ConfigModal()}
       {renderPlantNetApiKeyModal()}
-    </LinearGradient>
+    </GradientBackground>
   );
 };
 

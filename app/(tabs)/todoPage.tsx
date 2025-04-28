@@ -1,8 +1,6 @@
 import * as React from 'react';
 import { StyleSheet, FlatList, Image, TouchableOpacity, View, Dimensions, Alert, ScrollView, Animated, Platform } from 'react-native';
 import { Layout, Text, Card, Icon, Modal, Button, Input, IconProps, Spinner, Select, SelectItem, Datepicker, IndexPath, Toggle, CheckBox, Divider, useTheme as useKittenTheme } from '@ui-kitten/components';
-import { LinearGradient } from 'expo-linear-gradient';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { ActionManager } from '@/models/ActionManager';
 import { PlantManager } from '@/models/PlantManager';
 import { Action, ActionType } from '@/types/action';
@@ -21,6 +19,7 @@ import LoadingModal from '@/components/LoadingModal';
 import { DatabaseInstance } from '@/models/sqlite/database';
 import PhotoSelectList from '@/components/PhotoSelectList';
 import { useRouter } from 'expo-router';
+import GradientBackground from '@/components/GradientBackground';
 
 // 图片查看器组件接口定义
 interface ImageViewerProps
@@ -756,7 +755,7 @@ const TodoPage = () =>
 
     // 处理添加待办按钮点击
     const handleAddTodoPress = () => {
-        router.push('/TodoEditPage');
+        router.push('/todo-edit');
     };
 
     // 渲染分区标题
@@ -786,7 +785,7 @@ const TodoPage = () =>
     };
 
     return (
-        <LinearGradient
+        <GradientBackground
             colors={themeMode === 'light'
                 ? ['#F5F5F5', '#FFF3E0', '#F5F5F5']
                 : ['#222B45', '#1A2138', '#222B45']}
@@ -882,7 +881,7 @@ const TodoPage = () =>
                     />
                 )}
             </Modal>
-        </LinearGradient>
+        </GradientBackground>
     );
 };
 

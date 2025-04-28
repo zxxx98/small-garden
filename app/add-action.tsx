@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { StyleSheet, View, TouchableOpacity, Image, ScrollView, Alert } from 'react-native';
 import { Text, Button, Select, SelectItem, Input, Icon, Spinner, IndexPath } from '@ui-kitten/components';
-import { useTheme } from '../../theme/themeContext';
+import { useTheme } from '../theme/themeContext';
 import { PlantManager } from '@/models/PlantManager';
 import { ActionManager } from '@/models/ActionManager';
 import { Plant } from '@/types/plant';

@@ -16,6 +16,7 @@ import { showMessage } from "react-native-flash-message";
 import { observer } from 'mobx-react-lite';
 import { rootStore } from '@/stores/RootStore';
 import PageHeader from '../components/PageHeader';
+import GradientBackground from '@/components/GradientBackground';
 
 // Define interface for ImageViewer props
 interface ImageViewerProps {
@@ -278,7 +279,7 @@ const PlantEditPage = observer(() => {
   };
 
   return (
-    <LinearGradient
+    <GradientBackground
       colors={themeMode === 'light'
         ? ['#F5F5F5', '#E8F5E9', '#F5F5F5']
         : ['#222B45', '#1A2138', '#222B45']}
@@ -382,7 +383,7 @@ const PlantEditPage = observer(() => {
 
       {/* LoadingModal for static method rendering */}
       <LoadingModal />
-    </LinearGradient>
+    </GradientBackground>
   );
 });
 

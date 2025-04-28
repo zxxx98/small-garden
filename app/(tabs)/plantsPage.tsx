@@ -1,7 +1,6 @@
 import * as React from 'react';
 import { StyleSheet, Image, TouchableOpacity, Dimensions, Alert, View, FlatList } from 'react-native';
 import { Layout, Text, Button, Modal, Input, Select, SelectItem, Icon, IconProps, IndexPath, CheckBox, Spinner } from '@ui-kitten/components';
-import { LinearGradient } from 'expo-linear-gradient';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import FlowerIcon from '@/assets/svgs/flower1.svg';
 import { Plant } from '@/types/plant';
@@ -17,6 +16,7 @@ import { showMessage } from "react-native-flash-message";
 import { observer } from 'mobx-react-lite';
 import { rootStore } from '@/stores/RootStore';
 import { useRouter } from 'expo-router';
+import GradientBackground from '@/components/GradientBackground';
 
 // Define interface for ImageViewer props
 interface ImageViewerProps
@@ -133,6 +133,11 @@ const PlantsPage = observer(() => {
   const { themeMode } = useTheme();
   const [selectedImage, setSelectedImage] = React.useState('');
   const [showImageViewer, setShowImageViewer] = React.useState(false);
+
+  // Determine background colors based on theme
+  const gradientColors = themeMode === 'light'
+    ? ['#F0F8F0', '#E8F5E9', '#F0F8F0'] as const // 浅绿色调渐变,营造自然、生机的氛围
+    : ['#1A231D', '#162419', '#1A231D'] as const // 深绿色调渐变,保持暗色主题的同时带来植物感
 
   // Get the appropriate item background color based on theme
   const itemBackgroundColor = themeMode === 'light'
@@ -255,12 +260,12 @@ const PlantsPage = observer(() => {
 
   const handleEditPlant = (plant: PlantItem) =>
   {
-    router.push(`/PlantEditPage?id=${plant.id}`);
+    router.push(`/plant-edit?id=${plant.id}`);
   };
 
   const handleAddPlant = () =>
   {
-    router.push('/PlantEditPage');
+    router.push('/plant-edit');
   };
 
   // Render each plant item
@@ -359,110 +364,99 @@ const PlantsPage = observer(() => {
   );
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <LinearGradient
-        colors={themeMode === 'light'
-          ? ['#F5F5F5', '#E8F5E9', '#F5F5F5']
-          : ['#222B45', '#1A2138', '#222B45']}
-        style={styles.container}
-      >
-        <Layout style={[styles.header, { backgroundColor: 'transparent' }]}>
-          <Text category="h1">花园</Text>
-          {editMode ? (
-            <Layout style={[styles.editModeButtons, { backgroundColor: 'transparent' }]}>
-              <TouchableOpacity
-                style={styles.iconButton}
-                onPress={toggleEditMode}
-              >
-                <CloseIcon fill="#8F9BB3" width={24} height={24} />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.selectAllContainer}
-                onPress={toggleSelectAll}
-              >
-                <CheckBox
-                  checked={isAllSelected}
-                  onChange={toggleSelectAll}
-                />
-                <Text category="c1" style={styles.selectAllText}>全选</Text>
-              </TouchableOpacity>
-            </Layout>
-          ) : (
-            <Layout style={[styles.headerButtonsContainer, { backgroundColor: 'transparent' }]}>
-              <TouchableOpacity
-                style={styles.iconButton}
-                onPress={toggleEditMode}
-              >
-                <EditIcon width={24} height={24} />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.iconButton}
-                onPress={handleAddPlant}
-              >
-                <PlusIcon width={24} height={24} />
-              </TouchableOpacity>
-            </Layout>
-          )}
-        </Layout>
-
-        {editMode && selectedPlants.length > 0 && (
-          <Layout style={[styles.batchActionBar, { backgroundColor: 'transparent' }]}>
+    <GradientBackground colors={gradientColors} >
+      <Layout style={[styles.header, { backgroundColor: 'transparent' }]}>
+        <Text category="h1">花园</Text>
+        {editMode ? (
+          <Layout style={[styles.editModeButtons, { backgroundColor: 'transparent' }]}>
             <TouchableOpacity
-              style={[styles.batchActionButton, styles.dangerButton]}
-              onPress={handleBatchDelete}
+              style={styles.iconButton}
+              onPress={toggleEditMode}
             >
-              <DeleteIcon width={24} height={24} />
-              <Text style={styles.actionButtonText}>删除 ({selectedPlants.length})</Text>
+              <CloseIcon fill="#8F9BB3" width={24} height={24} />
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.batchActionButton, styles.warningButton]}
-              onPress={handleBatchMoveToCemetery}
+              style={styles.selectAllContainer}
+              onPress={toggleSelectAll}
             >
-              <CemeteryIcon width={24} height={24} />
-              <Text style={styles.actionButtonText}>移入墓地 ({selectedPlants.length})</Text>
+              <CheckBox
+                checked={isAllSelected}
+                onChange={toggleSelectAll}
+              />
+              <Text category="c1" style={styles.selectAllText}>全选</Text>
             </TouchableOpacity>
-          </Layout>
-        )}
-
-        {/* Always render the plant list, and overlay the edit form when needed */}
-        {plants.length > 0 ? (
-          <Layout style={[styles.contentContainer, { backgroundColor: 'transparent' }]}>
-            <FlatList
-              data={rootStore.plantStore.alivePlants.map(getPlantItem)}
-              keyExtractor={(item) => item.id}
-              renderItem={renderItem}
-              contentContainerStyle={[styles.list]}
-              style={{ backgroundColor: 'transparent' }}
-            />
           </Layout>
         ) : (
-          <TouchableOpacity
-            style={styles.emptyStateContainer}
-            onPress={handleAddPlant}
-            activeOpacity={0.7}
-          >
-            {renderEmptyState()}
-          </TouchableOpacity>
+          <Layout style={[styles.headerButtonsContainer, { backgroundColor: 'transparent' }]}>
+            <TouchableOpacity
+              style={styles.iconButton}
+              onPress={toggleEditMode}
+            >
+              <EditIcon width={24} height={24} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.iconButton}
+              onPress={handleAddPlant}
+            >
+              <PlusIcon width={24} height={24} />
+            </TouchableOpacity>
+          </Layout>
         )}
-      </LinearGradient>
+      </Layout>
 
-      {/* Image viewer can be kept outside */}
+      {editMode && selectedPlants.length > 0 && (
+        <Layout style={[styles.batchActionBar, { backgroundColor: 'transparent' }]}>
+          <TouchableOpacity
+            style={[styles.batchActionButton, styles.dangerButton]}
+            onPress={handleBatchDelete}
+          >
+            <DeleteIcon width={24} height={24} />
+            <Text style={styles.actionButtonText}>删除 ({selectedPlants.length})</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.batchActionButton, styles.warningButton]}
+            onPress={handleBatchMoveToCemetery}
+          >
+            <CemeteryIcon width={24} height={24} />
+            <Text style={styles.actionButtonText}>移入墓地 ({selectedPlants.length})</Text>
+          </TouchableOpacity>
+        </Layout>
+      )}
+
+      {plants.length > 0 ? (
+        <Layout style={[styles.contentContainer, { backgroundColor: 'transparent' }]}>
+          <FlatList
+            data={rootStore.plantStore.alivePlants.map(getPlantItem)}
+            keyExtractor={(item) => item.id}
+            renderItem={renderItem}
+            contentContainerStyle={[styles.list]}
+            style={{ backgroundColor: 'transparent' }}
+          />
+        </Layout>
+      ) : (
+        <TouchableOpacity
+          style={styles.emptyStateContainer}
+          onPress={handleAddPlant}
+          activeOpacity={0.7}
+        >
+          {renderEmptyState()}
+        </TouchableOpacity>
+      )}
+
       <ImageViewer
         visible={showImageViewer}
         imageUri={selectedImage}
         onClose={() => setShowImageViewer(false)}
       />
 
-      {/* LoadingModal for static method rendering */}
       <LoadingModal />
-    </GestureHandlerRootView>
+    </GradientBackground>
   );
 });
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
   },
   header: {
     flexDirection: 'row',
