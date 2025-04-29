@@ -239,7 +239,10 @@ const PlantsPage = observer(() => {
   };
 
   const handleEditPlant = (plant: PlantItem) => {
-    router.push(`/plant-edit?id=${plant.id}`);
+    router.push({
+      pathname: '/plant/[id]/page',
+      params: { id: plant.id }
+    });
   };
 
   const handleAddPlant = () => {
