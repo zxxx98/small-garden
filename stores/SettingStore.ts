@@ -27,17 +27,6 @@ const ActionTypeModel = types.model('ActionType', {
   useCustomImage: types.boolean,
 });
 
-// 死亡植物模型
-const DeadPlantModel = types.model('DeadPlant', {
-  id: types.identifier,
-  name: types.string,
-  type: types.string,
-  scientificName: types.maybeNull(types.string),
-  remark: types.string,
-  img: types.string,
-  isDead: types.boolean,
-});
-
 // 设置存储
 export const SettingStore = types
   .model('SettingStore', {

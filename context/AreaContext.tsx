@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { ConfigManager } from '../models/ConfigManager';
 import { Area } from '../types/config';
+import { generateId } from '@/utils/uuid';
 
 // Area context type
 type AreaContextType = {
@@ -55,7 +56,7 @@ export const AreaProvider: React.FC<{ children: React.ReactNode }> = ({ children
   {
     try {
       const newArea = {
-        id: Date.now().toString(),
+        id: generateId(),
         name: name.trim(),
       };
 

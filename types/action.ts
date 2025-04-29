@@ -12,15 +12,7 @@ export type Action = {
     //备注
     remark: string,
     //记录图片数组
-    imgs: string[],
-    //已完成
-    done: boolean,
-    //是否是循环任务
-    isRecurring?: boolean,
-    //循环间隔天数（1表示每天，2表示隔一天，以此类推）
-    recurringInterval?: number,
-    //归属于哪个循环任务（如果是某个循环任务的一部分）
-    parentRecurringId?: string,
+    imgs: string[]
 };
 
 // 行为类型定义
