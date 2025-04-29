@@ -14,11 +14,13 @@ export type Plant = {
     isDead: boolean,
     //todo列表
     todos: Todo[],
-    //区域id
-    areaId?: string,
+    //区域id 默认为0
+    areaId: string,
 }
 
 export type Todo = {
+    //植物id
+    plantId: string,
     //是否是循环任务
     isRecurring: boolean,
     //任务名称
@@ -29,4 +31,6 @@ export type Todo = {
     recurringInterval: number,
     //下次提醒开始的时间
     nextRemindTime: number,
+    //备注
+    remark: string,
 };

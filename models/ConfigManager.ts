@@ -31,6 +31,7 @@ const defaultActionTypes: ActionType[] = [
 
 // Default areas
 const defaultAreas: Area[] = [
+    { id: '0', name: '默认' },
     { id: '1', name: '阳台' },
     { id: '2', name: '客厅' },
     { id: '3', name: '书房' },

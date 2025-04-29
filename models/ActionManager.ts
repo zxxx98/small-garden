@@ -68,20 +68,6 @@ export class ActionManager
         }
         return await SQLiteAction.findByTimeRange(startTime, endTime);
     }
-
-    static async getLastAndNextAction(plantId: string): Promise<{ lastAction: Action | null, nextAction: Action | null }>
-    {
-        if (Platform.OS === 'web') {
-            const now = Date.now();
-            const actions = mockActions.filter(item => item.plantId === plantId);
-            const lastAction = actions.filter(a => a.time <= now).sort((a, b) => b.time - a.time)[0] || null;
-            const nextAction = actions.filter(a => a.time > now).sort((a, b) => a.time - b.time)[0] || null;
-            return { lastAction, nextAction };
-        }
-
-        return await SQLiteAction.findLastAndNextAction(plantId);
-    }
-
 }
 
 const mockActions: Action[] = [
@@ -92,7 +78,6 @@ const mockActions: Action[] = [
         time: new Date().getTime(),
         remark: '土壤干燥，浇透水',
         imgs: ['https://cdn.pixabay.com/photo/2025/03/23/14/08/azaleas-9488835_1280.jpg', 'https://cdn.pixabay.com/photo/2025/03/25/14/21/kenroku-en-garden-9492642_1280.jpg', 'https://cdn.pixabay.com/photo/2025/03/23/14/08/azaleas-9488835_1280.jpg', 'https://cdn.pixabay.com/photo/2025/03/23/14/08/azaleas-9488835_1280.jpg'],
-        done: true,
     },
     {
         id: '1',
@@ -101,7 +86,6 @@ const mockActions: Action[] = [
         time: new Date().getTime(),
         remark: '土壤干燥，浇透水',
         imgs: ['https://cdn.pixabay.com/photo/2025/03/23/14/08/azaleas-9488835_1280.jpg', 'https://cdn.pixabay.com/photo/2025/03/25/14/21/kenroku-en-garden-9492642_1280.jpg', 'https://cdn.pixabay.com/photo/2025/03/23/14/08/azaleas-9488835_1280.jpg', 'https://cdn.pixabay.com/photo/2025/03/23/14/08/azaleas-9488835_1280.jpg'],
-        done: true,
     },
     {
         id: '2',
@@ -110,7 +94,6 @@ const mockActions: Action[] = [
         time: new Date().getTime(),
         remark: '施用有机肥',
         imgs: [''],
-        done: true,
     },
     {
         id: '3',
@@ -119,7 +102,6 @@ const mockActions: Action[] = [
         time: new Date().getTime(),
         remark: '施用有机肥',
         imgs: [''],
-        done: true,
     },
     {
         id: '4',
@@ -128,7 +110,6 @@ const mockActions: Action[] = [
         time: new Date().getTime(),
         remark: '施用有机肥',
         imgs: [''],
-        done: true,
     },
     {
         id: '5',
@@ -137,7 +118,6 @@ const mockActions: Action[] = [
         time: new Date().getTime(),
         remark: '施用有机肥',
         imgs: [''],
-        done: true,
     },
     {
         id: '6',
@@ -146,6 +126,5 @@ const mockActions: Action[] = [
         time: new Date().getTime(),
         remark: '施用有机肥',
         imgs: [''],
-        done: true,
     },
 ];

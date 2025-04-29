@@ -1,17 +1,71 @@
-import { types, Instance, flow } from 'mobx-state-tree';
+import { types, Instance, flow, getParentOfType, IAnyModelType } from 'mobx-state-tree';
 import { PlantManager } from '@/models/PlantManager';
+import { rootStore } from './RootStore';
+import { addDays } from 'date-fns';
+import { endOfDay } from 'date-fns';
+
+const TodoModel = types.model('Todo', {
+  plantId: types.string,
+  isRecurring: types.boolean,
+  actionName: types.string,
+  recurringUnit: types.string,
+  recurringInterval: types.number,
+  nextRemindTime: types.number,
+  remark: types.string,
+}).views(self => {
+  return {
+    get plant(): IPlantModel {
+      return getParentOfType(self, PlantModel);
+    }
+  }
+})
+export interface ITodoModel extends Instance<typeof TodoModel> { }
 
 const PlantModel = types.model('Plant', {
   id: types.identifier,
   name: types.string,
   type: types.string,
   scientificName: types.maybeNull(types.string),
-  remark: types.string,
+  description: types.string,
   img: types.string,
   isDead: types.boolean,
+  todos: types.array(TodoModel),
+  areaId: types.string,
+}).views(self => {
+  const getActions = () => {
+    return rootStore.actionStore.actions.filter(action => action.plantId === self.id);
+  };
+  // 按nextRemindTime排序 离当前时间越近的越靠前
+  const getSortTodos = () => {
+    return self.todos.sort((a, b) => a.nextRemindTime - b.nextRemindTime);
+  }
+  return {
+    get actions() {
+      return getActions();
+    },
+    get sortTodos() {
+      return getSortTodos();
+    },
+
+    get lastActionAndNextAction() {
+      const actions = getActions();
+      const lastAction = actions[actions.length - 1];
+      const nextTodo = getSortTodos()[0];
+      return {
+        last: lastAction ? {
+          name: lastAction.name,
+          time: lastAction.time,
+        } : null,
+        next: nextTodo ? {
+          name: nextTodo.actionName,
+          time: nextTodo.nextRemindTime,
+        } : null
+      }
+    }
+  }
 });
 
-interface IPlantModel extends Instance<typeof PlantModel> { }
+export interface IPlantModel extends Instance<typeof PlantModel> { }
 
 export const PlantStore = types
   .model('PlantStore', {
@@ -24,6 +78,36 @@ export const PlantStore = types
     get alivePlants() {
       return self.plants.filter(plant => !plant.isDead);
     },
+    // 将待办分为今天/明天/后天
+    get separateTodoItems() {
+      const today = endOfDay(new Date());
+      const todayTime = today.getTime();
+      const tomorrow = addDays(today, 1);
+      const tomorrowTime = tomorrow.getTime();
+      const afterTomorrow = addDays(today, 2);
+      const afterTomorrowTime = afterTomorrow.getTime();
+
+      const todayItems: ITodoModel[] = [];
+      const tomorrowItems: ITodoModel[] = [];
+      const afterTomorrowItems: ITodoModel[] = [];
+
+      for (let i = 0; i < rootStore.plantStore.plants.length; i++) {
+        const plant = rootStore.plantStore.plants[i];
+        for (let j = 0; j < plant.todos.length; j++) {
+          const todo = plant.todos[j];
+          if (todo.nextRemindTime < todayTime) {
+            todayItems.push(todo);
+          }
+          else if (todo.nextRemindTime < tomorrowTime) {
+            tomorrowItems.push(todo);
+          }
+          else if (todo.nextRemindTime < afterTomorrowTime) {
+            afterTomorrowItems.push(todo);
+          }
+        }
+      }
+      return { todayItems, tomorrowItems, afterTomorrowItems };
+    }
   }))
   .actions((self) => ({
     loadPlants: flow(function* () {
@@ -81,7 +165,7 @@ export const PlantStore = types
         self.plants.replace(self.plants.filter(p => !plantIds.includes(p.id)));
       }
       return success;
-    }), 
+    }),
   }));
 
 export type PlantStoreType = Instance<typeof PlantStore>; 

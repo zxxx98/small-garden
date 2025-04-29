@@ -11,6 +11,7 @@ import { useTheme } from '../../theme/themeContext';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
 import GradientBackground from '@/components/GradientBackground';
+import { rootStore } from '@/stores/RootStore';
 
 // Create a separate TimelineContent component to handle plant loading
 const TimelineContent = React.memo(({ data, onContentClick }: {
@@ -246,12 +247,8 @@ const TimelinePage = () =>
 
     const updateTimelineData = React.useCallback(() =>
     {
-        ActionManager.getActionsByTimeRange(curTimeRange.start, curTimeRange.end).then((actions) =>
-        {
-            //过滤掉还没完成的action
-            const filteredActions = actions.filter((action) => action.done);
-            setTimelineData(filteredActions);
-        });
+        const range = rootStore.actionStore.getActionsByTimeRange(curTimeRange.start, curTimeRange.end);
+        setTimelineData(range);
     }, [curTimeRange]);
 
     // Remove duplicate useEffect and just use useFocusEffect
@@ -271,7 +268,7 @@ const TimelinePage = () =>
     // 添加删除功能
     const handleDeleteAction = React.useCallback(async (action: Action) => {
         try {
-            await ActionManager.deleteAction(action.id);
+            await rootStore.actionStore.deleteAction(action.id);
             // 从时间线数据中移除已删除的操作
             setTimelineData(prev => prev.filter(item => item.id !== action.id));
             // 关闭详情弹窗
@@ -305,9 +302,7 @@ const TimelinePage = () =>
     // Define renderCustomIcon with useCallback to ensure stability
     const renderCustomIcon = React.useCallback((data: Action) =>
     {
-        return data.done ?
-            <MaterialIcons name='sentiment-very-satisfied' size={24} color={theme['color-primary-500']} />
-            : <MaterialIcons name='sentiment-neutral' size={24} color={theme['color-dark-400']} />;
+        return <MaterialIcons name='sentiment-very-satisfied' size={24} color={theme['color-primary-500']} />
     }, []);
 
     const onCalendarSelect = React.useCallback((range: CalendarRange<Date>) =>

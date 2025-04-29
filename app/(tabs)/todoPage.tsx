@@ -4,7 +4,7 @@ import { Layout, Text, Card, Icon, Modal, Button, Input, IconProps, Spinner, Sel
 import { ActionManager } from '@/models/ActionManager';
 import { PlantManager } from '@/models/PlantManager';
 import { Action, ActionType } from '@/types/action';
-import { Plant } from '@/types/plant';
+import { Plant, Todo } from '@/types/plant';
 import { theme } from '@/theme/theme';
 import { getActionIconAsync } from '@/utils/action';
 import * as ImagePicker from 'expo-image-picker';
@@ -20,27 +20,26 @@ import { DatabaseInstance } from '@/models/sqlite/database';
 import PhotoSelectList from '@/components/PhotoSelectList';
 import { useRouter } from 'expo-router';
 import GradientBackground from '@/components/GradientBackground';
+import { rootStore } from '@/stores/RootStore';
+import { addDays, endOfDay } from 'date-fns';
+import { ITodoModel } from '@/stores/PlantStore';
 
 // 图片查看器组件接口定义
-interface ImageViewerProps
-{
+interface ImageViewerProps {
     visible: boolean;    // 是否显示查看器
     imageUri: string;    // 图片URI
     onClose: () => void; // 关闭回调
 }
 
 // 图片查看器组件 - 用于全屏查看和旋转图片
-const ImageViewer = ({ visible, imageUri, onClose }: ImageViewerProps) =>
-{
+const ImageViewer = ({ visible, imageUri, onClose }: ImageViewerProps) => {
     const [rotation, setRotation] = React.useState(0);
 
-    const rotateLeft = () =>
-    {
+    const rotateLeft = () => {
         setRotation((prev) => (prev - 90) % 360);
     };
 
-    const rotateRight = () =>
-    {
+    const rotateRight = () => {
         setRotation((prev) => (prev + 90) % 360);
     };
 
@@ -80,28 +79,25 @@ const ImageViewer = ({ visible, imageUri, onClose }: ImageViewerProps) =>
 };
 
 // 任务详情组件接口定义
-interface TaskDetailProps
-{
-    action: Action;           // 待办事项
-    plant: Plant;            // 关联的植物
+interface TaskDetailProps {
+    todo: ITodoModel;
     onClose: () => void;     // 关闭回调
     onDelete: (id: string) => void;  // 删除回调
     onComplete: (action: Action) => void;  // 完成任务回调
 }
 
 // 任务详情组件 - 显示待办事项的详细信息，支持完成和删除操作
-const TaskDetail = ({ action, plant, onClose, onDelete, onComplete }: TaskDetailProps) =>
-{
+const TaskDetail = ({ todo, onClose, onComplete }: TaskDetailProps) => {
     const screenWidth = Dimensions.get('window').width;
     const [isCompleting, setIsCompleting] = React.useState(false);
-    const [remark, setRemark] = React.useState(action.remark || '');
-    const [images, setImages] = React.useState<string[]>(action.imgs || []);
+    const [remark, setRemark] = React.useState(todo.remark || '');
+    const [images, setImages] = React.useState<string[]>([]);
     const [selectedImage, setSelectedImage] = React.useState('');
     const [showImageViewer, setShowImageViewer] = React.useState(false);
     const [loading, setLoading] = React.useState(false);
     const { themeMode } = useTheme();
 
-    const date = new Date(Number(action.time));
+    const date = new Date(Number(todo.nextRemindTime));
     const cardStyle = [
         styles.detailCard,
         {
@@ -110,43 +106,23 @@ const TaskDetail = ({ action, plant, onClose, onDelete, onComplete }: TaskDetail
         }
     ];
 
-    const handleDelete = () =>
-    {
-        Alert.alert(
-            "删除待办",
-            "确定要删除这个待办事项吗？",
-            [
-                { text: "取消", style: "cancel" },
-                {
-                    text: "删除",
-                    style: "destructive",
-                    onPress: () =>
-                    {
-                        onDelete(action.id);
-                        onClose();
-                    }
-                }
-            ]
-        );
-    };
-
     const handleImagePress = (photo: string) => {
         setSelectedImage(photo);
         setShowImageViewer(true);
     };
 
-    const handleComplete = async () =>
-    {
+    const handleComplete = async () => {
         setLoading(true);
 
         try {
             // Make sure all images are properly saved before completing the task
-            const updatedAction = {
-                ...action,
+            const updatedAction:Action = {
+                id: generateId(),
+                name: todo.actionName,
+                plantId: todo.plantId,
+                time: Date.now(),
                 remark: remark,
                 imgs: images,
-                done: true,
-                time: Date.now(), // Update time to completion time
             };
 
             await onComplete(updatedAction);
@@ -175,10 +151,10 @@ const TaskDetail = ({ action, plant, onClose, onDelete, onComplete }: TaskDetail
                         为
                     </Text>
                     <Text category='h6' style={[styles.detailAction, styles.boldText, { color: theme['color-primary-600'] }]}>
-                        {plant?.name}
+                        {todo.plant.name}
                     </Text>
                     <Text category='h6' style={[styles.detailAction, styles.boldText, { color: theme['color-purple-200'] }]}>
-                        {action?.name}
+                        {todo.actionName}
                     </Text>
                 </View>
 
@@ -190,13 +166,6 @@ const TaskDetail = ({ action, plant, onClose, onDelete, onComplete }: TaskDetail
                             style={styles.actionButton}
                         >
                             标记完成
-                        </Button>
-                        <Button
-                            status='danger'
-                            onPress={handleDelete}
-                            style={styles.actionButton}
-                        >
-                            删除任务
                         </Button>
                     </View>
                 ) : (
@@ -212,8 +181,8 @@ const TaskDetail = ({ action, plant, onClose, onDelete, onComplete }: TaskDetail
                         />
 
                         <Text category='s1' style={styles.completeFormLabel}>添加图片记录:</Text>
-                        <PhotoSelectList 
-                            photos={images} 
+                        <PhotoSelectList
+                            photos={images}
                             onPhotosChange={setImages}
                             onPhotoPress={handleImagePress}
                         />
@@ -250,21 +219,12 @@ const TaskDetail = ({ action, plant, onClose, onDelete, onComplete }: TaskDetail
 };
 
 // 待办事项列表项渲染组件 - 显示单个待办事项
-const RenderTodoItem = ({ item, onPress }: { item: Action, onPress: () => void }) =>
-{
-    const [plant, setPlant] = React.useState<Plant | null>(null);
+const RenderTodoItem = ({ item, onPress }: { item: ITodoModel, onPress: () => void }) => {
     const { themeMode } = useTheme();
-
-    React.useEffect(() =>
-    {
-        PlantManager.getPlant(item.plantId).then(setPlant);
-    }, [item.plantId]);
-
     const [iconData, setIconData] = React.useState<React.ReactNode>(null);
-    React.useEffect(() =>
-    {
-        getActionIconAsync(item.name).then(setIconData);
-    }, [item.name]);
+    React.useEffect(() => {
+        getActionIconAsync(item.actionName).then(setIconData);
+    }, [item.actionName]);
     const cardStyle = [
         styles.todoItem,
         { backgroundColor: themeMode === 'light' ? '#FFFFFF' : '#2E3A59' }
@@ -273,10 +233,6 @@ const RenderTodoItem = ({ item, onPress }: { item: Action, onPress: () => void }
         styles.iconContainer,
         { backgroundColor: themeMode === 'light' ? '#F7F9FC' : '#1A2138' }
     ];
-
-    if (!plant) {
-        return <View></View>
-    }
     return (
         <TouchableOpacity>
             <Card style={cardStyle} onPress={onPress}>
@@ -286,12 +242,12 @@ const RenderTodoItem = ({ item, onPress }: { item: Action, onPress: () => void }
                     </View>
                     <View style={styles.taskInfo}>
                         <Text category="h6" style={styles.plantName}>
-                            {plant.name}
+                            {item.plant.name}
                         </Text>
                         <Text category="s1" style={styles.taskName}>
-                            {item.name}
+                            {item.actionName}
                         </Text>
-                        {item.remark ? (
+                        {item ? (
                             <Text category="p2" numberOfLines={1} style={styles.taskRemark}>
                                 {item.remark}
                             </Text>
@@ -309,8 +265,7 @@ const RenderTodoItem = ({ item, onPress }: { item: Action, onPress: () => void }
 };
 
 // 添加待办表单组件接口定义
-interface TodoFormProps
-{
+interface TodoFormProps {
     plants: Plant[];         // 可选植物列表
     actionTypes: ActionType[]; // 可选操作类型列表
     onSubmit: (formData: {   // 提交回调
@@ -328,8 +283,7 @@ interface TodoFormProps
 }
 
 // 添加待办表单组件 - 用于创建新的待办事项
-const TodoForm = ({ plants, actionTypes, onSubmit, onCancel, themeMode }: TodoFormProps) =>
-{
+const TodoForm = ({ plants, actionTypes, onSubmit, onCancel, themeMode }: TodoFormProps) => {
     const [selectedPlantIndex, setSelectedPlantIndex] = React.useState<IndexPath>();
     const [selectedActionTypeIndex, setSelectedActionTypeIndex] = React.useState<IndexPath>();
     const [todoDate, setTodoDate] = React.useState(new Date());
@@ -338,8 +292,7 @@ const TodoForm = ({ plants, actionTypes, onSubmit, onCancel, themeMode }: TodoFo
     const [recurringInterval, setRecurringInterval] = React.useState(1);  // 循环间隔天数，默认为1（每天）
     const [recurringIntervalIndex, setRecurringIntervalIndex] = React.useState(new IndexPath(0));  // 循环间隔的索引
     const [recurringStartDate, setRecurringStartDate] = React.useState(new Date());  // 循环开始日期
-    const [recurringEndDate, setRecurringEndDate] = React.useState(() =>
-    {
+    const [recurringEndDate, setRecurringEndDate] = React.useState(() => {
         const endDate = new Date();
         endDate.setDate(endDate.getDate() + 30); // 默认30天后
         return endDate;
@@ -374,16 +327,14 @@ const TodoForm = ({ plants, actionTypes, onSubmit, onCancel, themeMode }: TodoFo
     ];
 
     // Remove the incorrect useEffect that was trying to access non-existent properties
-    React.useEffect(() =>
-    {
+    React.useEffect(() => {
         if (selectedPlantIndex) {
             setTodoDate(new Date());
             setTodoRemark('');
         }
     }, [selectedPlantIndex]);
 
-    const handleSubmit = () =>
-    {
+    const handleSubmit = () => {
         if (!selectedPlantIndex) {
             showMessage({
                 message: '请选择一个植物',
@@ -421,20 +372,19 @@ const TodoForm = ({ plants, actionTypes, onSubmit, onCancel, themeMode }: TodoFo
             recurringStartDate: recurringStartDate,
             recurringEndDate: recurringEndDate
         });
-        
+
         // 提交后重置表单
         resetForm();
     };
-    
+
     // 处理取消按钮点击
     const handleCancel = () => {
         // 取消时重置表单
         resetForm();
         onCancel();
     };
-    
-    const items = React.useMemo(() =>
-    {
+
+    const items = React.useMemo(() => {
         return plants.map((plant) => (
             <SelectItem key={plant.id} title={plant.name} />
         ))
@@ -462,8 +412,7 @@ const TodoForm = ({ plants, actionTypes, onSubmit, onCancel, themeMode }: TodoFo
                     placeholder="选择植物"
                     value={plants[selectedPlantIndex?.row ?? 0].name}
                     selectedIndex={selectedPlantIndex}
-                    onSelect={(index) =>
-                    {
+                    onSelect={(index) => {
                         const idx = index as IndexPath;
                         setSelectedPlantIndex(idx);
                     }}
@@ -477,8 +426,7 @@ const TodoForm = ({ plants, actionTypes, onSubmit, onCancel, themeMode }: TodoFo
                     placeholder="选择类型"
                     value={actionTypes[selectedActionTypeIndex?.row ?? 0].name}
                     selectedIndex={selectedActionTypeIndex}
-                    onSelect={(index) =>
-                    {
+                    onSelect={(index) => {
                         const idx = index as IndexPath;
                         if (idx && idx.row !== undefined) {
                             setSelectedActionTypeIndex(idx);
@@ -521,8 +469,7 @@ const TodoForm = ({ plants, actionTypes, onSubmit, onCancel, themeMode }: TodoFo
                             placeholder="选择循环周期"
                             selectedIndex={recurringIntervalIndex}
                             value={recurringIntervalOptions[recurringIntervalIndex.row].title}
-                            onSelect={(index) => 
-                            {
+                            onSelect={(index) => {
                                 const idx = index as IndexPath;
                                 if (idx && idx.row !== undefined) {
                                     setRecurringIntervalIndex(idx);
@@ -589,168 +536,28 @@ const TodoForm = ({ plants, actionTypes, onSubmit, onCancel, themeMode }: TodoFo
 };
 
 // 主页面组件 - 待办事项管理页面
-const TodoPage = () =>
-{
+const TodoPage = () => {
     // 状态管理
-    const [todoItems, setTodoItems] = React.useState<Action[]>([]); // 所有待办事项
-    const [todayTasks, setTodayTasks] = React.useState<Action[]>([]); // 今日待办
-    const [futureTasks, setFutureTasks] = React.useState<Action[]>([]); // 未来待办
     const [displayedFutureTasks, setDisplayedFutureTasks] = React.useState<Action[]>([]); // 当前显示的未来待办
-    const [loading, setLoading] = React.useState(true); // 加载状态
     const [loadingMore, setLoadingMore] = React.useState(false); // 加载更多状态
-    const [selectedTask, setSelectedTask] = React.useState<{ action: Action, plant: Plant } | null>(null); // 选中的任务
+    const [selectedTodo, setSelectedTodo] = React.useState<ITodoModel | null>(null); // 选中的任务
     const [showDetail, setShowDetail] = React.useState(false); // 是否显示详情
     const { themeMode } = useTheme(); // 主题模式
     const router = useRouter(); // 路由
 
-    // 未来待办显示控制
-    const MAX_INITIAL_FUTURE_TASKS = 10; // 初始显示的未来待办数量
-    const LOAD_MORE_COUNT = 10; // 每次加载的待办数量
-
     // 滚动视图引用，用于监听滚动事件
     const scrollViewRef = React.useRef<ScrollView>(null);
 
-    // 加载数据的回调函数
-    const loadData = React.useCallback(() =>
-    {
-        loadTodoItems();
-    }, []);
-
-    // 页面聚焦时重新加载数据
-    useFocusEffect(loadData);
-
-    // 处理滚动到底部时加载更多未来待办
-    const handleLoadMoreFutureTasks = () =>
-    {
-        if (loadingMore || displayedFutureTasks.length >= futureTasks.length) {
-            return; // 已经在加载或已显示全部
-        }
-
-        setLoadingMore(true);
-        const currentCount = displayedFutureTasks.length;
-        const newTasksToShow = futureTasks.slice(0, currentCount + LOAD_MORE_COUNT);
-
-        // 模拟异步加载
-        setTimeout(() =>
-        {
-            setDisplayedFutureTasks(newTasksToShow);
-            setLoadingMore(false);
-        }, 300);
-    };
-
-    // 监听滚动事件
-    const handleScroll = (event: any) =>
-    {
-        const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
-        const paddingToBottom = 20; // 距离底部多少距离开始加载
-
-        if (layoutMeasurement.height + contentOffset.y >= contentSize.height - paddingToBottom) {
-            handleLoadMoreFutureTasks();
-        }
-    };
-
-    // 将待办事项分为今日和未来
-    const separateTodoItems = (actions: Action[]) =>
-    {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const tomorrow = new Date(today);
-        tomorrow.setDate(tomorrow.getDate() + 1);
-
-        const todayItems: Action[] = [];
-        const futureItems: Action[] = [];
-
-        actions.forEach(action =>
-        {
-            const actionDate = new Date(Number(action.time));
-            actionDate.setHours(0, 0, 0, 0);
-
-            if (actionDate.getTime() < tomorrow.getTime()) {
-                todayItems.push(action);
-            } else {
-                futureItems.push(action);
-            }
-        });
-
-        // 按时间排序
-        todayItems.sort((a, b) => Number(a.time) - Number(b.time));
-        futureItems.sort((a, b) => Number(a.time) - Number(b.time));
-
-        return { todayItems, futureItems };
-    };
-
-    // 加载所有待办事项
-    const loadTodoItems = async () =>
-    {
-        setLoading(true);
-        try {
-            const actions = await ActionManager.getAllActions();
-            const pendingActions = actions.filter(action => !action.done);
-
-            // 将待办分为今日和未来
-            const { todayItems, futureItems } = separateTodoItems(pendingActions);
-
-            setTodoItems(pendingActions);
-            setTodayTasks(todayItems);
-            setFutureTasks(futureItems);
-
-            // 初始时只显示一部分未来待办
-            setDisplayedFutureTasks(futureItems.slice(0, MAX_INITIAL_FUTURE_TASKS));
-        } catch (error) {
-            console.error("Error loading todo items:", error);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    // 删除待办事项
-    const handleDelete = async (id: string) =>
-    {
-        try {
-            await ActionManager.deleteAction(id);
-            // Update the local state to remove the deleted item
-            setTodoItems(prev => prev.filter(item => item.id !== id));
-            setTodayTasks(prev => prev.filter(item => item.id !== id));
-            setFutureTasks(prev => prev.filter(item => item.id !== id));
-            setDisplayedFutureTasks(prev => prev.filter(item => item.id !== id));
-        } catch (error) {
-            console.error("Error deleting task:", error);
-            showMessage({
-                message: "删除失败，请重试",
-                duration: 1000,
-                type: "warning"
-            });
-        }
-    };
 
     // 完成待办事项
-    const handleComplete = async (updatedAction: Action) =>
-    {
-        try {
-            await ActionManager.updateAction(updatedAction);
-            // Remove from todo list since it's now completed
-            setTodoItems(prev => prev.filter(item => item.id !== updatedAction.id));
-            setTodayTasks(prev => prev.filter(item => item.id !== updatedAction.id));
-            setFutureTasks(prev => prev.filter(item => item.id !== updatedAction.id));
-            setDisplayedFutureTasks(prev => prev.filter(item => item.id !== updatedAction.id));
-        } catch (error) {
-            console.error("Error completing task:", error);
-            throw error; // Let the calling component handle the error
-        }
+    const handleComplete = async (updatedAction: Action) => {
+
     };
 
     // 处理任务点击事件
-    const handleTaskPress = async (action: Action) =>
-    {
-        try {
-            const plant = await PlantManager.getPlant(action.plantId);
-            if (plant) {
-                setSelectedTask({ action, plant });
-                setShowDetail(true);
-            }
-        } catch (error) {
-            console.error("Error getting plant details:", error);
-        }
+    const handleTaskPress = async (todo: ITodoModel) => {
+        setSelectedTodo(todo);
+        setShowDetail(true);
     };
 
     // 处理添加待办按钮点击
@@ -764,25 +571,6 @@ const TodoPage = () =>
             <Text category="h6" style={styles.sectionTitle}>{title}</Text>
         </View>
     );
-
-    // 渲染加载更多指示器
-    const renderLoadMoreIndicator = () =>
-    {
-        if (displayedFutureTasks.length < futureTasks.length) {
-            return (
-                <View style={styles.loadMoreContainer}>
-                    {loadingMore ? (
-                        <Spinner size="small" />
-                    ) : (
-                        <Text category="p2" style={styles.loadMoreText}>
-                            下拉加载更多...
-                        </Text>
-                    )}
-                </View>
-            );
-        }
-        return null;
-    };
 
     return (
         <GradientBackground
@@ -805,24 +593,18 @@ const TodoPage = () =>
                 </TouchableOpacity>
             </Layout>
             <Layout style={styles.content}>
-                {loading ? (
-                    <View style={styles.loadingContainer}>
-                        <Spinner size='large' />
-                        <Text category='s1' style={styles.loadingText}>加载中...</Text>
-                    </View>
-                ) : todoItems.length > 0 ? (
+                {(
                     <ScrollView
                         ref={scrollViewRef}
                         contentContainerStyle={styles.listContainer}
-                        onScroll={handleScroll}
                         scrollEventThrottle={400} // 控制滚动事件触发频率
                     >
-                        {todayTasks.length > 0 && (
+                        {rootStore.plantStore.separateTodoItems.todayItems.length > 0 && (
                             <>
                                 {renderSectionHeader('今日待办')}
-                                {todayTasks.map(item => (
+                                {rootStore.plantStore.separateTodoItems.todayItems.map((item, index) => (
                                     <RenderTodoItem
-                                        key={item.id}
+                                        key={index}
                                         item={item}
                                         onPress={() => handleTaskPress(item)}
                                     />
@@ -830,38 +612,32 @@ const TodoPage = () =>
                             </>
                         )}
 
-                        {futureTasks.length > 0 && (
+                        {rootStore.plantStore.separateTodoItems.tomorrowItems.length > 0 && (
                             <>
-                                {renderSectionHeader('未来待办')}
-                                {displayedFutureTasks.map(item => (
+                                {renderSectionHeader('明日待办')}
+                                {rootStore.plantStore.separateTodoItems.tomorrowItems.map((item, index) => (
                                     <RenderTodoItem
-                                        key={item.id}
+                                        key={index}
                                         item={item}
                                         onPress={() => handleTaskPress(item)}
                                     />
                                 ))}
-                                {renderLoadMoreIndicator()}
+                            </>
+                        )}
+
+                        {rootStore.plantStore.separateTodoItems.afterTomorrowItems.length > 0 && (
+                            <>
+                                {renderSectionHeader('后日待办')}
+                                {rootStore.plantStore.separateTodoItems.afterTomorrowItems.map((item, index) => (
+                                    <RenderTodoItem
+                                        key={index}
+                                        item={item}
+                                        onPress={() => handleTaskPress(item)}
+                                    />
+                                ))}
                             </>
                         )}
                     </ScrollView>
-                ) : (
-                    <TouchableOpacity
-                        style={styles.emptyContainer}
-                        activeOpacity={0.7}
-                        onPress={handleAddTodoPress}
-                    >
-                        <Icon
-                            name="checkmark-circle-2-outline"
-                            style={styles.emptyIcon}
-                            fill={theme['color-success-400']}
-                        />
-                        <Text category="h5" style={styles.emptyText}>
-                            没有待办事项
-                        </Text>
-                        <Text category="p1" style={styles.emptySubtext}>
-                            点击屏幕添加新的任务
-                        </Text>
-                    </TouchableOpacity>
                 )}
             </Layout>
 
@@ -871,12 +647,11 @@ const TodoPage = () =>
                 backdropStyle={styles.backdrop}
                 onBackdropPress={() => setShowDetail(false)}
             >
-                {selectedTask && (
+                {selectedTodo && (
                     <TaskDetail
-                        action={selectedTask.action}
-                        plant={selectedTask.plant}
+                        todo={selectedTodo}
                         onClose={() => setShowDetail(false)}
-                        onDelete={handleDelete}
+                        onDelete={() => { }}
                         onComplete={handleComplete}
                     />
                 )}

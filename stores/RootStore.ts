@@ -1,7 +1,7 @@
 import { types, Instance } from 'mobx-state-tree';
-import { PlantStore } from './PlantStore';
-import { ActionStore } from './ActionStore';
-import { SettingStore } from './SettingStore';
+import { PlantStore, PlantStoreType } from './PlantStore';
+import { ActionStore, ActionStoreType } from './ActionStore';
+import { SettingStore, SettingStoreType } from './SettingStore';
 
 const RootStore = types
   .model('RootStore', {
@@ -20,7 +20,11 @@ const RootStore = types
     },
   }));
 
-export type RootStoreType = Instance<typeof RootStore>;
+export type RootStoreType = {
+  plantStore: PlantStoreType;
+  actionStore: ActionStoreType;
+  settingStore: SettingStoreType;
+};
 
 
 export let rootStore: RootStoreType;

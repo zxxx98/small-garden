@@ -21,6 +21,13 @@ export const ActionStore = types
   .model('ActionStore', {
     actions: types.array(ActionModel)
   })
+  .views(self => {
+    return {
+      getActionsByTimeRange: (startTime: number, endTime: number) => {
+        return self.actions.filter(action => action.time >= startTime && action.time <= endTime);
+      }
+    }
+  })
   .actions((self) => ({
     loadActions: flow(function* () {
       try {
@@ -70,26 +77,6 @@ export const ActionStore = types
         return success;
       } catch (error) {
         console.error('删除行为失败:', error);
-      }
-    }),
-
-    getActionsByPlantId: flow(function* (plantId: string) {
-      try {
-        const actions = yield ActionManager.getActionsByPlantId(plantId);
-        return actions;
-      } catch (error) {
-        console.error('获取植物行为失败:', error);
-        return [];
-      }
-    }),
-
-    getLastAndNextAction: flow(function* (plantId: string) {
-      try {
-        const result = yield ActionManager.getLastAndNextAction(plantId);
-        return result;
-      } catch (error) {
-        console.error('获取植物最近行为失败:', error);
-        return { lastAction: null, nextAction: null };
       }
     }),
   }));

@@ -1,43 +1,33 @@
 import * as React from 'react';
 import { StyleSheet, Image, TouchableOpacity, Dimensions, Alert, View, FlatList } from 'react-native';
-import { Layout, Text, Button, Modal, Input, Select, SelectItem, Icon, IconProps, IndexPath, CheckBox, Spinner } from '@ui-kitten/components';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { Layout, Text, Modal, Icon, IconProps, CheckBox } from '@ui-kitten/components';
 import FlowerIcon from '@/assets/svgs/flower1.svg';
-import { Plant } from '@/types/plant';
-import { generateId } from '@/utils/uuid';
-import { ConfigManager } from '@/models/ConfigManager';
 import { useTheme } from '../../theme/themeContext';
-import * as ImagePicker from 'expo-image-picker';
-import { fileManager } from '@/models/FileManager';
 import { theme } from '@/theme/theme';
-import { identifyPlantWithPlantNet } from '@/utils/PlantNet';
 import LoadingModal from '@/components/LoadingModal';
 import { showMessage } from "react-native-flash-message";
 import { observer } from 'mobx-react-lite';
 import { rootStore } from '@/stores/RootStore';
 import { useRouter } from 'expo-router';
 import GradientBackground from '@/components/GradientBackground';
+import { IPlantModel } from '@/stores/PlantStore';
 
 // Define interface for ImageViewer props
-interface ImageViewerProps
-{
+interface ImageViewerProps {
   visible: boolean;
   imageUri: string;
   onClose: () => void;
 }
 
 // Image viewer for full-screen display with rotation
-const ImageViewer = ({ visible, imageUri, onClose }: ImageViewerProps) =>
-{
+const ImageViewer = ({ visible, imageUri, onClose }: ImageViewerProps) => {
   const [rotation, setRotation] = React.useState(0);
 
-  const rotateLeft = () =>
-  {
+  const rotateLeft = () => {
     setRotation((prev) => (prev - 90) % 360);
   };
 
-  const rotateRight = () =>
-  {
+  const rotateRight = () => {
     setRotation((prev) => (prev + 90) % 360);
   };
 
@@ -83,8 +73,8 @@ type PlantItem = {
   category: string;
   image: string;
   isDead?: boolean;
-  lastAction?: { type: string; date: Date };
-  nextAction?: { type: string; date: Date };
+  lastAction: { name: string; time: number } | null;
+  nextAction: { name: string; time: number } | null;
   selected?: boolean; // For multi-select mode
 }
 
@@ -96,21 +86,19 @@ const CloseIcon = (props: IconProps) => <Icon {...props} name="close-outline" fi
 const IdentifyIcon = (props: IconProps) => <Icon {...props} name="search-outline" fill="#FFFFFF" width={24} height={24} />;
 
 // Calculate days ago/from now
-const formatTimeDistance = (date: Date) =>
-{
+const formatTimeDistance = (date: number) => {
   const now = new Date();
-  const diffTime = Math.abs(date.getTime() - now.getTime());
+  const diffTime = Math.abs(date - now.getTime());
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-  if (date < now) {
+  if (date < now.getTime()) {
     return `${diffDays}天前`;
   } else {
     return `${diffDays}天后`;
   }
 };
 
-const getPlantItem = (plant: Plant): PlantItem =>
-{
+const getPlantItem = (plant: IPlantModel): PlantItem => {
   return {
     id: plant.id,
     name: plant.name,
@@ -118,8 +106,8 @@ const getPlantItem = (plant: Plant): PlantItem =>
     category: plant.type,
     image: plant.img,
     isDead: plant.isDead,
-    lastAction: undefined,
-    nextAction: undefined,
+    lastAction: plant.lastActionAndNextAction.last,
+    nextAction: plant.lastActionAndNextAction.next,
   };
 };
 
@@ -144,16 +132,14 @@ const PlantsPage = observer(() => {
     ? 'rgba(255, 255, 255, 0.95)'
     : 'rgba(43, 50, 65, 0.95)';
 
-  const toggleEditMode = () =>
-  {
+  const toggleEditMode = () => {
     setEditMode(!editMode);
     // Clear selections when toggling edit mode
     setSelectedPlants([]);
     setIsAllSelected(false);
   };
 
-  const toggleSelectAll = () =>
-  {
+  const toggleSelectAll = () => {
     if (isAllSelected) {
       // Deselect all
       setSelectedPlants([]);
@@ -167,10 +153,8 @@ const PlantsPage = observer(() => {
     setIsAllSelected(!isAllSelected);
   };
 
-  const toggleSelectPlant = (id: string) =>
-  {
-    setSelectedPlants(prev =>
-    {
+  const toggleSelectPlant = (id: string) => {
+    setSelectedPlants(prev => {
       if (prev.includes(id)) {
         // Remove if already selected
         setIsAllSelected(false);
@@ -188,8 +172,7 @@ const PlantsPage = observer(() => {
     });
   };
 
-  const handleBatchDelete = () =>
-  {
+  const handleBatchDelete = () => {
     if (selectedPlants.length === 0) return;
 
     Alert.alert(
@@ -200,8 +183,7 @@ const PlantsPage = observer(() => {
         {
           text: '删除',
           style: 'destructive',
-          onPress: async () =>
-          {
+          onPress: async () => {
             LoadingModal.show("删除中...");
             const success = await rootStore.plantStore.deletePlants(selectedPlants);
             LoadingModal.hide();
@@ -226,8 +208,7 @@ const PlantsPage = observer(() => {
     );
   };
 
-  const handleBatchMoveToCemetery = () =>
-  {
+  const handleBatchMoveToCemetery = () => {
     if (selectedPlants.length === 0) return;
 
     Alert.alert(
@@ -237,11 +218,10 @@ const PlantsPage = observer(() => {
         { text: '取消', style: 'cancel' },
         {
           text: '确定',
-          onPress: async () =>
-          {
+          onPress: async () => {
             try {
               // Update plants in the database
-               await rootStore.plantStore.moveToCemeterys(selectedPlants);
+              await rootStore.plantStore.moveToCemeterys(selectedPlants);
               setSelectedPlants([]);
               setIsAllSelected(false);
             } catch (error) {
@@ -258,19 +238,16 @@ const PlantsPage = observer(() => {
     );
   };
 
-  const handleEditPlant = (plant: PlantItem) =>
-  {
+  const handleEditPlant = (plant: PlantItem) => {
     router.push(`/plant-edit?id=${plant.id}`);
   };
 
-  const handleAddPlant = () =>
-  {
+  const handleAddPlant = () => {
     router.push('/plant-edit');
   };
 
   // Render each plant item
-  const renderItem = ({ item }: { item: PlantItem }) =>
-  {
+  const renderItem = ({ item }: { item: PlantItem }) => {
     // Skip dead plants
     if (item.isDead) return null;
 
@@ -292,8 +269,7 @@ const PlantsPage = observer(() => {
     return (
       <TouchableOpacity
         style={styles.itemContainer}
-        onPress={() =>
-        {
+        onPress={() => {
           if (editMode) {
             toggleSelectPlant(item.id);
           } else {
@@ -334,12 +310,12 @@ const PlantsPage = observer(() => {
                 <>
                   {item.lastAction && (
                     <Text category="p2" status="info">
-                      {item.lastAction.type}: {formatTimeDistance(item.lastAction.date)}
+                      {item.lastAction.name}: {formatTimeDistance(item.lastAction.time)}
                     </Text>
                   )}
                   {item.nextAction && (
                     <Text category="p2" status="warning">
-                      {item.nextAction.type}: {formatTimeDistance(item.nextAction.date)}
+                      {item.nextAction.name}: {formatTimeDistance(item.nextAction.time)}
                     </Text>
                   )}
                 </>
