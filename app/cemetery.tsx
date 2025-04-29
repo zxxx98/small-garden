@@ -1,14 +1,14 @@
 import * as React from 'react';
-import { StyleSheet, View, ScrollView, Alert, Image } from 'react-native';
-import { Layout, Text, Button, List, ListItem, Icon, IconProps, Modal, Card } from '@ui-kitten/components';
-import { LinearGradient } from 'expo-linear-gradient';
+import { StyleSheet, View, Alert, Image } from 'react-native';
+import { Text, Button, List, ListItem, Icon, Modal, Card } from '@ui-kitten/components';
 import { useRouter } from 'expo-router';
 import { useTheme } from '../theme/themeContext';
-import { PlantManager } from '../models/PlantManager';
 import { Plant } from '../types/plant';
 import { showMessage } from "react-native-flash-message";
 import PageHeader from '../components/PageHeader';
 import GradientBackground from '@/components/GradientBackground';
+import { rootStore } from '@/stores/RootStore';
+import { IPlantModel } from '@/stores/PlantStore';
 
 const CemeteryPage = () => {
   const router = useRouter();
@@ -16,33 +16,8 @@ const CemeteryPage = () => {
 
   // 状态管理
   const [deadPlants, setDeadPlants] = React.useState<Plant[]>([]);
-  const [loading, setLoading] = React.useState(false);
   const [showResurrectModal, setShowResurrectModal] = React.useState(false);
   const [selectedDeadPlant, setSelectedDeadPlant] = React.useState<Plant | null>(null);
-
-  // 加载死亡植物
-  const loadDeadPlants = async () => {
-    setLoading(true);
-    try {
-      const plants = await PlantManager.getAllPlants();
-      const deadPlants = plants.filter(plant => plant.isDead);
-      setDeadPlants(deadPlants);
-    } catch (error) {
-      console.error('Failed to load dead plants:', error);
-      showMessage({
-        message: '加载墓地植物失败',
-        duration: 1000,
-        type: "warning"
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // 组件挂载时加载数据
-  React.useEffect(() => {
-    loadDeadPlants();
-  }, []);
 
   // 处理复活植物
   const handleResurrectPlant = async () => {
@@ -56,7 +31,7 @@ const CemeteryPage = () => {
       };
 
       // 更新数据库
-      await PlantManager.updatePlant(updatedPlant);
+      await rootStore.plantStore.updatePlant(updatedPlant as IPlantModel);
 
       // 更新本地状态
       setDeadPlants(deadPlants.filter(p => p.id !== selectedDeadPlant.id));
@@ -90,7 +65,7 @@ const CemeteryPage = () => {
           style: 'destructive',
           onPress: async () => {
             try {
-              await PlantManager.deletePlant(plant.id);
+              await rootStore.plantStore.deletePlants([plant.id]);
               setDeadPlants(deadPlants.filter(p => p.id !== plant.id));
             } catch (error) {
               console.error('Failed to delete plant:', error);
@@ -162,11 +137,7 @@ const CemeteryPage = () => {
         themeMode={themeMode}
       />
 
-      {loading ? (
-        <View style={styles.loadingContainer}>
-          <Text appearance="hint">加载中...</Text>
-        </View>
-      ) : (
+(
         <List
           data={deadPlants}
           renderItem={renderDeadPlantItem}
@@ -181,7 +152,7 @@ const CemeteryPage = () => {
             </View>
           )}
         />
-      )}
+      )
 
       {/* 复活植物确认模态框 */}
       <Modal

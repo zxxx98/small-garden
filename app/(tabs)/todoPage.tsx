@@ -1,27 +1,18 @@
 import * as React from 'react';
-import { StyleSheet, FlatList, Image, TouchableOpacity, View, Dimensions, Alert, ScrollView, Animated, Platform } from 'react-native';
-import { Layout, Text, Card, Icon, Modal, Button, Input, IconProps, Spinner, Select, SelectItem, Datepicker, IndexPath, Toggle, CheckBox, Divider, useTheme as useKittenTheme } from '@ui-kitten/components';
-import { ActionManager } from '@/models/ActionManager';
-import { PlantManager } from '@/models/PlantManager';
+import { StyleSheet, Image, TouchableOpacity, View, Dimensions, ScrollView } from 'react-native';
+import { Layout, Text, Card, Icon, Modal, Button, Input, Spinner, Select, SelectItem, Datepicker, IndexPath, Toggle } from '@ui-kitten/components';
 import { Action, ActionType } from '@/types/action';
-import { Plant, Todo } from '@/types/plant';
+import { Plant } from '@/types/plant';
 import { theme } from '@/theme/theme';
 import { getActionIconAsync } from '@/utils/action';
-import * as ImagePicker from 'expo-image-picker';
-import { fileManager } from '@/models/FileManager';
 import { useTheme } from '../../theme/themeContext';
-import { ConfigManager } from '@/models/ConfigManager';
-import { useFocusEffect } from 'expo-router';
 import SlideUpModal from '@/components/SlideUpModal';
 import { showMessage } from "react-native-flash-message";
 import { generateId } from '@/utils/uuid';
-import LoadingModal from '@/components/LoadingModal';
-import { DatabaseInstance } from '@/models/sqlite/database';
 import PhotoSelectList from '@/components/PhotoSelectList';
 import { useRouter } from 'expo-router';
 import GradientBackground from '@/components/GradientBackground';
 import { rootStore } from '@/stores/RootStore';
-import { addDays, endOfDay } from 'date-fns';
 import { ITodoModel } from '@/stores/PlantStore';
 
 // 图片查看器组件接口定义
@@ -562,7 +553,6 @@ const TodoPage = () => {
 
     // 处理添加待办按钮点击
     const handleAddTodoPress = () => {
-        router.push('/todo-edit');
     };
 
     // 渲染分区标题

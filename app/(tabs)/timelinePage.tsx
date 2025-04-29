@@ -4,9 +4,7 @@ import { Layout, Text, Card, Icon, RangeCalendar, CalendarRange, Button, Modal, 
 import Timeline from '../../components/Timeline';
 import { theme } from '@/theme/theme';
 import { Action } from '@/types/action';
-import { PlantManager } from '@/models/PlantManager';
 import { Plant } from '@/types/plant';
-import { ActionManager } from '@/models/ActionManager';
 import { useTheme } from '../../theme/themeContext';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
@@ -19,15 +17,7 @@ const TimelineContent = React.memo(({ data, onContentClick }: {
     onContentClick: (action: Action, plant: Plant) => void
 }) =>
 {
-    const [plant, setPlant] = React.useState<Plant | null>(null);
-
-    React.useEffect(() =>
-    {
-        PlantManager.getPlant(data.plantId).then((plant) =>
-        {
-            setPlant(plant);
-        });
-    }, [data.plantId]);
+    const plant = rootStore.plantStore.plants.find(plant => plant.id === data.plantId);
     return (
         <View>
             <Card style={styles.customContent} onPress={() =>

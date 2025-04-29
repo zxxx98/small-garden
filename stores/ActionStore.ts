@@ -1,6 +1,5 @@
 import { types, Instance, flow } from 'mobx-state-tree';
 import { ActionManager } from '@/models/ActionManager';
-import { Action } from '@/types/action';
 
 const ActionModel = types.model('Action', {
   id: types.identifier,
@@ -8,14 +7,10 @@ const ActionModel = types.model('Action', {
   plantId: types.string,
   time: types.number,
   remark: types.string,
-  imgs: types.array(types.string),
-  done: types.boolean,
-  isRecurring: types.maybe(types.boolean),
-  recurringInterval: types.maybe(types.number),
-  parentRecurringId: types.maybe(types.string),
+  imgs: types.array(types.string)
 });
 
-interface IActionModel extends Instance<typeof ActionModel> { }
+export interface IActionModel extends Instance<typeof ActionModel> { }
 
 export const ActionStore = types
   .model('ActionStore', {

@@ -1,13 +1,8 @@
 import * as React from 'react';
-import { StyleSheet, View, TouchableOpacity, Image, ScrollView, Alert } from 'react-native';
+import { StyleSheet, View, TouchableOpacity, Image } from 'react-native';
 import { Text, Button, Select, SelectItem, Input, Icon, Spinner, IndexPath } from '@ui-kitten/components';
-import { useTheme } from '../theme/themeContext';
-import { PlantManager } from '@/models/PlantManager';
-import { ActionManager } from '@/models/ActionManager';
-import { Plant } from '@/types/plant';
+import { useTheme } from '../../theme/themeContext';
 import { Action } from '@/types/action';
-import { ConfigManager } from '@/models/ConfigManager';
-import { ActionType } from '@/types/action';
 import { generateId } from '@/utils/uuid';
 import * as ImagePicker from 'expo-image-picker';
 import { fileManager } from '@/models/FileManager';
@@ -15,8 +10,9 @@ import SlideUpModal from '@/components/SlideUpModal';
 import { showMessage } from "react-native-flash-message";
 import { useRouter } from 'expo-router';
 import { useAddAction } from '@/context/AddActionContext';
-import { theme } from '@/theme/theme';
 import PhotoSelectList from '@/components/PhotoSelectList';
+import { rootStore } from '@/stores/RootStore';
+import { IActionModel } from '@/stores/ActionStore';
 
 // 图片查看器组件接口定义
 interface ImageViewerProps {
@@ -64,8 +60,8 @@ const ImageViewer = ({ visible, imageUri, onClose }: ImageViewerProps) => {
 };
 
 const AddActionPage = () => {
-    const [plants, setPlants] = React.useState<Plant[]>([]);
-    const [actionTypes, setActionTypes] = React.useState<ActionType[]>([]);
+    const plants = rootStore.plantStore.plants;
+    const actionTypes = rootStore.settingStore.actionTypes;
     const [selectedPlantIndex, setSelectedPlantIndex] = React.useState<IndexPath | undefined>(undefined);
     const [selectedActionTypeIndex, setSelectedActionTypeIndex] = React.useState<IndexPath | undefined>(undefined);
     const [remark, setRemark] = React.useState('');
@@ -77,13 +73,6 @@ const AddActionPage = () => {
     const { themeMode } = useTheme();
     const router = useRouter();
     const { visible, hide } = useAddAction();
-
-    // 加载植物和行为类型
-    React.useEffect(() => {
-        if (visible) {
-            loadData();
-        }
-    }, [visible]);
 
     // 请求相机权限
     React.useEffect(() => {
@@ -98,28 +87,6 @@ const AddActionPage = () => {
             }
         })();
     }, []);
-
-    const loadData = async () => {
-        setIsLoading(true);
-        try {
-            // 加载植物
-            const plantsData = await PlantManager.getAllPlants();
-            setPlants(plantsData);
-
-            // 加载行为类型
-            const actionTypesData = await ConfigManager.getInstance().getActionTypes();
-            setActionTypes(actionTypesData);
-        } catch (error) {
-            console.error('加载数据失败:', error);
-            showMessage({
-                message: '加载数据失败',
-                type: 'danger',
-                duration: 3000,
-            });
-        } finally {
-            setIsLoading(false);
-        }
-    };
 
     // 提交行为
     const handleSubmit = async () => {
@@ -151,12 +118,11 @@ const AddActionPage = () => {
                 plantId: selectedPlant.id,
                 time: Date.now(),
                 remark: remark,
-                imgs: uploadedImages,
-                done: true, // 直接标记为完成
+                imgs: uploadedImages
             };
 
             // 保存行为
-            await ActionManager.addAction(newAction);
+            await rootStore.actionStore.addAction(newAction as IActionModel);
 
             showMessage({
                 message: '添加行为成功',
@@ -257,8 +223,8 @@ const AddActionPage = () => {
                     />
 
                     <Text category="s1" style={styles.label}>记录图片</Text>
-                    <PhotoSelectList 
-                        photos={images} 
+                    <PhotoSelectList
+                        photos={images}
                         onPhotosChange={setImages}
                         onPhotoPress={handleImagePress}
                     />
