@@ -1,4 +1,7 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, lazy, Suspense } from 'react';
+import { View, ActivityIndicator } from 'react-native';
+
+const AddAction = lazy(() => import('@/components/addAction/add-action'));
 
 interface AddActionContextType {
     visible: boolean;
@@ -22,6 +25,11 @@ export const AddActionProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     return (
         <AddActionContext.Provider value={{ visible, open, hide }}>
             {children}
+            <Suspense fallback={<View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+                <ActivityIndicator size="large" />
+            </View>}>
+                {visible && <AddAction />}
+            </Suspense>
         </AddActionContext.Provider>
     );
 };

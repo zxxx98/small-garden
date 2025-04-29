@@ -37,7 +37,7 @@ const PlantModel = types.model('Plant', {
   };
   // 按nextRemindTime排序 离当前时间越近的越靠前
   const getSortTodos = () => {
-    return self.todos.sort((a, b) => a.nextRemindTime - b.nextRemindTime);
+    return self.todos.slice().sort((a, b) => a.nextRemindTime - b.nextRemindTime);
   }
   return {
     get actions() {
@@ -91,8 +91,8 @@ export const PlantStore = types
       const tomorrowItems: ITodoModel[] = [];
       const afterTomorrowItems: ITodoModel[] = [];
 
-      for (let i = 0; i < rootStore.plantStore.plants.length; i++) {
-        const plant = rootStore.plantStore.plants[i];
+      for (let i = 0; i < self.plants.length; i++) {
+        const plant = self.plants[i];
         for (let j = 0; j < plant.todos.length; j++) {
           const todo = plant.todos[j];
           if (todo.nextRemindTime < todayTime) {
@@ -112,6 +112,7 @@ export const PlantStore = types
   .actions((self) => ({
     loadPlants: flow(function* () {
       try {
+        yield PlantManager.deletePlant("d602f8424adf08c105fd4");
         const plants = yield PlantManager.getAllPlants();
         self.plants.replace(plants);
       } catch (error) {
@@ -121,6 +122,7 @@ export const PlantStore = types
 
     addPlant: flow(function* (plant: IPlantModel) {
       try {
+        plant.scientificName = '';
         const success = yield PlantManager.addPlant(plant);
         if (success) {
           self.plants.push(plant);
@@ -133,6 +135,7 @@ export const PlantStore = types
 
     updatePlant: flow(function* (plant: IPlantModel) {
       try {
+        plant.scientificName = '';
         const success = yield PlantManager.updatePlant(plant);
         if (success) {
           const index = self.plants.findIndex(p => p.id === plant.id);

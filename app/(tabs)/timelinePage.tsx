@@ -10,6 +10,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
 import GradientBackground from '@/components/GradientBackground';
 import { rootStore } from '@/stores/RootStore';
+import ImageViewer from '@/components/ImageViewer';
 
 // Create a separate TimelineContent component to handle plant loading
 const TimelineContent = React.memo(({ data, onContentClick }: {
@@ -59,64 +60,6 @@ const TimelineContent = React.memo(({ data, onContentClick }: {
         </View>
     );
 });
-
-// Define interface for ImageViewer props
-interface ImageViewerProps
-{
-    visible: boolean;
-    imageUri: string;
-    onClose: () => void;
-}
-
-// Image viewer for full-screen display with rotation
-const ImageViewer = ({ visible, imageUri, onClose }: ImageViewerProps) =>
-{
-    const [rotation, setRotation] = React.useState(0);
-
-    const rotateLeft = () =>
-    {
-        setRotation((prev) => (prev - 90) % 360);
-    };
-
-    const rotateRight = () =>
-    {
-        setRotation((prev) => (prev + 90) % 360);
-    };
-
-    return (
-        <Modal
-            visible={visible}
-            backdropStyle={styles.backdrop}
-            onBackdropPress={onClose}
-        >
-            <View style={styles.imageViewerContainer}>
-                <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-                    <Icon name="close-outline" style={{ width: 24, height: 24, tintColor: '#fff' }} />
-                </TouchableOpacity>
-
-                <View style={styles.rotationButtonsContainer}>
-                    <TouchableOpacity style={styles.rotateButton} onPress={rotateLeft}>
-                        <Icon name="arrow-undo" pack='ionicons' style={{ width: 28, height: 28, tintColor: '#fff' }} />
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.rotateButton} onPress={rotateRight}>
-                        <Icon name="arrow-redo" pack='ionicons' style={{ width: 28, height: 28, tintColor: '#fff' }} />
-                    </TouchableOpacity>
-                </View>
-
-                <View style={styles.fullScreenImageContainer}>
-                    <Image
-                        source={{ uri: imageUri }}
-                        style={[
-                            styles.fullScreenImage,
-                            { transform: [{ rotate: `${rotation}deg` }] }
-                        ]}
-                        resizeMode="contain"
-                    />
-                </View>
-            </View>
-        </Modal>
-    );
-};
 
 const Detail = ({ action, plant, onDelete }: { action?: Action, plant?: Plant, onDelete?: (action: Action) => void }) =>
 {
@@ -310,7 +253,7 @@ const TimelinePage = () =>
     return (
         <GradientBackground
             colors={themeMode === 'light'
-                ? ['#F5F5F5', '#E3F2FD', '#F5F5F5']
+                ? ['#F5F5F5', '#E8F5E9', '#F5F5F5']
                 : ['#222B45', '#1A2138', '#222B45']}
             style={styles.container}
         >
@@ -488,47 +431,6 @@ const styles = StyleSheet.create({
         width: 80,
         height: 80,
         borderRadius: 8,
-    },
-    imageViewerContainer: {
-        width: Dimensions.get('window').width,
-        height: Dimensions.get('window').height,
-        backgroundColor: 'rgba(0, 0, 0, 0.9)',
-        justifyContent: 'center',
-        alignItems: 'center',
-        position: 'relative',
-    },
-    fullScreenImageContainer: {
-        width: '100%',
-        height: '100%',
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    fullScreenImage: {
-        width: '100%',
-        height: '100%',
-    },
-    closeButton: {
-        position: 'absolute',
-        top: 40,
-        right: 20,
-        zIndex: 10,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-        borderRadius: 20,
-        padding: 8,
-    },
-    rotationButtonsContainer: {
-        position: 'absolute',
-        bottom: 40,
-        alignSelf: 'center',
-        flexDirection: 'row',
-        zIndex: 10,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-        borderRadius: 20,
-        padding: 4,
-    },
-    rotateButton: {
-        padding: 8,
-        marginHorizontal: 10,
     },
     timeStamp: {
         position: 'absolute',

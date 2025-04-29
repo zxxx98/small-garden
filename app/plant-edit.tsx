@@ -17,56 +17,8 @@ import { observer } from 'mobx-react-lite';
 import { rootStore } from '@/stores/RootStore';
 import PageHeader from '../components/PageHeader';
 import GradientBackground from '@/components/GradientBackground';
-
-// Define interface for ImageViewer props
-interface ImageViewerProps {
-  visible: boolean;
-  imageUri: string;
-  onClose: () => void;
-}
-
-// Image viewer for full-screen display with rotation
-const ImageViewer = ({ visible, imageUri, onClose }: ImageViewerProps) => {
-  const [rotation, setRotation] = React.useState(0);
-
-  const rotateLeft = () => {
-    setRotation((prev) => (prev - 90) % 360);
-  };
-
-  const rotateRight = () => {
-    setRotation((prev) => (prev + 90) % 360);
-  };
-
-  return (
-    <View style={[styles.modalContainer, { display: visible ? 'flex' : 'none' }]}>
-      <View style={styles.imageViewerContainer}>
-        <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-          <Icon name="close-outline" style={{ width: 24, height: 24, tintColor: '#fff' }} />
-        </TouchableOpacity>
-
-        <View style={styles.rotationButtonsContainer}>
-          <TouchableOpacity style={styles.rotateButton} onPress={rotateLeft}>
-            <Icon name="arrow-undo" pack='ionicons' style={{ width: 28, height: 28, tintColor: '#fff' }} />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.rotateButton} onPress={rotateRight}>
-            <Icon name="arrow-redo" pack='ionicons' style={{ width: 28, height: 28, tintColor: '#fff' }} />
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.fullScreenImageContainer}>
-          <Image
-            source={{ uri: imageUri }}
-            style={[
-              styles.fullScreenImage,
-              { transform: [{ rotate: `${rotation}deg` }] }
-            ]}
-            resizeMode="contain"
-          />
-        </View>
-      </View>
-    </View>
-  );
-};
+import { IPlantModel } from '@/stores/PlantStore';
+import ImageViewer from '@/components/ImageViewer';
 
 const IdentifyIcon = (props: IconProps) => <Icon {...props} name="search-outline" fill="#FFFFFF" width={24} height={24} />;
 
@@ -83,10 +35,9 @@ const PlantEditPage = observer(() => {
   const [plantName, setPlantName] = React.useState(editingPlant?.name || '');
   const [scientificName, setScientificName] = React.useState(editingPlant?.scientificName || '');
   const [plantImage, setPlantImage] = React.useState(editingPlant?.img || '');
-  const [selectedCategory, setSelectedCategory] = React.useState<{ id: string; name: string } | null>(
-    editingPlant?.type ? { id: editingPlant.type, name: editingPlant.type } : null
-  );
-  const [selectedIndex, setSelectedIndex] = React.useState<IndexPath | undefined>(undefined);
+  const [description, setDescription] = React.useState(editingPlant?.description || '');
+  const [areaId, setAreaId] = React.useState(editingPlant?.areaId || '0');
+  const [categorySelectedIndex, setCategorySelectedIndex] = React.useState<number>(0);
   const [imageLoading, setImageLoading] = React.useState(false);
   const [selectedImage, setSelectedImage] = React.useState('');
   const [showImageViewer, setShowImageViewer] = React.useState(false);
@@ -100,15 +51,13 @@ const PlantEditPage = observer(() => {
 
       const categoryIndex = categories.findIndex(c => c.name === editingPlant.type);
       if (categoryIndex !== -1) {
-        setSelectedCategory(categories[categoryIndex]);
-        setSelectedIndex(new IndexPath(categoryIndex));
+        setCategorySelectedIndex(categoryIndex);
       }
     } else {
       setPlantName('');
       setScientificName('');
       setPlantImage('');
-      setSelectedCategory(null);
-      setSelectedIndex(undefined);
+      setCategorySelectedIndex(0);
     }
   }, [editingPlant, categories]);
 
@@ -124,8 +73,10 @@ const PlantEditPage = observer(() => {
 
     const formData = {
       plantName,
-      scientificName: scientificName || plantName,
-      category: selectedCategory?.name || '未分类',
+      scientificName: "",
+      category: rootStore.settingStore.categories[categorySelectedIndex].name,
+      description: description,
+      areaId: areaId,
       image: plantImage || 'https://via.placeholder.com/150'
     };
 
@@ -134,15 +85,17 @@ const PlantEditPage = observer(() => {
       name: formData.plantName,
       scientificName: formData.scientificName,
       type: formData.category,
-      remark: editingPlant?.remark || '',
+      description: formData.description,
       img: formData.image,
       isDead: editingPlant?.isDead || false,
+      todos: [],
+      areaId: formData.areaId,
     };
 
     if (editingPlant) {
-      rootStore.plantStore.updatePlant(newPlant);
+      rootStore.plantStore.updatePlant(newPlant as IPlantModel);
     } else {
-      rootStore.plantStore.addPlant(newPlant);
+      rootStore.plantStore.addPlant(newPlant as IPlantModel);
     }
 
     showMessage({
@@ -342,36 +295,34 @@ const PlantEditPage = observer(() => {
           value={plantName}
           onChangeText={text => {
             setPlantName(text);
-            if (!scientificName) {
-              setScientificName(text);
-            }
           }}
-          style={styles.input}
-        />
-
-        <Input
-          placeholder="植物学名"
-          value={scientificName}
-          onChangeText={setScientificName}
           style={styles.input}
         />
 
         <Select
           placeholder="选择类别"
-          value={selectedCategory?.name}
-          selectedIndex={selectedIndex}
+          value={categories[categorySelectedIndex].name}
+          selectedIndex={new IndexPath(categorySelectedIndex) }
           onSelect={(index) => {
-            setSelectedIndex(index as IndexPath);
-            if ((index as IndexPath).row !== undefined) {
-              setSelectedCategory(categories[(index as IndexPath).row]);
-            }
+            setCategorySelectedIndex((index as IndexPath).row);
           }}
-          style={styles.input}
+          style={styles.select}
         >
           {categories.map(category => (
             <SelectItem key={category.id} title={category.name} />
           ))}
         </Select>
+
+        <Input
+          placeholder="描述"
+          value={description}
+          onChangeText={text => {
+            setDescription(text);
+          }}
+          style={styles.input}
+          multiline={true} 
+          textStyle={{ minHeight: 100, maxHeight: 200, textAlignVertical: 'top' }}
+        />
       </ScrollView>
 
       {/* Image Viewer */}
@@ -445,55 +396,10 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     backgroundColor: 'rgba(0, 0, 0, 0.02)',
   },
-  modalContainer: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.9)',
-    zIndex: 1000,
-  },
-  imageViewerContainer: {
-    width: Dimensions.get('window').width,
-    height: Dimensions.get('window').height,
-    backgroundColor: 'rgba(0, 0, 0, 0.9)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    position: 'relative',
-  },
-  fullScreenImageContainer: {
-    width: '100%',
-    height: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  fullScreenImage: {
-    width: '100%',
-    height: '100%',
-  },
-  closeButton: {
-    position: 'absolute',
-    top: 40,
-    right: 20,
-    zIndex: 10,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    borderRadius: 20,
-    padding: 8,
-  },
-  rotationButtonsContainer: {
-    position: 'absolute',
-    bottom: 40,
-    alignSelf: 'center',
-    flexDirection: 'row',
-    zIndex: 10,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    borderRadius: 20,
-    padding: 4,
-  },
-  rotateButton: {
-    padding: 8,
-    marginHorizontal: 10,
+
+  select: {
+    marginBottom: 16,
+    backgroundColor: 'rgba(0, 0, 0, 0.02)',
   },
 });
 

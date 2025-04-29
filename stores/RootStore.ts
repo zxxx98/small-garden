@@ -3,7 +3,7 @@ import { PlantStore, PlantStoreType } from './PlantStore';
 import { ActionStore, ActionStoreType } from './ActionStore';
 import { SettingStore, SettingStoreType } from './SettingStore';
 
-const RootStore = types
+export const RootStore = types
   .model('RootStore', {
     plantStore: types.optional(PlantStore, {}),
     actionStore: types.optional(ActionStore, {}),
@@ -31,4 +31,5 @@ export let rootStore: RootStoreType;
 
 export function initRootStore() {
   rootStore = RootStore.create();
+  (globalThis as any).rootStore = rootStore;
 }

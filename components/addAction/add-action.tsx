@@ -13,6 +13,7 @@ import { useAddAction } from '@/context/AddActionContext';
 import PhotoSelectList from '@/components/PhotoSelectList';
 import { rootStore } from '@/stores/RootStore';
 import { IActionModel } from '@/stores/ActionStore';
+import ImageViewer from '@/components/ImageViewer';
 
 // 图片查看器组件接口定义
 interface ImageViewerProps {
@@ -22,7 +23,7 @@ interface ImageViewerProps {
 }
 
 // 图片查看器组件 - 用于全屏查看图片
-const ImageViewer = ({ visible, imageUri, onClose }: ImageViewerProps) => {
+const ImageViewerComponent = ({ visible, imageUri, onClose }: ImageViewerProps) => {
     const [rotation, setRotation] = React.useState(0);
 
     const rotateLeft = () => {
@@ -59,7 +60,7 @@ const ImageViewer = ({ visible, imageUri, onClose }: ImageViewerProps) => {
     );
 };
 
-const AddActionPage = () => {
+const AddAction = () => {
     const plants = rootStore.plantStore.plants;
     const actionTypes = rootStore.settingStore.actionTypes;
     const [selectedPlantIndex, setSelectedPlantIndex] = React.useState<IndexPath | undefined>(undefined);
@@ -349,4 +350,4 @@ const styles = StyleSheet.create({
     },
 });
 
-export default AddActionPage;
+export default AddAction;

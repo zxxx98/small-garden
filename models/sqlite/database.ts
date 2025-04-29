@@ -13,7 +13,9 @@ export const DatabaseInstance = {
 
             // Set up database with WAL mode for better performance
             await database.execAsync('PRAGMA journal_mode = WAL;');
-
+            //重建两张表
+            // await database.execAsync('DROP TABLE IF EXISTS plants');
+            // await database.execAsync('DROP TABLE IF EXISTS actions');
             // Create tables if they don't exist
             await database.execAsync(`
                 CREATE TABLE IF NOT EXISTS plants (
@@ -21,9 +23,11 @@ export const DatabaseInstance = {
                     name TEXT NOT NULL,
                     type TEXT NOT NULL,
                     scientific_name TEXT,
-                    remark TEXT,
+                    description TEXT,
                     img TEXT,
-                    is_dead INTEGER NOT NULL
+                    is_dead INTEGER NOT NULL,
+                    area_id TEXT,
+                    todos TEXT
                 );
                 
                 CREATE TABLE IF NOT EXISTS actions (
@@ -32,63 +36,11 @@ export const DatabaseInstance = {
                     plant_id TEXT NOT NULL,
                     time INTEGER NOT NULL,
                     remark TEXT,
-                    imgs TEXT,
-                    done INTEGER NOT NULL,
-                    is_recurring INTEGER,
-                    recurring_interval INTEGER,
-                    parent_recurring_id TEXT
+                    imgs TEXT
                 );
                 
                 CREATE INDEX IF NOT EXISTS idx_actions_plant_id ON actions (plant_id);
-                CREATE INDEX IF NOT EXISTS idx_actions_parent_recurring_id ON actions (parent_recurring_id);
             `);
-
-            // Check if migration is needed for existing databases
-            try {
-                // Drop and recreate the actions table if columns don't exist (only for tables without data)
-                const countResult = await database.getFirstAsync<{ count: number }>('SELECT COUNT(*) as count FROM actions');
-                if (countResult && countResult.count === 0) {
-                    // If no data, we can safely recreate the table with the correct schema
-                    await database.execAsync('DROP TABLE IF EXISTS actions');
-                    await database.execAsync(`
-                        CREATE TABLE actions (
-                            id TEXT PRIMARY KEY NOT NULL,
-                            name TEXT NOT NULL,
-                            plant_id TEXT NOT NULL,
-                            time INTEGER NOT NULL,
-                            remark TEXT,
-                            imgs TEXT,
-                            done INTEGER NOT NULL,
-                            is_recurring INTEGER,
-                            recurring_interval INTEGER,
-                            parent_recurring_id TEXT
-                        );
-                    `);
-                    await database.execAsync(`
-                        CREATE INDEX idx_actions_plant_id ON actions (plant_id);
-                        CREATE INDEX idx_actions_parent_recurring_id ON actions (parent_recurring_id);
-                    `);
-                } else {
-                    // If data exists, check if columns exist before adding them
-                    const tableInfo = await database.getAllAsync<{ name: string }>("PRAGMA table_info(actions)");
-                    const columnNames = tableInfo.map(col => col.name);
-                    
-                    if (!columnNames.includes('is_recurring')) {
-                        await database.execAsync('ALTER TABLE actions ADD COLUMN is_recurring INTEGER');
-                    }
-                    
-                    if (!columnNames.includes('recurring_interval')) {
-                        await database.execAsync('ALTER TABLE actions ADD COLUMN recurring_interval INTEGER');
-                    }
-                    
-                    if (!columnNames.includes('parent_recurring_id')) {
-                        await database.execAsync('ALTER TABLE actions ADD COLUMN parent_recurring_id TEXT');
-                    }
-                }
-            } catch (error) {
-                console.log("Migration attempt failed:", error);
-                // Continue regardless of error since the main table structure already exists
-            }
 
             console.log("SQLite database initialized successfully");
             return Promise.resolve();
@@ -119,11 +71,24 @@ export const DatabaseInstance = {
 
             // Drop existing tables
             await database.execAsync(`
+                DROP TABLE IF EXISTS plants;
                 DROP TABLE IF EXISTS actions;
             `);
 
-            // Recreate actions table with correct schema
+            // Recreate tables with correct schema
             await database.execAsync(`
+                CREATE TABLE plants (
+                    id TEXT PRIMARY KEY NOT NULL,
+                    name TEXT NOT NULL,
+                    type TEXT NOT NULL,
+                    scientific_name TEXT,
+                    description TEXT,
+                    img TEXT,
+                    is_dead INTEGER NOT NULL,
+                    area_id TEXT,
+                    todos TEXT
+                );
+
                 CREATE TABLE actions (
                     id TEXT PRIMARY KEY NOT NULL,
                     name TEXT NOT NULL,
@@ -131,14 +96,10 @@ export const DatabaseInstance = {
                     time INTEGER NOT NULL,
                     remark TEXT,
                     imgs TEXT,
-                    done INTEGER NOT NULL,
-                    is_recurring INTEGER,
-                    recurring_interval INTEGER,
-                    parent_recurring_id TEXT
+                    done INTEGER NOT NULL
                 );
                 
                 CREATE INDEX IF NOT EXISTS idx_actions_plant_id ON actions (plant_id);
-                CREATE INDEX IF NOT EXISTS idx_actions_parent_recurring_id ON actions (parent_recurring_id);
             `);
 
             console.log("Database schema reset successfully");

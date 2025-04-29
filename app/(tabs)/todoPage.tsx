@@ -14,60 +14,8 @@ import { useRouter } from 'expo-router';
 import GradientBackground from '@/components/GradientBackground';
 import { rootStore } from '@/stores/RootStore';
 import { ITodoModel } from '@/stores/PlantStore';
-
-// 图片查看器组件接口定义
-interface ImageViewerProps {
-    visible: boolean;    // 是否显示查看器
-    imageUri: string;    // 图片URI
-    onClose: () => void; // 关闭回调
-}
-
-// 图片查看器组件 - 用于全屏查看和旋转图片
-const ImageViewer = ({ visible, imageUri, onClose }: ImageViewerProps) => {
-    const [rotation, setRotation] = React.useState(0);
-
-    const rotateLeft = () => {
-        setRotation((prev) => (prev - 90) % 360);
-    };
-
-    const rotateRight = () => {
-        setRotation((prev) => (prev + 90) % 360);
-    };
-
-    return (
-        <Modal
-            visible={visible}
-            backdropStyle={styles.backdrop}
-            onBackdropPress={onClose}
-        >
-            <View style={styles.imageViewerContainer}>
-                <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-                    <Icon name="close-outline" style={{ width: 24, height: 24, tintColor: '#fff' }} />
-                </TouchableOpacity>
-
-                <View style={styles.rotationButtonsContainer}>
-                    <TouchableOpacity style={styles.rotateButton} onPress={rotateLeft}>
-                        <Icon name="arrow-undo" pack='ionicons' style={{ width: 28, height: 28, tintColor: '#fff' }} />
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.rotateButton} onPress={rotateRight}>
-                        <Icon name="arrow-redo" pack='ionicons' style={{ width: 28, height: 28, tintColor: '#fff' }} />
-                    </TouchableOpacity>
-                </View>
-
-                <View style={styles.fullScreenImageContainer}>
-                    <Image
-                        source={{ uri: imageUri }}
-                        style={[
-                            styles.fullScreenImage,
-                            { transform: [{ rotate: `${rotation}deg` }] }
-                        ]}
-                        resizeMode="contain"
-                    />
-                </View>
-            </View>
-        </Modal>
-    );
-};
+import ImageViewer from '@/components/ImageViewer';
+import { observer } from 'mobx-react-lite';
 
 // 任务详情组件接口定义
 interface TaskDetailProps {
@@ -527,7 +475,7 @@ const TodoForm = ({ plants, actionTypes, onSubmit, onCancel, themeMode }: TodoFo
 };
 
 // 主页面组件 - 待办事项管理页面
-const TodoPage = () => {
+const TodoPage = observer(() => {
     // 状态管理
     const [displayedFutureTasks, setDisplayedFutureTasks] = React.useState<Action[]>([]); // 当前显示的未来待办
     const [loadingMore, setLoadingMore] = React.useState(false); // 加载更多状态
@@ -565,7 +513,7 @@ const TodoPage = () => {
     return (
         <GradientBackground
             colors={themeMode === 'light'
-                ? ['#F5F5F5', '#FFF3E0', '#F5F5F5']
+                ? ['#F5F5F5', '#E8F5E9', '#F5F5F5']
                 : ['#222B45', '#1A2138', '#222B45']}
             style={styles.container}
         >
@@ -648,7 +596,7 @@ const TodoPage = () => {
             </Modal>
         </GradientBackground>
     );
-};
+});
 
 const styles = StyleSheet.create({
     container: {

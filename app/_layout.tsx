@@ -13,7 +13,6 @@ import { MaterialCommunityIconsPack } from '../icons/MaterialCommunityIconsPack'
 import { AssetIconsPack } from '../icons/AssetIconsPack';
 import LoadingModal from '@/components/LoadingModal';
 import FlashMessage from 'react-native-flash-message';
-import AddActionPage from '@/components/addAction/add-action';
 
 // Create theme-aware app component
 const ThemedApp = () =>
@@ -35,7 +34,6 @@ const ThemedApp = () =>
                 <Stack.Screen name="action-type-management" options={{ headerShown: false }} />
                 <Stack.Screen name="cemetery" options={{ headerShown: false }} />
               </Stack>
-              <AddActionPage />
             </AddActionProvider>
           </AreaProvider>
         </CategoryProvider>
