@@ -4,6 +4,7 @@ import { ConfigManager } from "../models/ConfigManager";
 import { Icon } from "@ui-kitten/components";
 import { Image } from "react-native";
 import { Feather, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { rootStore } from "@/stores/RootStore";
 
 // In-memory cache of action types
 let actionTypesCache: ActionType[] | null = null;
@@ -30,11 +31,8 @@ export async function getActionIconAsync(actionName: string, size: number = 24, 
 
 export function getActionIcon(actionName: string, size: number = 24, color?: string): React.ReactNode
 {
-    if (!actionTypesCache) {
-        return <Icon name="radio-button-on-outline" size={size} fill={color} />;
-    }
     // Find matching action type
-    const actionType = actionTypesCache.find(type => type.name === actionName);
+    const actionType = rootStore.settingStore.actionTypes.find(type => type.name === actionName);
     if (actionType) {
         if (actionType.useCustomImage) {
             return <Image source={{ uri: actionType.iconImage }} style={{ width: size, height: size }} />;

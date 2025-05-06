@@ -25,6 +25,7 @@ const ActionTypeModel = types.model('ActionType', {
   color: types.string,
   pack: types.maybe(types.string),
   useCustomImage: types.boolean,
+  iconImage: types.maybe(types.string),
 });
 
 // 设置存储
@@ -146,6 +147,7 @@ export const SettingStore = types
           color: actionType.color,
           pack: actionType.pack,
           useCustomImage: Boolean(actionType.useCustomImage),
+          iconImage: actionType.iconImage,
         })));
       } catch (error) {
         console.error('获取操作类型失败:', error);
@@ -178,6 +180,7 @@ export const SettingStore = types
             color: actionType.color,
             pack: actionType.pack,
             useCustomImage: Boolean(actionType.useCustomImage),
+            iconImage: actionType.iconImage,
           };
         }
       } catch (error) {
