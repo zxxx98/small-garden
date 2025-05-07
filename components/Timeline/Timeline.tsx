@@ -1,4 +1,4 @@
-import React, { memo } from 'react';
+import React, { memo, RefObject } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Icon, Text } from '@ui-kitten/components';
 import { ScrollView } from 'react-native';
@@ -10,6 +10,9 @@ export interface TimelineItemProps
 {
     time: number;
     name: string;
+    id?: string;
+    description?: string;
+    images?: string[];
 }
 
 export interface TimelineProps
@@ -20,6 +23,7 @@ export interface TimelineProps
     renderIcon?: (data: TimelineItemProps | any) => React.ReactNode;
     lineColor?: string;
     isDashed?: boolean;
+    scrollViewRef?: RefObject<ScrollView>;
 }
 
 const Timeline: React.FC<TimelineProps> = memo(({
@@ -29,6 +33,7 @@ const Timeline: React.FC<TimelineProps> = memo(({
     renderIcon,
     lineColor = '#E4E9F2',
     isDashed = false,
+    scrollViewRef,
 }) =>
 {
     const renderDefaultTime = (data: TimelineItemProps) => (
@@ -38,7 +43,7 @@ const Timeline: React.FC<TimelineProps> = memo(({
     );
 
     const renderDefaultContent = (data: TimelineItemProps) => (
-        <View style={styles.contentContainer}>
+        <View style={styles.itemContentContainer}>
             <Text>{data.name}</Text>
         </View>
     );
@@ -48,7 +53,12 @@ const Timeline: React.FC<TimelineProps> = memo(({
     );
 
     return (
-        <ScrollView style={styles.container}>
+        <ScrollView 
+            style={styles.container}
+            ref={scrollViewRef}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.contentContainer}
+        >
             {data.map((item, index) => (
                 <View key={index} style={styles.itemContainer}>
                     <View style={styles.timeWrapper}>
@@ -83,8 +93,10 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         paddingHorizontal: 16,
-
         paddingTop: 10
+    },
+    contentContainer: {
+        paddingBottom: 20,
     },
     itemContainer: {
         flexDirection: 'row',
@@ -123,7 +135,7 @@ const styles = StyleSheet.create({
         flex: 5,
         paddingLeft: 12,
     },
-    contentContainer: {
+    itemContentContainer: {
         padding: 12,
         backgroundColor: '#F7F9FC',
         borderRadius: 8,

@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, Image, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, Image, TouchableOpacity, ScrollView, StyleSheet, Dimensions, FlatList } from 'react-native';
 import Timeline from '../../../components/Timeline';
 import PageHeader from '../../../components/PageHeader';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -14,6 +14,8 @@ import { getSnapshot, types } from 'mobx-state-tree';
 import { ActionType } from '@/types/action';
 import { getActionIcon } from '@/utils/action';
 import { calculateNextRemindTime } from '@/utils/plant';
+import { useAddAction } from '@/context/AddActionContext';
+import ImageViewer from '@/components/ImageViewer';
 
 const tabs = [
   { id: 'timeline', label: '时间线' },
@@ -31,6 +33,11 @@ const PlantDetail = observer(() => {
   const [activeTab, setActiveTab] = React.useState('timeline');
   const [isNoteModalVisible, setIsNoteModalVisible] = React.useState(false);
   const [note, setNote] = React.useState('');
+  
+  // Image viewer states
+  const [selectedImageIndex, setSelectedImageIndex] = React.useState(0);
+  const [selectedImages, setSelectedImages] = React.useState<string[]>([]);
+  const [showImageViewer, setShowImageViewer] = React.useState(false);
 
   // Todo Modal states
   const [isTodoModalVisible, setIsTodoModalVisible] = React.useState(false);
@@ -45,6 +52,7 @@ const PlantDetail = observer(() => {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const plant = rootStore.plantStore.plants.find(p => p.id === id);
+  const { open: openAddAction } = useAddAction();
 
   if (!plant) {
     return (
@@ -116,29 +124,165 @@ const PlantDetail = observer(() => {
     setIsTodoModalVisible(false);
   };
 
+  // Render a custom image viewer for gallery navigation
+  const renderImageViewer = () => {
+    if (!showImageViewer || selectedImages.length === 0) return null;
+    
+    const currentImage = selectedImages[selectedImageIndex];
+    
+    return (
+      <View style={styles.imageViewerContainer}>
+        <ImageViewer
+          visible={showImageViewer}
+          imageUri={currentImage}
+          onClose={() => setShowImageViewer(false)}
+        />
+        
+        {selectedImages.length > 1 && (
+          <View style={styles.imageNavigationContainer}>
+            <TouchableOpacity 
+              style={[
+                styles.imageNavigationButton,
+                selectedImageIndex === 0 && styles.imageNavigationButtonDisabled
+              ]}
+              disabled={selectedImageIndex === 0}
+              onPress={() => setSelectedImageIndex(prev => Math.max(0, prev - 1))}
+            >
+              <Icon name="arrow-back" style={styles.imageNavigationIcon} fill="#fff" />
+            </TouchableOpacity>
+            
+            <Text style={styles.imageCounterText}>
+              {selectedImageIndex + 1} / {selectedImages.length}
+            </Text>
+            
+            <TouchableOpacity 
+              style={[
+                styles.imageNavigationButton,
+                selectedImageIndex === selectedImages.length - 1 && styles.imageNavigationButtonDisabled
+              ]}
+              disabled={selectedImageIndex === selectedImages.length - 1}
+              onPress={() => setSelectedImageIndex(prev => Math.min(selectedImages.length - 1, prev + 1))}
+            >
+              <Icon name="arrow-forward" style={styles.imageNavigationIcon} fill="#fff" />
+            </TouchableOpacity>
+          </View>
+        )}
+      </View>
+    );
+  };
+
   // 渲染时间线内容
   const renderTimeline = () => {
+    // Get all actions for this plant with complete data
     const timelineData = plant.actions.map(action => ({
+      id: action.id,
       time: action.time,
       name: action.name,
-      description: action.remark
+      description: action.remark,
+      images: action.imgs || []
     }));
+
+    // Sort actions by time in descending order (newest first)
+    const sortedTimelineData = [...timelineData].sort((a, b) => b.time - a.time);
+
+    // Add proper type for the ref
+    const timelineRef = React.useRef<ScrollView>(null);
+    
+    // Scroll to the top of the timeline after render
+    React.useEffect(() => {
+      if (timelineRef.current && sortedTimelineData.length > 0) {
+        // Even though there's a TypeScript error in the IDE, this should work at runtime
+        // @ts-ignore - ScrollView.scrollTo is available at runtime
+        timelineRef.current.scrollTo({ y: 0, animated: true });
+      }
+    }, [sortedTimelineData.length]);
+
+    // If no actions exist, show empty state
+    if (sortedTimelineData.length === 0) {
+      return (
+        <View style={styles.emptyTimelineContainer}>
+          <Icon name="calendar-outline" style={styles.emptyTimelineIcon} fill="#34a853" />
+          <Text style={styles.emptyTimelineTitle}>暂无行为记录</Text>
+          <Text style={styles.emptyTimelineText}>
+            记录你对植物的关爱，让时间见证植物的成长历程
+          </Text>
+          <TouchableOpacity 
+            style={styles.addActionButton}
+            onPress={() => {
+              // Open add action modal
+              openAddAction();
+            }}
+          >
+            <Text style={styles.addActionButtonText}>添加行为记录</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
 
     return (
       <View style={{ flex: 1 }}>
         <Timeline
-          data={timelineData}
+          scrollViewRef={timelineRef}
+          data={sortedTimelineData}
           renderTime={(item) => (
-            <Text style={styles.timelineTime}>{format(new Date(item.time), 'MM月dd日', { locale: zhCN })}</Text>
+            <View style={styles.timelineTimeContainer}>
+              <Text style={styles.timelineDate}>{format(new Date(item.time), 'MM月dd日', { locale: zhCN })}</Text>
+              <Text style={styles.timelineTime}>{format(new Date(item.time), 'HH:mm', { locale: zhCN })}</Text>
+            </View>
           )}
           renderContent={(item) => (
             <View style={styles.timelineContentBox}>
-              <Text style={styles.timelineTitle}>{item.name}</Text>
+              <View style={styles.timelineHeaderRow}>
+                <View style={styles.timelineIconBadge}>
+                  {getActionIcon(item.name, 16, '#fff')}
+                </View>
+                <Text style={styles.timelineTitle}>{item.name}</Text>
+              </View>
+              
               {item.description ? (
                 <Text style={styles.timelineDesc}>{item.description}</Text>
               ) : null}
+              
+              {item.images && item.images.length > 0 && (
+                <View style={styles.timelineImagesContainer}>
+                  <FlatList
+                    style={{ width: '100%' }}
+                    contentContainerStyle={{ paddingVertical: 4 }}
+                    data={item.images}
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    renderItem={({ item: image, index }) => (
+                      <TouchableOpacity
+                        onPress={() => {
+                          setSelectedImages(item.images);
+                          setSelectedImageIndex(index);
+                          setShowImageViewer(true);
+                        }}
+                      >
+                        <Image
+                          source={{ uri: image }}
+                          style={styles.timelineImage}
+                          resizeMode="cover"
+                        />
+                      </TouchableOpacity>
+                    )}
+                    keyExtractor={(_, index) => `${item.id}-image-${index}`}
+                    ItemSeparatorComponent={() => <View style={{ width: 8 }} />}
+                  />
+                </View>
+              )}
+
+              <Text style={styles.timelineFooterTime}>
+                完成于 {format(new Date(item.time), 'HH:mm', { locale: zhCN })}
+              </Text>
             </View>
           )}
+          renderIcon={(item) => (
+            <View style={styles.timelineIconContainer}>
+              {getActionIcon(item.name, 24, '#34a853')}
+            </View>
+          )}
+          lineColor="#34a85340"
         />
       </View>
     );
@@ -384,6 +528,9 @@ const PlantDetail = observer(() => {
           </View>
         </View>
       </SlideUpModal>
+
+      {/* Custom Image Viewer for gallery navigation */}
+      {renderImageViewer()}
     </View>
   );
 });
@@ -478,25 +625,148 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f7f7f7',
   },
+  timelineTimeContainer: {
+    paddingVertical: 8,
+    alignItems: 'flex-end',
+  },
+  timelineDate: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#555',
+  },
   timelineTime: {
+    fontSize: 12,
     color: '#888',
-    fontSize: 13,
-    marginBottom: 2,
+    marginTop: 2,
+  },
+  timelineIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#e6f4ea',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+    zIndex: 1,
   },
   timelineContentBox: {
-    backgroundColor: '#f1f8f5',
-    padding: 12,
-    borderRadius: 8,
+    backgroundColor: '#fff',
+    padding: 16,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
+    marginBottom: 8,
+  },
+  timelineHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  timelineIconBadge: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#34a853',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8,
   },
   timelineTitle: {
     fontWeight: 'bold',
-    fontSize: 15,
-    color: '#222',
+    fontSize: 16,
+    color: '#333',
   },
   timelineDesc: {
     color: '#666',
-    fontSize: 13,
+    fontSize: 14,
     marginTop: 4,
+    lineHeight: 20,
+    marginBottom: 12,
+  },
+  timelineImagesContainer: {
+    marginTop: 12,
+    marginBottom: 12,
+  },
+  timelineImage: {
+    width: 120,
+    height: 120,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#f0f0f0',
+  },
+  timelineSingleImage: {
+    width: '100%',
+    height: 180,
+    borderRadius: 8,
+  },
+  imageCountBadge: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 8,
+  },
+  imageCountText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  timelineFooterTime: {
+    fontSize: 12, 
+    color: '#999',
+    textAlign: 'right',
+    marginTop: 8,
+  },
+  emptyTimelineContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  emptyTimelineIcon: {
+    width: 60,
+    height: 60,
+    marginBottom: 16,
+  },
+  emptyTimelineTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 8,
+  },
+  emptyTimelineText: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 24,
+    lineHeight: 20,
+  },
+  addActionButton: {
+    backgroundColor: '#34a853',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  addActionButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
   actionScroll: {
     flex: 1,
@@ -673,6 +943,45 @@ const styles = StyleSheet.create({
   deleteBtnText: {
     color: '#ff3b30',
     fontSize: 16,
+  },
+  imageViewerContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 1000,
+  },
+  imageNavigationContainer: {
+    position: 'absolute',
+    bottom: 40,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1001,
+  },
+  imageNavigationButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginHorizontal: 15,
+  },
+  imageNavigationButtonDisabled: {
+    opacity: 0.5,
+  },
+  imageNavigationIcon: {
+    width: 24,
+    height: 24,
+  },
+  imageCounterText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });
 
