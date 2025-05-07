@@ -29,6 +29,180 @@ const recurringUnits = [
   { text: '月', value: 'month' },
 ];
 
+// 时间线组件
+const TimelineTab = observer(({ 
+  plant, 
+  onImagePress,
+  onAddAction
+}: { 
+  plant: IPlantModel;
+  onImagePress: (images: string[], index: number) => void;
+  onAddAction: () => void;
+}) => {
+  // Get all actions for this plant with complete data
+  const timelineData = plant.actions.map(action => ({
+    id: action.id,
+    time: action.time,
+    name: action.name,
+    description: action.remark,
+    images: action.imgs || []
+  }));
+
+  // Sort actions by time in descending order (newest first)
+  const sortedTimelineData = [...timelineData].sort((a, b) => b.time - a.time);
+
+  // Add proper type for the ref
+  const timelineRef = React.useRef<ScrollView>(null);
+  
+  // Scroll to the top of the timeline after render
+  React.useEffect(() => {
+    if (timelineRef.current && sortedTimelineData.length > 0) {
+      // @ts-ignore - ScrollView.scrollTo is available at runtime
+      timelineRef.current.scrollTo({ y: 0, animated: true });
+    }
+  }, [sortedTimelineData.length]);
+
+  // If no actions exist, show empty state
+  if (sortedTimelineData.length === 0) {
+    return (
+      <View style={styles.emptyTimelineContainer}>
+        <Icon name="calendar-outline" style={styles.emptyTimelineIcon} fill="#34a853" />
+        <Text style={styles.emptyTimelineTitle}>暂无行为记录</Text>
+        <Text style={styles.emptyTimelineText}>
+          记录你对植物的关爱，让时间见证植物的成长历程
+        </Text>
+        <TouchableOpacity 
+          style={styles.addActionButton}
+          onPress={onAddAction}
+        >
+          <Text style={styles.addActionButtonText}>添加行为记录</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  return (
+    <View style={{ flex: 1 }}>
+      <Timeline
+        scrollViewRef={timelineRef}
+        data={sortedTimelineData}
+        renderTime={(item) => (
+          <View style={styles.timelineTimeContainer}>
+            <Text style={styles.timelineDate}>{format(new Date(item.time), 'MM月dd日', { locale: zhCN })}</Text>
+            <Text style={styles.timelineTime}>{format(new Date(item.time), 'HH:mm', { locale: zhCN })}</Text>
+          </View>
+        )}
+        renderContent={(item) => (
+          <View style={styles.timelineContentBox}>
+            <View style={styles.timelineHeaderRow}>
+              <View style={styles.timelineIconBadge}>
+                {getActionIcon(item.name, 16, '#fff')}
+              </View>
+              <Text style={styles.timelineTitle}>{item.name}</Text>
+            </View>
+            
+            {item.description ? (
+              <Text style={styles.timelineDesc}>{item.description}</Text>
+            ) : null}
+            
+            {item.images && item.images.length > 0 && (
+              <View style={styles.timelineImagesContainer}>
+                <FlatList
+                  style={{ width: '100%' }}
+                  contentContainerStyle={{ paddingVertical: 4 }}
+                  data={item.images}
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  renderItem={({ item: image, index }) => (
+                    <TouchableOpacity
+                      onPress={() => onImagePress(item.images, index)}
+                    >
+                      <Image
+                        source={{ uri: image }}
+                        style={styles.timelineImage}
+                        resizeMode="cover"
+                      />
+                    </TouchableOpacity>
+                  )}
+                  keyExtractor={(_, index) => `${item.id}-image-${index}`}
+                  ItemSeparatorComponent={() => <View style={{ width: 8 }} />}
+                />
+              </View>
+            )}
+
+            <Text style={styles.timelineFooterTime}>
+              完成于 {format(new Date(item.time), 'HH:mm', { locale: zhCN })}
+            </Text>
+          </View>
+        )}
+        renderIcon={(item) => (
+          <View style={styles.timelineIconContainer}>
+            {getActionIcon(item.name, 24, '#34a853')}
+          </View>
+        )}
+        lineColor="#34a85340"
+      />
+    </View>
+  );
+});
+
+// 行为列表组件
+const ActionsTab = observer(({ 
+  plant,
+  onTodoPress
+}: { 
+  plant: IPlantModel;
+  onTodoPress: (actionName: string) => void;
+}) => {
+  const availableActions = rootStore.settingStore.actionTypes;
+
+  return (
+    <ScrollView style={styles.actionScroll}>
+      {availableActions.map((action: ActionType) => {
+        const checked = plant.todos.some(todo => todo.actionName === action.name);
+        return (
+          <View key={action.name} style={styles.actionRow}>
+            <View style={styles.actionLeft}>
+              {getActionIcon(action.name)}
+              <Text style={styles.actionName}>{action.name}</Text>
+            </View>
+            <TouchableOpacity
+              style={[styles.switchBox, checked ? styles.switchBoxActive : styles.switchBoxInactive]}
+              onPress={() => onTodoPress(action.name)}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.switchDot, checked ? styles.switchDotActive : styles.switchDotInactive]} />
+            </TouchableOpacity>
+          </View>
+        );
+      })}
+    </ScrollView>
+  );
+});
+
+// 备注组件
+const NotesTab = observer(({ 
+  plant,
+  onAddNote
+}: { 
+  plant: IPlantModel;
+  onAddNote: () => void;
+}) => {
+  return (
+    <View style={styles.notesBox}>
+      <View style={styles.notesContentBox}>
+        <Text style={styles.notesText}>{plant.description || '暂无备注信息'}</Text>
+      </View>
+      <TouchableOpacity
+        style={styles.addNoteBtn}
+        onPress={onAddNote}
+      >
+        <Text style={styles.addNoteBtnText}>添加备注</Text>
+      </TouchableOpacity>
+    </View>
+  );
+});
+
 const PlantDetail = observer(() => {
   const [activeTab, setActiveTab] = React.useState('timeline');
   const [isNoteModalVisible, setIsNoteModalVisible] = React.useState(false);
@@ -84,6 +258,13 @@ const PlantDetail = observer(() => {
 
     setCurrentAction(actionName);
     setIsTodoModalVisible(true);
+  };
+
+  // 处理图片点击
+  const handleImagePress = (images: string[], index: number) => {
+    setSelectedImages(images);
+    setSelectedImageIndex(index);
+    setShowImageViewer(true);
   };
 
   // 保存Todo
@@ -171,177 +352,6 @@ const PlantDetail = observer(() => {
     );
   };
 
-  // 渲染时间线内容
-  const renderTimeline = () => {
-    // Get all actions for this plant with complete data
-    const timelineData = plant.actions.map(action => ({
-      id: action.id,
-      time: action.time,
-      name: action.name,
-      description: action.remark,
-      images: action.imgs || []
-    }));
-
-    // Sort actions by time in descending order (newest first)
-    const sortedTimelineData = [...timelineData].sort((a, b) => b.time - a.time);
-
-    // Add proper type for the ref
-    const timelineRef = React.useRef<ScrollView>(null);
-    
-    // Scroll to the top of the timeline after render
-    React.useEffect(() => {
-      if (timelineRef.current && sortedTimelineData.length > 0) {
-        // Even though there's a TypeScript error in the IDE, this should work at runtime
-        // @ts-ignore - ScrollView.scrollTo is available at runtime
-        timelineRef.current.scrollTo({ y: 0, animated: true });
-      }
-    }, [sortedTimelineData.length]);
-
-    // If no actions exist, show empty state
-    if (sortedTimelineData.length === 0) {
-      return (
-        <View style={styles.emptyTimelineContainer}>
-          <Icon name="calendar-outline" style={styles.emptyTimelineIcon} fill="#34a853" />
-          <Text style={styles.emptyTimelineTitle}>暂无行为记录</Text>
-          <Text style={styles.emptyTimelineText}>
-            记录你对植物的关爱，让时间见证植物的成长历程
-          </Text>
-          <TouchableOpacity 
-            style={styles.addActionButton}
-            onPress={() => {
-              // Open add action modal
-              openAddAction();
-            }}
-          >
-            <Text style={styles.addActionButtonText}>添加行为记录</Text>
-          </TouchableOpacity>
-        </View>
-      );
-    }
-
-    return (
-      <View style={{ flex: 1 }}>
-        <Timeline
-          scrollViewRef={timelineRef}
-          data={sortedTimelineData}
-          renderTime={(item) => (
-            <View style={styles.timelineTimeContainer}>
-              <Text style={styles.timelineDate}>{format(new Date(item.time), 'MM月dd日', { locale: zhCN })}</Text>
-              <Text style={styles.timelineTime}>{format(new Date(item.time), 'HH:mm', { locale: zhCN })}</Text>
-            </View>
-          )}
-          renderContent={(item) => (
-            <View style={styles.timelineContentBox}>
-              <View style={styles.timelineHeaderRow}>
-                <View style={styles.timelineIconBadge}>
-                  {getActionIcon(item.name, 16, '#fff')}
-                </View>
-                <Text style={styles.timelineTitle}>{item.name}</Text>
-              </View>
-              
-              {item.description ? (
-                <Text style={styles.timelineDesc}>{item.description}</Text>
-              ) : null}
-              
-              {item.images && item.images.length > 0 && (
-                <View style={styles.timelineImagesContainer}>
-                  <FlatList
-                    style={{ width: '100%' }}
-                    contentContainerStyle={{ paddingVertical: 4 }}
-                    data={item.images}
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    renderItem={({ item: image, index }) => (
-                      <TouchableOpacity
-                        onPress={() => {
-                          setSelectedImages(item.images);
-                          setSelectedImageIndex(index);
-                          setShowImageViewer(true);
-                        }}
-                      >
-                        <Image
-                          source={{ uri: image }}
-                          style={styles.timelineImage}
-                          resizeMode="cover"
-                        />
-                      </TouchableOpacity>
-                    )}
-                    keyExtractor={(_, index) => `${item.id}-image-${index}`}
-                    ItemSeparatorComponent={() => <View style={{ width: 8 }} />}
-                  />
-                </View>
-              )}
-
-              <Text style={styles.timelineFooterTime}>
-                完成于 {format(new Date(item.time), 'HH:mm', { locale: zhCN })}
-              </Text>
-            </View>
-          )}
-          renderIcon={(item) => (
-            <View style={styles.timelineIconContainer}>
-              {getActionIcon(item.name, 24, '#34a853')}
-            </View>
-          )}
-          lineColor="#34a85340"
-        />
-      </View>
-    );
-  };
-
-  // 渲染行为列表
-  const renderActions = () => {
-    const availableActions = rootStore.settingStore.actionTypes;
-
-    return (
-      <ScrollView style={styles.actionScroll}>
-        {availableActions.map((action: ActionType) => {
-          const checked = plant.todos.some(todo => todo.actionName === action.name);
-          return (
-            <View key={action.name} style={styles.actionRow}>
-              <View style={styles.actionLeft}>
-                {getActionIcon(action.name)}
-                <Text style={styles.actionName}>{action.name}</Text>
-              </View>
-              <TouchableOpacity
-                style={[styles.switchBox, checked ? styles.switchBoxActive : styles.switchBoxInactive]}
-                onPress={() => {
-                  const hasTodo = plant.todos.some(todo => todo.actionName === action.name);
-                  if (hasTodo) {
-                    // 已有Todo，直接打开编辑弹窗
-                    openTodoModal(action.name);
-                  } else {
-                    // 没有Todo，打开新建弹窗
-                    openTodoModal(action.name);
-                  }
-                }}
-                activeOpacity={0.7}
-              >
-                <View style={[styles.switchDot, checked ? styles.switchDotActive : styles.switchDotInactive]} />
-              </TouchableOpacity>
-            </View>
-          );
-        })}
-      </ScrollView>
-    );
-  };
-
-  // 渲染备注信息
-  const renderNotes = () => {
-    return (
-      <View style={styles.notesBox}>
-        <View style={styles.notesContentBox}>
-          <Text style={styles.notesText}>{plant.description || '暂无备注信息'}</Text>
-        </View>
-        <TouchableOpacity
-          style={styles.addNoteBtn}
-          onPress={() => setIsNoteModalVisible(true)}
-        >
-          <Text style={styles.addNoteBtnText}>添加备注</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  };
-
   // 格式化显示提醒时间
   const formatNextRemindTime = (unit: string, interval: number) => {
     const nextTime = calculateNextRemindTime(unit, interval);
@@ -392,9 +402,25 @@ const PlantDetail = observer(() => {
 
       {/* 标签页内容 */}
       <View style={styles.tabContent}>
-        {activeTab === 'timeline' && renderTimeline()}
-        {activeTab === 'actions' && renderActions()}
-        {activeTab === 'notes' && renderNotes()}
+        {activeTab === 'timeline' && (
+          <TimelineTab 
+            plant={plant} 
+            onImagePress={handleImagePress}
+            onAddAction={openAddAction}
+          />
+        )}
+        {activeTab === 'actions' && (
+          <ActionsTab 
+            plant={plant} 
+            onTodoPress={openTodoModal}
+          />
+        )}
+        {activeTab === 'notes' && (
+          <NotesTab 
+            plant={plant} 
+            onAddNote={() => setIsNoteModalVisible(true)}
+          />
+        )}
       </View>
 
       {/* 添加备注的弹窗 */}
@@ -780,6 +806,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderBottomWidth: 1,
     borderBottomColor: '#eee',
+    height: 75,
   },
   actionLeft: {
     flexDirection: 'row',
@@ -982,6 +1009,12 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
   },
 });
 
