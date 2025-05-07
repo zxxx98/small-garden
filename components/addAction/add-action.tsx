@@ -14,6 +14,8 @@ import PhotoSelectList from '@/components/PhotoSelectList';
 import { rootStore } from '@/stores/RootStore';
 import { IActionModel } from '@/stores/ActionStore';
 import ImageViewer from '@/components/ImageViewer';
+import { ITodoModel } from '@/stores/PlantStore';
+import { calculateNextRemindTime } from '@/utils/plant';
 
 // 图片查看器组件接口定义
 interface ImageViewerProps {
@@ -124,6 +126,18 @@ const AddAction = () => {
 
             // 保存行为
             await rootStore.actionStore.addAction(newAction as IActionModel);
+            //如果该植物的todo启用了改行为，则要刷新对应的todo
+            const todo = selectedPlant.todos.find(t => t.actionName === newAction.name);
+            if (todo) {
+                //如果不是循环todo，则删除当前todo
+                if (!todo.isRecurring) {
+                    selectedPlant.deleteTodo(todo as ITodoModel);
+                } else {
+                    //如果是循环todo，则更新nextRemindTime
+                    const nextRemindTime = calculateNextRemindTime(todo.recurringUnit, todo.recurringInterval);
+                    selectedPlant.updateTodo({ ...todo, nextRemindTime: nextRemindTime } as ITodoModel);
+                }
+            }
 
             showMessage({
                 message: '添加行为成功',

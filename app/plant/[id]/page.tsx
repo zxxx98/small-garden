@@ -5,14 +5,15 @@ import PageHeader from '../../../components/PageHeader';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { observer } from 'mobx-react-lite';
 import { rootStore } from '../../../stores/RootStore';
-import { IPlantModel } from '../../../stores/PlantStore';
-import { Icon, Input } from '@ui-kitten/components';
+import { IPlantModel, ITodoModel } from '../../../stores/PlantStore';
+import { Icon, Input, CheckBox, Select, SelectItem } from '@ui-kitten/components';
 import SlideUpModal from '../../../components/SlideUpModal';
-import { format } from 'date-fns';
+import { format, addDays, addWeeks, addMonths } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 import { getSnapshot, types } from 'mobx-state-tree';
 import { ActionType } from '@/types/action';
 import { getActionIcon } from '@/utils/action';
+import { calculateNextRemindTime } from '@/utils/plant';
 
 const tabs = [
   { id: 'timeline', label: '时间线' },
@@ -20,10 +21,27 @@ const tabs = [
   { id: 'notes', label: '备注' },
 ];
 
+const recurringUnits = [
+  { text: '天', value: 'day' },
+  { text: '周', value: 'week' },
+  { text: '月', value: 'month' },
+];
+
 const PlantDetail = observer(() => {
   const [activeTab, setActiveTab] = React.useState('timeline');
   const [isNoteModalVisible, setIsNoteModalVisible] = React.useState(false);
   const [note, setNote] = React.useState('');
+
+  // Todo Modal states
+  const [isTodoModalVisible, setIsTodoModalVisible] = React.useState(false);
+  const [currentAction, setCurrentAction] = React.useState<string>('');
+  const [todoData, setTodoData] = React.useState({
+    isRecurring: false,
+    recurringUnit: 'day',
+    recurringInterval: '1',
+    remark: ''
+  });
+
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const plant = rootStore.plantStore.plants.find(p => p.id === id);
@@ -35,6 +53,68 @@ const PlantDetail = observer(() => {
       </View>
     );
   }
+
+  // 打开编辑Todo的弹窗
+  const openTodoModal = (actionName: string) => {
+    const existingTodo = plant.todos.find(todo => todo.actionName === actionName);
+
+    if (existingTodo) {
+      setTodoData({
+        isRecurring: existingTodo.isRecurring,
+        recurringUnit: existingTodo.recurringUnit,
+        recurringInterval: existingTodo.recurringInterval.toString(),
+        remark: existingTodo.remark
+      });
+    } else {
+      setTodoData({
+        isRecurring: false,
+        recurringUnit: 'day',
+        recurringInterval: '1',
+        remark: ''
+      });
+    }
+
+    setCurrentAction(actionName);
+    setIsTodoModalVisible(true);
+  };
+
+  // 保存Todo
+  const saveTodo = () => {
+    const interval = parseInt(todoData.recurringInterval) || 1;
+    const nextRemindTime = calculateNextRemindTime(todoData.recurringUnit, interval);
+
+    const existingTodo = plant.todos.find(todo => todo.actionName === currentAction);
+
+    if (existingTodo) {
+      // 更新现有的todo
+      existingTodo.isRecurring = todoData.isRecurring;
+      existingTodo.recurringUnit = todoData.recurringUnit;
+      existingTodo.recurringInterval = interval;
+      existingTodo.nextRemindTime = nextRemindTime;
+      existingTodo.remark = todoData.remark;
+      plant.updateTodo(existingTodo as ITodoModel);
+    } else {
+      // 创建新的todo
+      const newTodo = {
+        plantId: plant.id,
+        isRecurring: todoData.isRecurring,
+        actionName: currentAction,
+        recurringUnit: todoData.recurringUnit,
+        recurringInterval: interval,
+        nextRemindTime: nextRemindTime,
+        remark: todoData.remark
+      };
+      plant.addTodo(newTodo as ITodoModel);
+    }
+    setIsTodoModalVisible(false);
+  };
+
+  // 删除Todo
+  const deleteTodo = () => {
+    const newTodos = plant.todos.find(todo => todo.actionName !== currentAction);
+    plant.deleteTodo(newTodos as ITodoModel);
+    setIsTodoModalVisible(false);
+  };
 
   // 渲染时间线内容
   const renderTimeline = () => {
@@ -70,7 +150,7 @@ const PlantDetail = observer(() => {
 
     return (
       <ScrollView style={styles.actionScroll}>
-        {availableActions.map((action:ActionType) => {
+        {availableActions.map((action: ActionType) => {
           const checked = plant.todos.some(todo => todo.actionName === action.name);
           return (
             <View key={action.name} style={styles.actionRow}>
@@ -83,21 +163,11 @@ const PlantDetail = observer(() => {
                 onPress={() => {
                   const hasTodo = plant.todos.some(todo => todo.actionName === action.name);
                   if (hasTodo) {
-                    const newTodos = plant.todos.filter(todo => todo.actionName !== action.name);
-                    plant.todos.replace(newTodos);
-                    rootStore.plantStore.updatePlant(plant);
+                    // 已有Todo，直接打开编辑弹窗
+                    openTodoModal(action.name);
                   } else {
-                    const newTodo = {
-                      plantId: plant.id,
-                      isRecurring: false,
-                      actionName: action.name,
-                      recurringUnit: 'day',
-                      recurringInterval: 1,
-                      nextRemindTime: Date.now(),
-                      remark: ''
-                    };
-                    plant.todos.push(newTodo);
-                    rootStore.plantStore.updatePlant(plant);
+                    // 没有Todo，打开新建弹窗
+                    openTodoModal(action.name);
                   }
                 }}
                 activeOpacity={0.7}
@@ -128,12 +198,18 @@ const PlantDetail = observer(() => {
     );
   };
 
+  // 格式化显示提醒时间
+  const formatNextRemindTime = (unit: string, interval: number) => {
+    const nextTime = calculateNextRemindTime(unit, interval);
+    return format(new Date(nextTime), 'yyyy年MM月dd日', { locale: zhCN });
+  };
+
   return (
     <View style={styles.container}>
       <PageHeader
         title={plant.name}
         onBack={() => router.back()}
-        onSave={() => {}}
+        onSave={() => { }}
       />
 
       {/* 植物基本信息 */}
@@ -207,6 +283,105 @@ const PlantDetail = observer(() => {
           >
             <Text style={styles.saveNoteBtnText}>保存</Text>
           </TouchableOpacity>
+        </View>
+      </SlideUpModal>
+
+      {/* Todo编辑弹窗 */}
+      <SlideUpModal
+        visible={isTodoModalVisible}
+        onClose={() => setIsTodoModalVisible(false)}
+        themeMode="light"
+        headerComponent={
+          <View style={{ paddingHorizontal: 20, paddingVertical: 10 }}>
+            <Text style={{ fontSize: 18, fontWeight: 'bold' }}>编辑提醒</Text>
+          </View>
+        }
+      >
+        <View style={{ paddingHorizontal: 20 }}>
+          <Text style={styles.todoModalTitle}>{currentAction}</Text>
+
+          {/* 提醒频率设置 - 对所有todo都显示 */}
+          <View style={styles.formGroup}>
+            <Text style={styles.inputLabel}>提醒间隔</Text>
+            <View style={styles.recurringRow}>
+              <Text style={styles.inputLabel}>每</Text>
+              <Input
+                style={styles.intervalInput}
+                value={todoData.recurringInterval}
+                onChangeText={value => {
+                  // 确保输入的是数字且大于0
+                  const numValue = value.replace(/[^0-9]/g, '');
+                  const finalValue = numValue === '' ? '1' : numValue;
+                  setTodoData({ ...todoData, recurringInterval: finalValue });
+                }}
+                keyboardType="number-pad"
+              />
+              <View style={styles.unitSelect}>
+                <Select
+                  value={recurringUnits.find(unit => unit.value === todoData.recurringUnit)?.text}
+                  onSelect={index => {
+                    const selectedIndex = Array.isArray(index) ? index[0].row : index.row;
+                    const selectedUnit = recurringUnits[selectedIndex];
+                    setTodoData({ ...todoData, recurringUnit: selectedUnit.value });
+                  }}
+                >
+                  {recurringUnits.map(unit => (
+                    <SelectItem key={unit.value} title={unit.text} />
+                  ))}
+                </Select>
+              </View>
+            </View>
+          </View>
+
+          {/* 下次提醒时间预览 */}
+          <View style={styles.formGroup}>
+            <Text style={styles.inputLabel}>下次提醒时间</Text>
+            <View style={styles.nextRemindBox}>
+              <Text style={styles.nextRemindText}>
+                {formatNextRemindTime(todoData.recurringUnit, parseInt(todoData.recurringInterval) || 1)}
+              </Text>
+            </View>
+          </View>
+
+          {/* 循环选项 */}
+          <View style={styles.formGroup}>
+            <CheckBox
+              checked={todoData.isRecurring}
+              onChange={checked => setTodoData({ ...todoData, isRecurring: checked })}
+              style={styles.checkbox}
+            >
+              {() => <Text style={styles.checkboxLabel}>循环提醒</Text>}
+            </CheckBox>
+          </View>
+
+          {/* 备注 */}
+          <View style={styles.formGroup}>
+            <Text style={styles.inputLabel}>备注</Text>
+            <Input
+              multiline
+              textStyle={{ minHeight: 80 }}
+              placeholder="添加备注信息..."
+              value={todoData.remark}
+              onChangeText={value => setTodoData({ ...todoData, remark: value })}
+              style={styles.remarkInput}
+            />
+          </View>
+
+          {/* 保存按钮 */}
+          <View style={styles.buttonGroup}>
+            <TouchableOpacity
+              style={styles.deleteBtn}
+              onPress={deleteTodo}
+            >
+              <Text style={styles.deleteBtnText}>删除</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.saveBtn}
+              onPress={saveTodo}
+            >
+              <Text style={styles.saveBtnText}>保存</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </SlideUpModal>
     </View>
@@ -419,6 +594,85 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+
+  // Todo Modal Styles
+  todoModalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  formGroup: {
+    marginBottom: 20,
+  },
+  inputLabel: {
+    fontSize: 16,
+    color: '#555',
+    marginBottom: 8,
+  },
+  checkbox: {
+    marginBottom: 10,
+  },
+  checkboxLabel: {
+    fontSize: 16,
+    color: '#333',
+    marginLeft: 8,
+  },
+  recurringRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  intervalInput: {
+    width: 70,
+    marginHorizontal: 10,
+  },
+  unitSelect: {
+    flex: 1,
+  },
+  remarkInput: {
+    marginTop: 8,
+  },
+  nextRemindBox: {
+    backgroundColor: '#f1f8f5',
+    padding: 12,
+    borderRadius: 8,
+  },
+  nextRemindText: {
+    color: '#34a853',
+    fontSize: 16,
+  },
+  buttonGroup: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 30,
+    marginBottom: 20,
+  },
+  saveBtn: {
+    backgroundColor: '#34a853',
+    borderRadius: 24,
+    paddingVertical: 12,
+    flex: 2,
+    alignItems: 'center',
+    marginLeft: 10,
+  },
+  saveBtnText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  deleteBtn: {
+    backgroundColor: '#f5f5f5',
+    borderRadius: 24,
+    paddingVertical: 12,
+    flex: 1,
+    alignItems: 'center',
+  },
+  deleteBtnText: {
+    color: '#ff3b30',
+    fontSize: 16,
   },
 });
 

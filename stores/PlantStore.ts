@@ -63,7 +63,32 @@ const PlantModel = types.model('Plant', {
       }
     }
   }
-});
+}).actions((self) => ({
+  addTodo: flow(function* (todo: ITodoModel) {
+    self.todos.push(todo);
+    const success = yield PlantManager.updatePlant(self);
+    return success;
+  }),
+  updateTodo: flow(function* (todo: ITodoModel) {
+    const index = self.todos.findIndex(t => t.actionName === todo.actionName);
+    if (index !== -1) {
+      // 更新todo
+      self.todos.splice(index, 1, todo);
+      const success = yield PlantManager.updatePlant(self);
+      return success;
+    }
+    return false;
+  }),
+  deleteTodo: flow(function* (todo: ITodoModel) {
+    const index = self.todos.findIndex(t => t.actionName === todo.actionName);
+    if (index !== -1) {
+      self.todos.splice(index, 1);
+      const success = yield PlantManager.updatePlant(self);
+      return success;
+    }
+    return false;
+  })
+}));
 
 export interface IPlantModel extends Instance<typeof PlantModel> { }
 
