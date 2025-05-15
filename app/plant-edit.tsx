@@ -241,7 +241,7 @@ const PlantEditPage = observer(() => {
       <PageHeader 
         title={editingPlant ? '编辑植物' : '添加植物'}
         onBack={() => router.back()}
-        onSave={handleSubmit}
+        onRightClick={handleSubmit}
         isSubmitting={imageLoading}
         themeMode={themeMode}
       />

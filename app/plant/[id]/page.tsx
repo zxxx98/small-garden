@@ -14,8 +14,8 @@ import { getSnapshot, types } from 'mobx-state-tree';
 import { ActionType } from '@/types/action';
 import { getActionIcon } from '@/utils/action';
 import { calculateNextRemindTime } from '@/utils/plant';
-import { useAddAction } from '@/context/AddActionContext';
 import ImageViewer from '@/components/ImageViewer';
+import WheelPicker from 'react-native-wheel-picker-expo';
 
 const tabs = [
   { id: 'timeline', label: '时间线' },
@@ -24,20 +24,24 @@ const tabs = [
 ];
 
 const recurringUnits = [
-  { text: '天', value: 'day' },
-  { text: '周', value: 'week' },
-  { text: '月', value: 'month' },
+  { label: '天', value: 'day' },
+  { label: '周', value: 'week' },
+  { label: '月', value: 'month' },
 ];
+
+//1 - 31
+const recurringIntervals = Array.from({ length: 31 }, (_, i) => ({
+  label: (i + 1).toString(),
+  value: (i + 1).toString()
+}));
 
 // 时间线组件
 const TimelineTab = observer(({ 
   plant, 
   onImagePress,
-  onAddAction
 }: { 
   plant: IPlantModel;
   onImagePress: (images: string[], index: number) => void;
-  onAddAction: () => void;
 }) => {
   // Get all actions for this plant with complete data
   const timelineData = plant.actions.map(action => ({
@@ -69,27 +73,21 @@ const TimelineTab = observer(({
         <Icon name="calendar-outline" style={styles.emptyTimelineIcon} fill="#34a853" />
         <Text style={styles.emptyTimelineTitle}>暂无行为记录</Text>
         <Text style={styles.emptyTimelineText}>
-          记录你对植物的关爱，让时间见证植物的成长历程
+          去添加行为记录吧，记录你对植物的关爱，让时间见证植物的成长历程
         </Text>
-        <TouchableOpacity 
-          style={styles.addActionButton}
-          onPress={onAddAction}
-        >
-          <Text style={styles.addActionButtonText}>添加行为记录</Text>
-        </TouchableOpacity>
       </View>
     );
   }
 
   return (
-    <View style={{ flex: 1 }}>
+    <View style={{ flex: 1, flexDirection: 'row', justifyContent: 'center', paddingHorizontal: 20 }}>
       <Timeline
         scrollViewRef={timelineRef}
         data={sortedTimelineData}
         renderTime={(item) => (
           <View style={styles.timelineTimeContainer}>
-            <Text style={styles.timelineDate}>{format(new Date(item.time), 'MM月dd日', { locale: zhCN })}</Text>
-            <Text style={styles.timelineTime}>{format(new Date(item.time), 'HH:mm', { locale: zhCN })}</Text>
+            <Text style={styles.timelineDate} numberOfLines={1} ellipsizeMode="tail">{format(new Date(item.time), 'MM月dd日', { locale: zhCN })}</Text>
+            <Text style={styles.timelineTime} numberOfLines={1} ellipsizeMode="tail">{format(new Date(item.time), 'HH:mm', { locale: zhCN })}</Text>
           </View>
         )}
         renderContent={(item) => (
@@ -100,7 +98,7 @@ const TimelineTab = observer(({
               </View>
               <Text style={styles.timelineTitle}>{item.name}</Text>
             </View>
-            
+            <Text style={styles.timelineFinishTime}>完成于 {format(new Date(item.time), 'HH:mm', { locale: zhCN })}</Text>
             {item.description ? (
               <Text style={styles.timelineDesc}>{item.description}</Text>
             ) : null}
@@ -129,10 +127,6 @@ const TimelineTab = observer(({
                 />
               </View>
             )}
-
-            <Text style={styles.timelineFooterTime}>
-              完成于 {format(new Date(item.time), 'HH:mm', { locale: zhCN })}
-            </Text>
           </View>
         )}
         renderIcon={(item) => (
@@ -226,7 +220,6 @@ const PlantDetail = observer(() => {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const plant = rootStore.plantStore.plants.find(p => p.id === id);
-  const { open: openAddAction } = useAddAction();
 
   if (!plant) {
     return (
@@ -239,7 +232,6 @@ const PlantDetail = observer(() => {
   // 打开编辑Todo的弹窗
   const openTodoModal = (actionName: string) => {
     const existingTodo = plant.todos.find(todo => todo.actionName === actionName);
-
     if (existingTodo) {
       setTodoData({
         isRecurring: existingTodo.isRecurring,
@@ -276,12 +268,7 @@ const PlantDetail = observer(() => {
 
     if (existingTodo) {
       // 更新现有的todo
-      existingTodo.isRecurring = todoData.isRecurring;
-      existingTodo.recurringUnit = todoData.recurringUnit;
-      existingTodo.recurringInterval = interval;
-      existingTodo.nextRemindTime = nextRemindTime;
-      existingTodo.remark = todoData.remark;
-      plant.updateTodo(existingTodo as ITodoModel);
+      plant.updateTodo({...existingTodo, isRecurring: todoData.isRecurring, recurringUnit: todoData.recurringUnit, recurringInterval: interval, nextRemindTime: nextRemindTime, remark: todoData.remark});
     } else {
       // 创建新的todo
       const newTodo = {
@@ -300,7 +287,7 @@ const PlantDetail = observer(() => {
 
   // 删除Todo
   const deleteTodo = () => {
-    const newTodos = plant.todos.find(todo => todo.actionName !== currentAction);
+    const newTodos = plant.todos.find(todo => todo.actionName === currentAction);
     plant.deleteTodo(newTodos as ITodoModel);
     setIsTodoModalVisible(false);
   };
@@ -363,7 +350,8 @@ const PlantDetail = observer(() => {
       <PageHeader
         title={plant.name}
         onBack={() => router.back()}
-        onSave={() => { }}
+        onRightClick={() => { }}
+        rightVisible={false}
       />
 
       {/* 植物基本信息 */}
@@ -406,7 +394,6 @@ const PlantDetail = observer(() => {
           <TimelineTab 
             plant={plant} 
             onImagePress={handleImagePress}
-            onAddAction={openAddAction}
           />
         )}
         {activeTab === 'actions' && (
@@ -445,8 +432,7 @@ const PlantDetail = observer(() => {
           <TouchableOpacity
             style={styles.saveNoteBtn}
             onPress={() => {
-              plant.description = note;
-              rootStore.plantStore.updatePlant(plant);
+              rootStore.plantStore.updatePlant({...plant, description: note});
               setIsNoteModalVisible(false);
               setNote('');
             }}
@@ -475,40 +461,34 @@ const PlantDetail = observer(() => {
             <Text style={styles.inputLabel}>提醒间隔</Text>
             <View style={styles.recurringRow}>
               <Text style={styles.inputLabel}>每</Text>
-              <Input
-                style={styles.intervalInput}
-                value={todoData.recurringInterval}
-                onChangeText={value => {
-                  // 确保输入的是数字且大于0
-                  const numValue = value.replace(/[^0-9]/g, '');
-                  const finalValue = numValue === '' ? '1' : numValue;
-                  setTodoData({ ...todoData, recurringInterval: finalValue });
-                }}
-                keyboardType="number-pad"
-              />
-              <View style={styles.unitSelect}>
-                <Select
-                  value={recurringUnits.find(unit => unit.value === todoData.recurringUnit)?.text}
-                  onSelect={index => {
-                    const selectedIndex = Array.isArray(index) ? index[0].row : index.row;
-                    const selectedUnit = recurringUnits[selectedIndex];
-                    setTodoData({ ...todoData, recurringUnit: selectedUnit.value });
+              <View style={styles.wheelPickerBox}>
+                <WheelPicker
+                  initialSelectedIndex={todoData.recurringInterval ? parseInt(todoData.recurringInterval) - 1 : 0}
+                  items={recurringIntervals}
+                  onChange={({ index }) => {
+                    setTodoData({ ...todoData, recurringInterval: (index + 1).toString() });
                   }}
-                >
-                  {recurringUnits.map(unit => (
-                    <SelectItem key={unit.value} title={unit.text} />
-                  ))}
-                </Select>
+                  // selectedStyle={styles.wheelPicker}
+                />
+              </View>
+              <View style={styles.wheelPickerBox}>
+                <WheelPicker
+                  initialSelectedIndex={recurringUnits.findIndex(unit => unit.value === todoData.recurringUnit)}
+                  items={recurringUnits}
+                  onChange={({ index }) => {
+                    setTodoData({ ...todoData, recurringUnit: recurringUnits[index].value });
+                  }}
+                />
               </View>
             </View>
           </View>
 
           {/* 下次提醒时间预览 */}
           <View style={styles.formGroup}>
-            <Text style={styles.inputLabel}>下次提醒时间</Text>
+            <Text style={styles.inputLabel}>下次提醒</Text>
             <View style={styles.nextRemindBox}>
               <Text style={styles.nextRemindText}>
-                {formatNextRemindTime(todoData.recurringUnit, parseInt(todoData.recurringInterval) || 1)}
+                将会在 {formatNextRemindTime(todoData.recurringUnit, parseInt(todoData.recurringInterval) || 1)} 提醒
               </Text>
             </View>
           </View>
@@ -652,11 +632,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#f7f7f7',
   },
   timelineTimeContainer: {
-    paddingVertical: 8,
     alignItems: 'flex-end',
+    marginRight: 20,
+    width: 100,
   },
   timelineDate: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '500',
     color: '#555',
   },
@@ -678,17 +659,17 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
     elevation: 2,
     zIndex: 1,
+    marginLeft: 24,
+    marginRight: 24,
   },
   timelineContentBox: {
     backgroundColor: '#fff',
-    padding: 16,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
-    marginBottom: 8,
+    padding: 18,
+    borderRadius: 16,
+    elevation: 1,
+    marginBottom: 28,
+    marginLeft: 20,
+    width: '100%'
   },
   timelineHeaderRow: {
     flexDirection: 'row',
@@ -721,11 +702,12 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   timelineImage: {
-    width: 120,
-    height: 120,
+    width: 90,
+    height: 90,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#f0f0f0',
+    marginRight: 8,
   },
   timelineSingleImage: {
     width: '100%',
@@ -748,11 +730,11 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 16,
   },
-  timelineFooterTime: {
-    fontSize: 12, 
+  timelineFinishTime: {
+    fontSize: 12,
     color: '#999',
-    textAlign: 'right',
-    marginTop: 8,
+    marginBottom: 6,
+    marginTop: -4,
   },
   emptyTimelineContainer: {
     flex: 1,
@@ -922,12 +904,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 10,
   },
-  intervalInput: {
-    width: 70,
-    marginHorizontal: 10,
-  },
-  unitSelect: {
+  wheelPickerBox: {
     flex: 1,
+    marginHorizontal: 10,
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    overflow: 'hidden',
+    height: 120,
+    justifyContent: 'center',
+  },
+  wheelPicker: {
+    height: 120,
+    width: '100%',
   },
   remarkInput: {
     marginTop: 8,

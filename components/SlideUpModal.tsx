@@ -85,13 +85,9 @@ const SlideUpModal = ({ visible, onClose, children, themeMode, headerComponent }
                     )}
 
                     {/* 可滚动内容区域 */}
-                    <ScrollView
-                        style={styles.scrollView}
-                        contentContainerStyle={styles.contentContainer}
-                        showsVerticalScrollIndicator={false}
-                    >
+                    <View style={[styles.scrollView, styles.contentContainer]}>
                         {children}
-                    </ScrollView>
+                    </View>
                 </View>
             </Animated.View>
         </View>
@@ -105,7 +101,7 @@ const styles = StyleSheet.create({
         left: 0,
         right: 0,
         bottom: 0,
-        zIndex: 9,
+        zIndex: 999,
         justifyContent: 'flex-end',
     },
     animatedContainer: {

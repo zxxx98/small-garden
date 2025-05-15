@@ -20,9 +20,9 @@ export class PlantManager
             if (index !== -1) {
                 mock[index] = plant;
             }
-            return;
+            return true;
         }
-        await SQLitePlant.update(plant);
+        return await SQLitePlant.update(plant);
     }
 
     static async updatePlants(plants: Plant[])

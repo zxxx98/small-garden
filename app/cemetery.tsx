@@ -133,7 +133,7 @@ const CemeteryPage = () => {
       <PageHeader
         title="植物墓地"
         onBack={() => router.back()}
-        onSave={() => {}}
+        onRightClick={() => {}}
         themeMode={themeMode}
       />
 

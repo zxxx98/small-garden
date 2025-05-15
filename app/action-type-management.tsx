@@ -266,7 +266,7 @@ const ActionTypeManagementPage = () => {
       <PageHeader
         title="行为类型管理"
         onBack={() => router.back()}
-        onSave={() => {
+        onRightClick={() => {
           setEditingActionType(null);
           setActionTypeName('');
           setIconImage(undefined);

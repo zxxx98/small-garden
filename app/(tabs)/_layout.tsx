@@ -2,7 +2,6 @@ import { BottomNavigation, BottomNavigationTab, Icon } from '@ui-kitten/componen
 import { Tabs } from 'expo-router';
 import { StyleSheet } from 'react-native';
 import React from 'react';
-import { useAddAction } from '@/context/AddActionContext';
 
 // 定义标签数据接口
 interface TabDataItem {
@@ -14,7 +13,7 @@ interface TabDataItem {
 
 // 标签数据
 const tabData: TabDataItem[] = [
-    { name: 'timelinePage', title: '时间线', iconName: 'clock-outline' },
+    // { name: 'timelinePage', title: '时间线', iconName: 'clock-outline' },
     { name: 'todoPage', title: '待办', iconName: 'list-outline' },
     { name: 'plantsPage', title: '花园', iconName: 'flower-outline', iconPack: 'ionicons' },
     { name: 'settingsPage', title: '设置', iconName: 'settings-2-outline' }

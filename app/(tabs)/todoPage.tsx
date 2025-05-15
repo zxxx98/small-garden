@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { StyleSheet, Image, TouchableOpacity, View, Dimensions, ScrollView } from 'react-native';
+import { StyleSheet, TouchableOpacity, View, Dimensions, ScrollView, Image } from 'react-native';
 import { Layout, Text, Card, Icon, Modal, Button, Input, Spinner, Select, SelectItem, Datepicker, IndexPath, Toggle } from '@ui-kitten/components';
 import { Action, ActionType } from '@/types/action';
 import { Plant } from '@/types/plant';
@@ -8,154 +8,13 @@ import { getActionIconAsync } from '@/utils/action';
 import { useTheme } from '../../theme/themeContext';
 import SlideUpModal from '@/components/SlideUpModal';
 import { showMessage } from "react-native-flash-message";
-import { generateId } from '@/utils/uuid';
-import PhotoSelectList from '@/components/PhotoSelectList';
 import { useRouter } from 'expo-router';
 import GradientBackground from '@/components/GradientBackground';
 import { rootStore } from '@/stores/RootStore';
 import { ITodoModel } from '@/stores/PlantStore';
-import ImageViewer from '@/components/ImageViewer';
 import { observer } from 'mobx-react-lite';
+import { useActionCompletion } from '@/context/ActionCompletionContext';
 
-// 任务详情组件接口定义
-interface TaskDetailProps {
-    todo: ITodoModel;
-    onClose: () => void;     // 关闭回调
-    onDelete: (id: string) => void;  // 删除回调
-    onComplete: (action: Action) => void;  // 完成任务回调
-}
-
-// 任务详情组件 - 显示待办事项的详细信息，支持完成和删除操作
-const TaskDetail = ({ todo, onClose, onComplete }: TaskDetailProps) => {
-    const screenWidth = Dimensions.get('window').width;
-    const [isCompleting, setIsCompleting] = React.useState(false);
-    const [remark, setRemark] = React.useState(todo.remark || '');
-    const [images, setImages] = React.useState<string[]>([]);
-    const [selectedImage, setSelectedImage] = React.useState('');
-    const [showImageViewer, setShowImageViewer] = React.useState(false);
-    const [loading, setLoading] = React.useState(false);
-    const { themeMode } = useTheme();
-
-    const date = new Date(Number(todo.nextRemindTime));
-    const cardStyle = [
-        styles.detailCard,
-        {
-            width: screenWidth * 0.8,
-            backgroundColor: themeMode === 'light' ? 'rgba(255, 255, 255, 0.98)' : 'rgba(43, 50, 65, 0.98)'
-        }
-    ];
-
-    const handleImagePress = (photo: string) => {
-        setSelectedImage(photo);
-        setShowImageViewer(true);
-    };
-
-    const handleComplete = async () => {
-        setLoading(true);
-
-        try {
-            // Make sure all images are properly saved before completing the task
-            const updatedAction:Action = {
-                id: generateId(),
-                name: todo.actionName,
-                plantId: todo.plantId,
-                time: Date.now(),
-                remark: remark,
-                imgs: images,
-            };
-
-            await onComplete(updatedAction);
-            onClose();
-        } catch (error) {
-            showMessage({
-                message: "保存失败，请重试",
-                duration: 1000,
-                type: "warning"
-            });
-            console.error(error);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    return (
-        <Card style={cardStyle}>
-            <ScrollView style={styles.detailContent}>
-                <Text category='h5' style={styles.detailDate}>
-                    {date.toLocaleDateString()}
-                </Text>
-
-                <View style={styles.detailActionContainer}>
-                    <Text category='p1' style={styles.detailAction}>
-                        为
-                    </Text>
-                    <Text category='h6' style={[styles.detailAction, styles.boldText, { color: theme['color-primary-600'] }]}>
-                        {todo.plant.name}
-                    </Text>
-                    <Text category='h6' style={[styles.detailAction, styles.boldText, { color: theme['color-purple-200'] }]}>
-                        {todo.actionName}
-                    </Text>
-                </View>
-
-                {!isCompleting ? (
-                    <View style={styles.buttonGroup}>
-                        <Button
-                            status='primary'
-                            onPress={() => setIsCompleting(true)}
-                            style={styles.actionButton}
-                        >
-                            标记完成
-                        </Button>
-                    </View>
-                ) : (
-                    <View style={styles.completeForm}>
-                        <Text category='s1' style={styles.completeFormLabel}>完成备注:</Text>
-                        <Input
-                            value={remark}
-                            onChangeText={setRemark}
-                            placeholder="添加备注..."
-                            multiline={true}
-                            textStyle={{ minHeight: 64 }}
-                            style={styles.remarkInput}
-                        />
-
-                        <Text category='s1' style={styles.completeFormLabel}>添加图片记录:</Text>
-                        <PhotoSelectList
-                            photos={images}
-                            onPhotosChange={setImages}
-                            onPhotoPress={handleImagePress}
-                        />
-
-                        <View style={styles.buttonGroup}>
-                            <Button
-                                status='basic'
-                                onPress={() => setIsCompleting(false)}
-                                style={styles.actionButton}
-                            >
-                                取消
-                            </Button>
-                            <Button
-                                status='success'
-                                onPress={handleComplete}
-                                style={styles.actionButton}
-                                accessoryLeft={loading ? (props) => <Spinner size="small" /> : undefined}
-                                disabled={loading}
-                            >
-                                确认完成
-                            </Button>
-                        </View>
-                    </View>
-                )}
-
-                <ImageViewer
-                    visible={showImageViewer}
-                    imageUri={selectedImage}
-                    onClose={() => setShowImageViewer(false)}
-                />
-            </ScrollView>
-        </Card>
-    );
-};
 
 // 待办事项列表项渲染组件 - 显示单个待办事项
 const RenderTodoItem = ({ item, onPress }: { item: ITodoModel, onPress: () => void }) => {
@@ -474,34 +333,43 @@ const TodoForm = ({ plants, actionTypes, onSubmit, onCancel, themeMode }: TodoFo
     );
 };
 
+// 空状态组件
+const EmptyState = () => {
+    const { themeMode } = useTheme();
+    return (
+        <View style={styles.emptyContainer}>
+            <Image
+                source={require('@/assets/images/todofinish.png')}
+                style={styles.emptyIcon}
+                resizeMode="contain"
+            />
+            <Text category="h6" style={[styles.emptyText, { color: themeMode === 'light' ? theme['color-basic-800'] : theme['color-basic-100'] }]}>
+                暂无待办事项
+            </Text>
+            <Text category="p1" style={[styles.emptySubtext, { color: themeMode === 'light' ? theme['color-basic-600'] : theme['color-basic-400'] }]}>
+                非常棒，你已经完成了所有待办事项！
+            </Text>
+        </View>
+    );
+};
+
 // 主页面组件 - 待办事项管理页面
 const TodoPage = observer(() => {
     // 状态管理
-    const [displayedFutureTasks, setDisplayedFutureTasks] = React.useState<Action[]>([]); // 当前显示的未来待办
-    const [loadingMore, setLoadingMore] = React.useState(false); // 加载更多状态
-    const [selectedTodo, setSelectedTodo] = React.useState<ITodoModel | null>(null); // 选中的任务
-    const [showDetail, setShowDetail] = React.useState(false); // 是否显示详情
     const { themeMode } = useTheme(); // 主题模式
     const router = useRouter(); // 路由
+
+    const { show } = useActionCompletion();
 
     // 滚动视图引用，用于监听滚动事件
     const scrollViewRef = React.useRef<ScrollView>(null);
 
 
-    // 完成待办事项
-    const handleComplete = async (updatedAction: Action) => {
-
-    };
-
     // 处理任务点击事件
     const handleTaskPress = async (todo: ITodoModel) => {
-        setSelectedTodo(todo);
-        setShowDetail(true);
+        show(todo);
     };
 
-    // 处理添加待办按钮点击
-    const handleAddTodoPress = () => {
-    };
 
     // 渲染分区标题
     const renderSectionHeader = (title: string) => (
@@ -519,81 +387,63 @@ const TodoPage = observer(() => {
         >
             <Layout style={styles.header}>
                 <Text category="h1">待办</Text>
-                <TouchableOpacity
-                    style={styles.iconButton}
-                    onPress={handleAddTodoPress}
-                >
-                    <Icon
-                        name="plus-outline"
-                        style={styles.headerIcon}
-                        fill={theme['color-primary-500']}
-                    />
-                </TouchableOpacity>
             </Layout>
             <Layout style={styles.content}>
                 {(
                     <ScrollView
                         ref={scrollViewRef}
                         contentContainerStyle={styles.listContainer}
-                        scrollEventThrottle={400} // 控制滚动事件触发频率
+                        scrollEventThrottle={400}
                     >
-                        {rootStore.plantStore.separateTodoItems.todayItems.length > 0 && (
+                        {rootStore.plantStore.separateTodoItems.todayItems.length === 0 &&
+                         rootStore.plantStore.separateTodoItems.tomorrowItems.length === 0 &&
+                         rootStore.plantStore.separateTodoItems.afterTomorrowItems.length === 0 ? (
+                            <EmptyState />
+                        ) : (
                             <>
-                                {renderSectionHeader('今日待办')}
-                                {rootStore.plantStore.separateTodoItems.todayItems.map((item, index) => (
-                                    <RenderTodoItem
-                                        key={index}
-                                        item={item}
-                                        onPress={() => handleTaskPress(item)}
-                                    />
-                                ))}
-                            </>
-                        )}
+                                {rootStore.plantStore.separateTodoItems.todayItems.length > 0 && (
+                                    <>
+                                        {renderSectionHeader('今日待办')}
+                                        {rootStore.plantStore.separateTodoItems.todayItems.map((item, index) => (
+                                            <RenderTodoItem
+                                                key={index}
+                                                item={item}
+                                                onPress={() => handleTaskPress(item)}
+                                            />
+                                        ))}
+                                    </>
+                                )}
 
-                        {rootStore.plantStore.separateTodoItems.tomorrowItems.length > 0 && (
-                            <>
-                                {renderSectionHeader('明日待办')}
-                                {rootStore.plantStore.separateTodoItems.tomorrowItems.map((item, index) => (
-                                    <RenderTodoItem
-                                        key={index}
-                                        item={item}
-                                        onPress={() => handleTaskPress(item)}
-                                    />
-                                ))}
-                            </>
-                        )}
+                                {rootStore.plantStore.separateTodoItems.tomorrowItems.length > 0 && (
+                                    <>
+                                        {renderSectionHeader('明日待办')}
+                                        {rootStore.plantStore.separateTodoItems.tomorrowItems.map((item, index) => (
+                                            <RenderTodoItem
+                                                key={index}
+                                                item={item}
+                                                onPress={() => handleTaskPress(item)}
+                                            />
+                                        ))}
+                                    </>
+                                )}
 
-                        {rootStore.plantStore.separateTodoItems.afterTomorrowItems.length > 0 && (
-                            <>
-                                {renderSectionHeader('后日待办')}
-                                {rootStore.plantStore.separateTodoItems.afterTomorrowItems.map((item, index) => (
-                                    <RenderTodoItem
-                                        key={index}
-                                        item={item}
-                                        onPress={() => handleTaskPress(item)}
-                                    />
-                                ))}
+                                {rootStore.plantStore.separateTodoItems.afterTomorrowItems.length > 0 && (
+                                    <>
+                                        {renderSectionHeader('后日待办')}
+                                        {rootStore.plantStore.separateTodoItems.afterTomorrowItems.map((item, index) => (
+                                            <RenderTodoItem
+                                                key={index}
+                                                item={item}
+                                                onPress={() => handleTaskPress(item)}
+                                            />
+                                        ))}
+                                    </>
+                                )}
                             </>
                         )}
                     </ScrollView>
                 )}
             </Layout>
-
-            {/* 任务详情模态框 */}
-            <Modal
-                visible={showDetail}
-                backdropStyle={styles.backdrop}
-                onBackdropPress={() => setShowDetail(false)}
-            >
-                {selectedTodo && (
-                    <TaskDetail
-                        todo={selectedTodo}
-                        onClose={() => setShowDetail(false)}
-                        onDelete={() => { }}
-                        onComplete={handleComplete}
-                    />
-                )}
-            </Modal>
         </GradientBackground>
     );
 });
@@ -659,6 +509,7 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
         padding: 20,
+        minHeight: 400,
     },
     emptyIcon: {
         width: 80,
@@ -671,7 +522,6 @@ const styles = StyleSheet.create({
     },
     emptySubtext: {
         textAlign: 'center',
-        color: theme['color-basic-600'],
     },
     loaderContainer: {
         padding: 16,

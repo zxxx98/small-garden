@@ -161,11 +161,13 @@ export const PlantStore = types
     updatePlant: flow(function* (plant: IPlantModel) {
       try {
         plant.scientificName = '';
+        console.log('plant', plant);
         const success = yield PlantManager.updatePlant(plant);
+        console.log('success', success);
         if (success) {
           const index = self.plants.findIndex(p => p.id === plant.id);
           if (index !== -1) {
-            self.plants[index] = plant;
+            self.plants.splice(index, 1, plant);
           }
         }
         return success;

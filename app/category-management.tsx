@@ -122,7 +122,7 @@ const CategoryManagementPage = () => {
       <PageHeader
         title="植物类别管理"
         onBack={() => router.back()}
-        onSave={() => {
+        onRightClick={() => {
           setEditingCategory(null);
           setCategoryName('');
           setCategoryModalVisible(true);

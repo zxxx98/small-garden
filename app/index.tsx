@@ -40,7 +40,7 @@ export default function Index()
         });
     }, [])
     if (!loading) {
-        return <Redirect href="/(tabs)/timelinePage" />;
+        return <Redirect href="/(tabs)/plantsPage" />;
     }
 
     return (

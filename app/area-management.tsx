@@ -122,7 +122,7 @@ const AreaManagementPage = () => {
       <PageHeader
         title="植物区域管理"
         onBack={() => router.back()}
-        onSave={() => {
+        onRightClick={() => {
           setEditingArea(null);
           setAreaName('');
           setAreaModalVisible(true);

@@ -71,7 +71,7 @@ export class Action {
     static async create(action: ActionType): Promise<boolean> {
         try {
             const result = await database.runAsync(
-                'INSERT INTO actions (id, name, plant_id, time, remark, imgs) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                'INSERT INTO actions (id, name, plant_id, time, remark, imgs) VALUES (?, ?, ?, ?, ?, ?)',
                 String(action.id),
                 action.name,
                 action.plantId,

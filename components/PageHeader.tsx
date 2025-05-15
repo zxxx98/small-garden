@@ -6,7 +6,9 @@ import { theme } from '@/theme/theme';
 interface PageHeaderProps {
   title: string;
   onBack: () => void;
-  onSave: () => void;
+  onRightClick: () => void;
+  rightText?: string;
+  rightVisible?: boolean;
   isSubmitting?: boolean;
   themeMode?: 'light' | 'dark';
 }
@@ -14,7 +16,9 @@ interface PageHeaderProps {
 const PageHeader: React.FC<PageHeaderProps> = ({
   title,
   onBack,
-  onSave,
+  onRightClick,
+  rightText = '保存',
+  rightVisible = true,
   isSubmitting = false,
   themeMode = 'light'
 }) => {
@@ -29,15 +33,19 @@ const PageHeader: React.FC<PageHeaderProps> = ({
       <Text category="h5" style={styles.headerTitle}>
         {title}
       </Text>
-      <Button
-        appearance="ghost"
-        status="primary"
-        onPress={onSave}
-        disabled={isSubmitting}
-        accessoryLeft={isSubmitting ? (props) => <Spinner size="small" /> : undefined}
-      >
-        保存
-      </Button>
+      {rightVisible ? (
+        <Button
+          appearance="ghost"
+          status="primary"
+          onPress={onRightClick}
+          disabled={isSubmitting}
+          accessoryLeft={isSubmitting ? (props) => <Spinner size="small" /> : undefined}
+        >
+          {rightText}
+        </Button>
+      ) : (
+        <Layout style={styles.placeholder} />
+      )}
     </Layout>
   );
 };
@@ -54,6 +62,11 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     textAlign: 'center',
+    flex: 1,
+  },
+  placeholder: {
+    width: 40,
+    backgroundColor: 'transparent',
   },
 });
 
