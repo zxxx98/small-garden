@@ -31,6 +31,6 @@ export type Todo = {
     recurringInterval: number,
     //下次提醒开始的时间
     nextRemindTime: number,
-    //备注
+    //简介
     remark: string,
 };

@@ -302,12 +302,12 @@ const TodoForm = ({ plants, actionTypes, onSubmit, onCancel, themeMode }: TodoFo
                     </>
                 )}
 
-                <Text category='s1' style={styles.formLabel}>备注:</Text>
+                <Text category='s1' style={styles.formLabel}>简介:</Text>
                 <Input
                     style={styles.input}
                     multiline={true}
                     textStyle={{ minHeight: 64 }}
-                    placeholder="添加备注..."
+                    placeholder="添加简介..."
                     value={todoRemark}
                     onChangeText={setTodoRemark}
                 />

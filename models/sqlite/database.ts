@@ -95,8 +95,7 @@ export const DatabaseInstance = {
                     plant_id TEXT NOT NULL,
                     time INTEGER NOT NULL,
                     remark TEXT,
-                    imgs TEXT,
-                    done INTEGER NOT NULL
+                    imgs TEXT
                 );
                 
                 CREATE INDEX IF NOT EXISTS idx_actions_plant_id ON actions (plant_id);

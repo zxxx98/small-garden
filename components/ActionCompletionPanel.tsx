@@ -68,7 +68,7 @@ const ActionCompletionPanel = () => {
         plantId: selectedPlant.id,
         time: Date.now(),
         remark: remark,
-        imgs: uploadedImages
+        imgs: uploadedImages,
       };
       // 保存行为
       await rootStore.actionStore.addAction(newAction as IActionModel);
@@ -165,10 +165,10 @@ const ActionCompletionPanel = () => {
           ))}
         </Select>
 
-        <Text category="s1" style={styles.label}>备注</Text>
+        <Text category="s1" style={styles.label}>简介</Text>
         <Input
           style={styles.input}
-          placeholder="添加备注..."
+          placeholder="添加简介..."
           value={remark}
           onChangeText={setRemark}
           multiline

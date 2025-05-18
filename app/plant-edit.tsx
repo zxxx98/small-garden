@@ -134,7 +134,6 @@ const PlantEditPage = observer(() => {
     if (imageUri) {
       LoadingModal.show("识别中...");
       const result = await identifyPlantWithPlantNet(imageUri, apiKey);
-      console.log(result);
       if (result.success) {
         setScientificName(result.scientificName);
         setPlantName(result.commonName);

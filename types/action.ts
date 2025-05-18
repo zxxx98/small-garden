@@ -9,7 +9,7 @@ export type Action = {
     plantId: string,
     //时间戳
     time: number,
-    //备注
+    //简介
     remark: string,
     //记录图片数组
     imgs: string[]

@@ -59,7 +59,6 @@ const FloatingButtonWrapper = () => {
 
   // 只在特定页面显示悬浮按钮（可以根据需要调整）
   const currentRoute = usePathname();
-  console.log(currentRoute); // 输出当前路由，以确保它与预期的路由匹配
 
   // 在这些页面显示悬浮按钮
   const showOnRoutes = [

@@ -23,10 +23,9 @@ const defaultActionTypes: ActionType[] = [
     { name: "浇水", iconName: "droplet-outline", color: theme["color-success-500"], pack: undefined, useCustomImage: false },
     { name: "施肥", iconName: "flower-pollen-outline", color: theme["color-success-500"], pack: "materialCommunityIcons", useCustomImage: false },
     { name: "授粉", iconName: "bee-flower", color: theme["color-success-500"], pack: "materialCommunityIcons", useCustomImage: false },
-    { name: "种植", iconName: "seed-outline", color: theme["color-success-500"], pack: "materialCommunityIcons", useCustomImage: false },
+    { name: "换盆", iconName: "pot", color: theme["color-success-500"], pack: "materialCommunityIcons", useCustomImage: false },
     { name: "修剪", iconName: "scissors", color: theme["color-success-500"], pack: "feather", useCustomImage: false },
-    { name: "拔除", iconName: "emoticon-dead-outline", color: theme["color-success-500"], pack: "materialCommunityIcons", useCustomImage: false },
-    { name: "除草", iconName: "grass", color: theme["color-success-500"], pack: "materialCommunityIcons", useCustomImage: false },
+    { name: "除虫", iconName: "bug-sharp", color: theme["color-success-500"], pack: "ionicons", useCustomImage: false },
 ];
 
 // Default areas

@@ -20,7 +20,7 @@ import WheelPicker from 'react-native-wheel-picker-expo';
 const tabs = [
   { id: 'timeline', label: '时间线' },
   { id: 'actions', label: '行为' },
-  { id: 'notes', label: '备注' },
+  { id: 'notes', label: '简介' },
 ];
 
 const recurringUnits = [
@@ -174,7 +174,7 @@ const ActionsTab = observer(({
   );
 });
 
-// 备注组件
+// 简介组件
 const NotesTab = observer(({ 
   plant,
   onAddNote
@@ -185,13 +185,13 @@ const NotesTab = observer(({
   return (
     <View style={styles.notesBox}>
       <View style={styles.notesContentBox}>
-        <Text style={styles.notesText}>{plant.description || '暂无备注信息'}</Text>
+        <Text style={styles.notesText}>{plant.description || '暂无简介信息'}</Text>
       </View>
       <TouchableOpacity
         style={styles.addNoteBtn}
         onPress={onAddNote}
       >
-        <Text style={styles.addNoteBtnText}>添加备注</Text>
+        <Text style={styles.addNoteBtnText}>添加简介</Text>
       </TouchableOpacity>
     </View>
   );
@@ -410,14 +410,14 @@ const PlantDetail = observer(() => {
         )}
       </View>
 
-      {/* 添加备注的弹窗 */}
+      {/* 添加简介的弹窗 */}
       <SlideUpModal
         visible={isNoteModalVisible}
         onClose={() => setIsNoteModalVisible(false)}
         themeMode="light"
         headerComponent={
           <View style={{ paddingHorizontal: 20, paddingVertical: 10 }}>
-            <Text style={{ fontSize: 18, fontWeight: 'bold' }}>添加备注</Text>
+            <Text style={{ fontSize: 18, fontWeight: 'bold' }}>添加简介</Text>
           </View>
         }
       >
@@ -425,7 +425,7 @@ const PlantDetail = observer(() => {
           <Input
             multiline
             textStyle={{ minHeight: 100 }}
-            placeholder="请输入备注信息..."
+            placeholder="请输入简介信息..."
             value={note}
             onChangeText={setNote}
           />
@@ -504,13 +504,13 @@ const PlantDetail = observer(() => {
             </CheckBox>
           </View>
 
-          {/* 备注 */}
+          {/* 简介 */}
           <View style={styles.formGroup}>
-            <Text style={styles.inputLabel}>备注</Text>
+            <Text style={styles.inputLabel}>简介</Text>
             <Input
               multiline
               textStyle={{ minHeight: 80 }}
-              placeholder="添加备注信息..."
+              placeholder="添加简介信息..."
               value={todoData.remark}
               onChangeText={value => setTodoData({ ...todoData, remark: value })}
               style={styles.remarkInput}

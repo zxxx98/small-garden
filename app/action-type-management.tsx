@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { StyleSheet, View, ScrollView, Alert, Image } from 'react-native';
+import { StyleSheet, View, ScrollView, Alert, Image, TouchableOpacity, Dimensions } from 'react-native';
 import { Layout, Text, Button, Input, List, ListItem, Icon, IconProps, Modal, Card } from '@ui-kitten/components';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
@@ -228,7 +228,8 @@ const ActionTypeManagementPage = () => {
         </View>
       )}
       accessoryRight={() => {
-        if (item.useCustomImage) {
+        if (item.useCustomImage)
+        {
           return (
             <View style={styles.actionTypeItemActions}>
               <Button
@@ -256,6 +257,9 @@ const ActionTypeManagementPage = () => {
     />
   );
 
+  //屏幕宽度
+  const screenWidth = Dimensions.get('window').width;
+
   return (
     <GradientBackground
       colors={themeMode === 'light'
@@ -274,6 +278,7 @@ const ActionTypeManagementPage = () => {
         }}
         isSubmitting={isSubmitting}
         themeMode={themeMode}
+        rightText='添加'
       />
 
       {loading ? (
@@ -306,37 +311,32 @@ const ActionTypeManagementPage = () => {
           disabled
           style={[
             styles.modalCard,
-            { backgroundColor: themeMode === 'light' ? 'rgba(255, 255, 255, 0.98)' : 'rgba(43, 50, 65, 0.98)' }
+            { backgroundColor: themeMode === 'light' ? 'rgba(255, 255, 255, 0.98)' : 'rgba(43, 50, 65, 0.98)' },
+            {width: screenWidth * 0.8}
           ]}
         >
           <Text category="h6" style={styles.modalTitle}>
             {editingActionType ? '编辑行为类型' : '添加行为类型'}
           </Text>
-          <Input
-            placeholder="行为类型名称"
-            value={actionTypeName}
-            onChangeText={setActionTypeName}
-            style={styles.input}
-          />
-
-          <View style={styles.customImageContainer}>
-            {iconImage ? (
-              <Image
-                source={{ uri: iconImage }}
-                style={styles.customImagePreview}
-              />
-            ) : (
-              <View style={styles.customImagePlaceholder}>
-                <Icon name="image-outline" fill="#8F9BB3" width={24} height={24} />
-              </View>
-            )}
-            <Button
-              appearance="outline"
-              onPress={handlePickImage}
-              style={styles.pickImageButton}
-            >
-              选择自定义图片
-            </Button>
+          <View style={styles.inputRow}>
+            <Input
+              placeholder="行为类型名称"
+              value={actionTypeName}
+              onChangeText={setActionTypeName}
+              style={styles.nameInput}
+            />
+            <TouchableOpacity onPress={handlePickImage} style={styles.imageContainer}>
+              {iconImage ? (
+                <Image
+                  source={{ uri: iconImage }}
+                  style={styles.customImagePreview}
+                />
+              ) : (
+                <View style={styles.customImagePlaceholder}>
+                  <Icon name="image-outline" fill="#8F9BB3" width={24} height={24} />
+                </View>
+              )}
+            </TouchableOpacity>
           </View>
 
           <Button onPress={handleSaveActionType}>
@@ -382,36 +382,37 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   modalCard: {
-    width: '85%',
-    maxWidth: 400,
-    borderRadius: 16,
+    borderRadius: 16
   },
   modalTitle: {
     marginBottom: 16,
     textAlign: 'center',
   },
-  input: {
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: 16,
+    gap: 16,
   },
-  customImageContainer: {
-    marginBottom: 16,
+  nameInput: {
+    flex: 1,
+  },
+  imageContainer: {
+    width: 60,
+    height: 60,
   },
   customImagePreview: {
-    width: 100,
-    height: 100,
+    width: 60,
+    height: 60,
     borderRadius: 8,
-    marginBottom: 8,
   },
   customImagePlaceholder: {
-    width: 100,
-    height: 100,
+    width: 60,
+    height: 60,
     borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#F7F9FC',
-  },
-  pickImageButton: {
-    marginTop: 8,
   },
 });
 
