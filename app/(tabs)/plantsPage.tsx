@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { StyleSheet, Image, TouchableOpacity, Dimensions, Alert, View, FlatList } from 'react-native';
-import { Layout, Text, Modal, Icon, IconProps, CheckBox } from '@ui-kitten/components';
+import { Layout, Text, Modal, Icon, IconProps, CheckBox, Input } from '@ui-kitten/components';
 import FlowerIcon from '@/assets/svgs/flower1.svg';
 import { useTheme } from '../../theme/themeContext';
 import { theme } from '@/theme/theme';
@@ -121,6 +121,19 @@ const PlantsPage = observer(() => {
   const { themeMode } = useTheme();
   const [selectedImage, setSelectedImage] = React.useState('');
   const [showImageViewer, setShowImageViewer] = React.useState(false);
+  const [searchQuery, setSearchQuery] = React.useState('');
+
+  // 过滤植物的函数
+  const filteredPlants = React.useMemo(() => {
+    if (!searchQuery) return plants;
+    
+    const query = searchQuery.toLowerCase();
+    return plants.filter(plant => 
+      plant.name.toLowerCase().includes(query) ||
+      plant.type.toLowerCase().includes(query) ||
+      (plant.scientificName && plant.scientificName.toLowerCase().includes(query))
+    );
+  }, [plants, searchQuery]);
 
   // Determine background colors based on theme
   const gradientColors = themeMode === 'light'
@@ -383,6 +396,23 @@ const PlantsPage = observer(() => {
         )}
       </Layout>
 
+      <Layout style={[styles.searchContainer, { backgroundColor: 'transparent' }]}>
+        <Input
+          placeholder="搜索植物名称或类别..."
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          style={styles.searchInput}
+          textStyle={{ color: themeMode === 'light' ? '#2C3E50' : '#E4E9F2' }}
+          placeholderTextColor={themeMode === 'light' ? '#8F9BB3' : '#8F9BB3'}
+          accessoryLeft={(props) => <Icon {...props} name="search-outline" />}
+          accessoryRight={searchQuery ? (props) => (
+            <TouchableOpacity onPress={() => setSearchQuery('')}>
+              <Icon {...props} name="close-outline" />
+            </TouchableOpacity>
+          ) : undefined}
+        />
+      </Layout>
+
       {editMode && selectedPlants.length > 0 && (
         <Layout style={[styles.batchActionBar, { backgroundColor: 'transparent' }]}>
           <TouchableOpacity
@@ -402,10 +432,10 @@ const PlantsPage = observer(() => {
         </Layout>
       )}
 
-      {plants.length > 0 ? (
+      {filteredPlants.length > 0 ? (
         <Layout style={[styles.contentContainer, { backgroundColor: 'transparent' }]}>
           <FlatList
-            data={rootStore.plantStore.alivePlants.map(getPlantItem)}
+            data={filteredPlants.map(getPlantItem)}
             keyExtractor={(item) => item.id}
             renderItem={renderItem}
             contentContainerStyle={[styles.list]}
@@ -418,7 +448,19 @@ const PlantsPage = observer(() => {
           onPress={handleAddPlant}
           activeOpacity={0.7}
         >
-          {renderEmptyState()}
+          {searchQuery ? (
+            <Layout style={styles.emptyContainer}>
+              <Icon name="search-outline" style={{ width: 64, height: 64, tintColor: themeMode === 'light' ? '#8F9BB3' : '#8F9BB3' }} />
+              <Text category="h5" style={[styles.emptyText, { color: themeMode === 'light' ? '#2C3E50' : '#E4E9F2' }]}>
+                未找到匹配的植物
+              </Text>
+              <Text category="p1" style={[styles.emptyText, { color: themeMode === 'light' ? '#2C3E50' : '#E4E9F2', marginTop: 8 }]}>
+                请尝试其他搜索关键词
+              </Text>
+            </Layout>
+          ) : (
+            renderEmptyState()
+          )}
         </TouchableOpacity>
       )}
 
@@ -681,6 +723,16 @@ const styles = StyleSheet.create({
   },
   checkbox: {
     marginRight: 8,
+  },
+  searchContainer: {
+    paddingHorizontal: 16,
+    paddingBottom: 8,
+    backgroundColor: 'transparent',
+  },
+  searchInput: {
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    borderRadius: 12,
+    borderWidth: 0,
   },
 });
 

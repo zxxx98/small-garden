@@ -1,12 +1,12 @@
 import React from 'react';
-import { View, Text, Image, TouchableOpacity, ScrollView, StyleSheet, Dimensions, FlatList } from 'react-native';
+import { View, Text, Image, TouchableOpacity, ScrollView, StyleSheet, Dimensions, FlatList, Linking } from 'react-native';
 import Timeline from '../../../components/Timeline';
 import PageHeader from '../../../components/PageHeader';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { observer } from 'mobx-react-lite';
 import { rootStore } from '../../../stores/RootStore';
 import { IPlantModel, ITodoModel } from '../../../stores/PlantStore';
-import { Icon, Input, CheckBox, Select, SelectItem } from '@ui-kitten/components';
+import { Icon, Input, CheckBox, Select, SelectItem, Button, Card, Modal } from '@ui-kitten/components';
 import SlideUpModal from '../../../components/SlideUpModal';
 import { format, addDays, addWeeks, addMonths } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
@@ -16,6 +16,9 @@ import { getActionIcon } from '@/utils/action';
 import { calculateNextRemindTime } from '@/utils/plant';
 import ImageViewer from '@/components/ImageViewer';
 import WheelPicker from 'react-native-wheel-picker-expo';
+import * as ImagePicker from 'expo-image-picker';
+import { FileManager } from '@/models/FileManager';
+import { showMessage } from 'react-native-flash-message';
 
 const tabs = [
   { id: 'timeline', label: '时间线' },
@@ -149,28 +152,181 @@ const ActionsTab = observer(({
   onTodoPress: (actionName: string) => void;
 }) => {
   const availableActions = rootStore.settingStore.actionTypes;
+  const [isActionTypeModalVisible, setIsActionTypeModalVisible] = React.useState(false);
+  const [actionTypeName, setActionTypeName] = React.useState('');
+  const [iconImage, setIconImage] = React.useState<string | undefined>(undefined);
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const screenWidth = Dimensions.get('window').width;
+
+  // 处理选择图片
+  const handlePickImage = async () => {
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        showMessage({
+          message: '需要访问相册权限才能选择图片',
+          duration: 1000,
+          type: "info"
+        });
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+        base64: true,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const asset = result.assets[0];
+        const fileManager = FileManager.getInstance();
+        const savedImagePath = await fileManager.saveImage(asset.uri);
+        setIconImage(savedImagePath);
+      }
+    } catch (error) {
+      console.error('Error picking image:', error);
+      showMessage({
+        message: '选择图片时出错',
+        duration: 1000,
+        type: "warning"
+      });
+    }
+  };
+
+  // 处理保存行为类型
+  const handleSaveActionType = async () => {
+    if (!actionTypeName.trim()) {
+      showMessage({
+        message: '请输入行为类型名称',
+        duration: 1000,
+        type: "warning"
+      });
+      return;
+    }
+
+    if (!iconImage) {
+      showMessage({
+        message: '请选择自定义图标',
+        duration: 1000,
+        type: "warning"
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const newActionType: ActionType = {
+        name: actionTypeName,
+        useCustomImage: true,
+        iconImage: iconImage,
+        color: '#000000'
+      };
+
+      if (availableActions.some(type => type.name === actionTypeName)) {
+        showMessage({
+          message: `行为类型 "${actionTypeName}" 已存在`,
+          duration: 1000,
+          type: "info"
+        });
+        return;
+      }
+
+      await rootStore.settingStore.addActionType(newActionType);
+      await rootStore.settingStore.fetchActionTypes();
+      setIsActionTypeModalVisible(false);
+      setActionTypeName('');
+      setIconImage(undefined);
+    } catch (error) {
+      console.error('Failed to save action type:', error);
+      showMessage({
+        message: '保存行为类型失败',
+        duration: 1000,
+        type: "warning"
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
-    <ScrollView style={styles.actionScroll}>
-      {availableActions.map((action: ActionType) => {
-        const checked = plant.todos.some(todo => todo.actionName === action.name);
-        return (
-          <View key={action.name} style={styles.actionRow}>
-            <View style={styles.actionLeft}>
-              {getActionIcon(action.name)}
-              <Text style={styles.actionName}>{action.name}</Text>
+    <View style={{ flex: 1 }}>
+      <ScrollView style={styles.actionScroll}>
+        {availableActions.map((action: ActionType) => {
+          const checked = plant.todos.some(todo => todo.actionName === action.name);
+          return (
+            <View key={action.name} style={styles.actionRow}>
+              <View style={styles.actionLeft}>
+                {getActionIcon(action.name)}
+                <Text style={styles.actionName}>{action.name}</Text>
+              </View>
+              <TouchableOpacity
+                style={[styles.switchBox, checked ? styles.switchBoxActive : styles.switchBoxInactive]}
+                onPress={() => onTodoPress(action.name)}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.switchDot, checked ? styles.switchDotActive : styles.switchDotInactive]} />
+              </TouchableOpacity>
             </View>
-            <TouchableOpacity
-              style={[styles.switchBox, checked ? styles.switchBoxActive : styles.switchBoxInactive]}
-              onPress={() => onTodoPress(action.name)}
-              activeOpacity={0.7}
-            >
-              <View style={[styles.switchDot, checked ? styles.switchDotActive : styles.switchDotInactive]} />
+          );
+        })}
+      </ScrollView>
+
+      <TouchableOpacity
+        style={styles.addActionTypeBtn}
+        onPress={() => setIsActionTypeModalVisible(true)}
+      >
+        <Icon name="plus-outline" style={styles.addActionTypeIcon} fill="#fff" />
+        <Text style={styles.addActionTypeText}>添加自定义行为</Text>
+      </TouchableOpacity>
+
+      <Modal
+        visible={isActionTypeModalVisible}
+        backdropStyle={styles.backdrop}
+        onBackdropPress={() => {
+          setIsActionTypeModalVisible(false);
+          setActionTypeName('');
+          setIconImage(undefined);
+        }}
+      >
+        <Card
+          disabled
+          style={[
+            styles.modalCard,
+            { width: screenWidth * 0.8 }
+          ]}
+        >
+          <Text style={[styles.modalTitle, { fontSize: 18, fontWeight: 'bold' }]}>
+            添加自定义行为
+          </Text>
+          <View style={styles.inputRow}>
+            <Input
+              placeholder="行为类型名称"
+              value={actionTypeName}
+              onChangeText={setActionTypeName}
+              style={styles.nameInput}
+            />
+            <TouchableOpacity onPress={handlePickImage} style={styles.imageContainer}>
+              {iconImage ? (
+                <Image
+                  source={{ uri: iconImage }}
+                  style={styles.customImagePreview}
+                />
+              ) : (
+                <View style={styles.customImagePlaceholder}>
+                  <Icon name="image-outline" fill="#8F9BB3" width={24} height={24} />
+                </View>
+              )}
             </TouchableOpacity>
           </View>
-        );
-      })}
-    </ScrollView>
+
+          <Button onPress={handleSaveActionType}>
+            添加
+          </Button>
+        </Card>
+      </Modal>
+    </View>
   );
 });
 
@@ -182,10 +338,51 @@ const NotesTab = observer(({
   plant: IPlantModel;
   onAddNote: () => void;
 }) => {
+  // 处理链接点击
+  const handleLinkPress = (url: string) => {
+    Linking.openURL(url).catch((err) => {
+      showMessage({
+        message: '无法打开链接',
+        description: err.message,
+        type: "warning"
+      });
+    });
+  };
+
+  // 检测文本中的链接并渲染
+  const renderTextWithLinks = (text: string) => {
+    if (!text) return '暂无简介信息';
+    
+    // 匹配URL的正则表达式
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    const parts = text.split(urlRegex);
+    
+    return parts.map((part, index) => {
+      if (part.match(urlRegex)) {
+        return (
+          <Text
+            key={index}
+            style={[styles.notesText, styles.linkText]}
+            onPress={() => handleLinkPress(part)}
+          >
+            {part}
+          </Text>
+        );
+      }
+      return (
+        <Text key={index} style={styles.notesText}>
+          {part}
+        </Text>
+      );
+    });
+  };
+
   return (
     <View style={styles.notesBox}>
       <View style={styles.notesContentBox}>
-        <Text style={styles.notesText}>{plant.description || '暂无简介信息'}</Text>
+        <Text selectable style={styles.notesText}>
+          {renderTextWithLinks(plant.description)}
+        </Text>
       </View>
       <TouchableOpacity
         style={styles.addNoteBtn}
@@ -850,6 +1047,7 @@ const styles = StyleSheet.create({
   notesText: {
     color: '#666',
     fontSize: 15,
+    lineHeight: 22,
   },
   addNoteBtn: {
     backgroundColor: '#34a853',
@@ -1003,6 +1201,99 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
+  },
+  addActionTypeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#34a853',
+    marginHorizontal: 16,
+    marginVertical: 16,
+    paddingVertical: 12,
+    borderRadius: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  addActionTypeIcon: {
+    width: 20,
+    height: 20,
+    marginRight: 8,
+  },
+  addActionTypeText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  actionTypeInput: {
+    marginBottom: 16,
+  },
+  imagePickerContainer: {
+    width: '100%',
+    height: 120,
+    backgroundColor: '#f5f5f5',
+    borderRadius: 12,
+    marginBottom: 24,
+    overflow: 'hidden',
+  },
+  customImagePreview: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  customImagePlaceholder: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f5f5f5',
+  },
+  imagePickerText: {
+    marginTop: 8,
+    color: '#8F9BB3',
+    fontSize: 14,
+  },
+  saveActionTypeBtn: {
+    backgroundColor: '#34a853',
+    borderRadius: 24,
+    paddingVertical: 12,
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  saveActionTypeBtnText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  backdrop: {
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  modalCard: {
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.98)'
+  },
+  modalTitle: {
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    gap: 16,
+  },
+  nameInput: {
+    flex: 1,
+  },
+  imageContainer: {
+    width: 60,
+    height: 60,
+  },
+  linkText: {
+    color: '#34a853',
+    textDecorationLine: 'underline',
   },
 });
 
