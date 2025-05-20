@@ -30,6 +30,7 @@ const CloudIcon = (props: IconProps) => <Icon {...props} name="cloud-upload-outl
 const FlowerIcon = (props: IconProps) => <Icon {...props} name="keypad-outline" />;
 const TrashIcon2 = (props: IconProps) => <Icon {...props} name="trash-outline" />;
 const AreaIcon = (props: IconProps) => <Icon {...props} name="home-outline" />;
+const LogIcon = (props: IconProps) => <Icon {...props} name="file-text-outline" />;
 
 // Available icon packs for selection
 const iconPacks = [
@@ -146,6 +147,20 @@ const SettingsPage = () => {
             <Layout style={styles.navItemContent}>
               <Text category="s1">植物墓地</Text>
               <Text appearance="hint" category="p2">管理已标记为死亡的植物</Text>
+            </Layout>
+            <Icon name="chevron-right-outline" fill="#8F9BB3" width={24} height={24} />
+          </Layout>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.navItem}
+          onPress={() => router.push('/logs')}
+        >
+          <Layout style={styles.navItemInner}>
+            <LogIcon fill="#3366FF" style={styles.navItemIcon} />
+            <Layout style={styles.navItemContent}>
+              <Text category="s1">系统日志</Text>
+              <Text appearance="hint" category="p2">查看应用操作记录和系统日志</Text>
             </Layout>
             <Icon name="chevron-right-outline" fill="#8F9BB3" width={24} height={24} />
           </Layout>

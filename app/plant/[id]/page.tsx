@@ -1,12 +1,12 @@
 import React from 'react';
-import { View, Text, Image, TouchableOpacity, ScrollView, StyleSheet, Dimensions, FlatList, Linking } from 'react-native';
+import { View, Image, TouchableOpacity, ScrollView, StyleSheet, Dimensions, FlatList, Linking } from 'react-native';
 import Timeline from '../../../components/Timeline';
 import PageHeader from '../../../components/PageHeader';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { observer } from 'mobx-react-lite';
 import { rootStore } from '../../../stores/RootStore';
 import { IPlantModel, ITodoModel } from '../../../stores/PlantStore';
-import { Icon, Input, CheckBox, Select, SelectItem, Button, Card, Modal } from '@ui-kitten/components';
+import { Icon, Text, Input, CheckBox, Select, SelectItem, Button, Card, Modal } from '@ui-kitten/components';
 import SlideUpModal from '../../../components/SlideUpModal';
 import { format, addDays, addWeeks, addMonths } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
@@ -39,10 +39,10 @@ const recurringIntervals = Array.from({ length: 31 }, (_, i) => ({
 }));
 
 // 时间线组件
-const TimelineTab = observer(({ 
-  plant, 
+const TimelineTab = observer(({
+  plant,
   onImagePress,
-}: { 
+}: {
   plant: IPlantModel;
   onImagePress: (images: string[], index: number) => void;
 }) => {
@@ -60,7 +60,7 @@ const TimelineTab = observer(({
 
   // Add proper type for the ref
   const timelineRef = React.useRef<ScrollView>(null);
-  
+
   // Scroll to the top of the timeline after render
   React.useEffect(() => {
     if (timelineRef.current && sortedTimelineData.length > 0) {
@@ -105,7 +105,7 @@ const TimelineTab = observer(({
             {item.description ? (
               <Text style={styles.timelineDesc}>{item.description}</Text>
             ) : null}
-            
+
             {item.images && item.images.length > 0 && (
               <View style={styles.timelineImagesContainer}>
                 <FlatList
@@ -144,10 +144,10 @@ const TimelineTab = observer(({
 });
 
 // 行为列表组件
-const ActionsTab = observer(({ 
+const ActionsTab = observer(({
   plant,
   onTodoPress
-}: { 
+}: {
   plant: IPlantModel;
   onTodoPress: (actionName: string) => void;
 }) => {
@@ -331,10 +331,10 @@ const ActionsTab = observer(({
 });
 
 // 简介组件
-const NotesTab = observer(({ 
+const NotesTab = observer(({
   plant,
   onAddNote
-}: { 
+}: {
   plant: IPlantModel;
   onAddNote: () => void;
 }) => {
@@ -352,11 +352,11 @@ const NotesTab = observer(({
   // 检测文本中的链接并渲染
   const renderTextWithLinks = (text: string) => {
     if (!text) return '暂无简介信息';
-    
+
     // 匹配URL的正则表达式
     const urlRegex = /(https?:\/\/[^\s]+)/g;
     const parts = text.split(urlRegex);
-    
+
     return parts.map((part, index) => {
       if (part.match(urlRegex)) {
         return (
@@ -398,7 +398,7 @@ const PlantDetail = observer(() => {
   const [activeTab, setActiveTab] = React.useState('timeline');
   const [isNoteModalVisible, setIsNoteModalVisible] = React.useState(false);
   const [note, setNote] = React.useState('');
-  
+
   // Image viewer states
   const [selectedImageIndex, setSelectedImageIndex] = React.useState(0);
   const [selectedImages, setSelectedImages] = React.useState<string[]>([]);
@@ -465,7 +465,15 @@ const PlantDetail = observer(() => {
 
     if (existingTodo) {
       // 更新现有的todo
-      plant.updateTodo({...existingTodo, isRecurring: todoData.isRecurring, recurringUnit: todoData.recurringUnit, recurringInterval: interval, nextRemindTime: nextRemindTime, remark: todoData.remark});
+      plant.updateTodo({ ...existingTodo, isRecurring: todoData.isRecurring, recurringUnit: todoData.recurringUnit, recurringInterval: interval, nextRemindTime: nextRemindTime, remark: todoData.remark });
+      rootStore.logStore.addLog('todo_update', `更新了植物"${plant.name}"的${currentAction}提醒设置`, {
+        plantId: plant.id,
+        plantName: plant.name,
+        actionName: currentAction,
+        isRecurring: todoData.isRecurring,
+        recurringUnit: todoData.recurringUnit,
+        recurringInterval: interval,
+      });
     } else {
       // 创建新的todo
       const newTodo = {
@@ -478,6 +486,14 @@ const PlantDetail = observer(() => {
         remark: todoData.remark
       };
       plant.addTodo(newTodo as ITodoModel);
+      rootStore.logStore.addLog('todo_create', `为植物"${plant.name}"创建了${currentAction}提醒`, {
+        plantId: plant.id,
+        plantName: plant.name,
+        actionName: currentAction,
+        isRecurring: todoData.isRecurring,
+        recurringUnit: todoData.recurringUnit,
+        recurringInterval: interval,
+      });
     }
     setIsTodoModalVisible(false);
   };
@@ -486,15 +502,20 @@ const PlantDetail = observer(() => {
   const deleteTodo = () => {
     const newTodos = plant.todos.find(todo => todo.actionName === currentAction);
     plant.deleteTodo(newTodos as ITodoModel);
+    rootStore.logStore.addLog('todo_delete', `删除了植物"${plant.name}"的${currentAction}提醒`, {
+      plantId: plant.id,
+      plantName: plant.name,
+      actionName: currentAction,
+    });
     setIsTodoModalVisible(false);
   };
 
   // Render a custom image viewer for gallery navigation
   const renderImageViewer = () => {
     if (!showImageViewer || selectedImages.length === 0) return null;
-    
+
     const currentImage = selectedImages[selectedImageIndex];
-    
+
     return (
       <View style={styles.imageViewerContainer}>
         <ImageViewer
@@ -502,10 +523,10 @@ const PlantDetail = observer(() => {
           imageUri={currentImage}
           onClose={() => setShowImageViewer(false)}
         />
-        
+
         {selectedImages.length > 1 && (
           <View style={styles.imageNavigationContainer}>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={[
                 styles.imageNavigationButton,
                 selectedImageIndex === 0 && styles.imageNavigationButtonDisabled
@@ -515,12 +536,12 @@ const PlantDetail = observer(() => {
             >
               <Icon name="arrow-back" style={styles.imageNavigationIcon} fill="#fff" />
             </TouchableOpacity>
-            
+
             <Text style={styles.imageCounterText}>
               {selectedImageIndex + 1} / {selectedImages.length}
             </Text>
-            
-            <TouchableOpacity 
+
+            <TouchableOpacity
               style={[
                 styles.imageNavigationButton,
                 selectedImageIndex === selectedImages.length - 1 && styles.imageNavigationButtonDisabled
@@ -588,20 +609,20 @@ const PlantDetail = observer(() => {
       {/* 标签页内容 */}
       <View style={styles.tabContent}>
         {activeTab === 'timeline' && (
-          <TimelineTab 
-            plant={plant} 
+          <TimelineTab
+            plant={plant}
             onImagePress={handleImagePress}
           />
         )}
         {activeTab === 'actions' && (
-          <ActionsTab 
-            plant={plant} 
+          <ActionsTab
+            plant={plant}
             onTodoPress={openTodoModal}
           />
         )}
         {activeTab === 'notes' && (
-          <NotesTab 
-            plant={plant} 
+          <NotesTab
+            plant={plant}
             onAddNote={() => setIsNoteModalVisible(true)}
           />
         )}
@@ -629,7 +650,11 @@ const PlantDetail = observer(() => {
           <TouchableOpacity
             style={styles.saveNoteBtn}
             onPress={() => {
-              rootStore.plantStore.updatePlant({...plant, description: note});
+              rootStore.plantStore.updatePlant({ ...plant, description: note });
+              rootStore.logStore.addLog('note_update', `更新了植物"${plant.name}"的简介`, {
+                plantId: plant.id,
+                plantName: plant.name,
+              });
               setIsNoteModalVisible(false);
               setNote('');
             }}
@@ -645,77 +670,81 @@ const PlantDetail = observer(() => {
         onClose={() => setIsTodoModalVisible(false)}
         themeMode="light"
         headerComponent={
-          <View style={{ paddingHorizontal: 20, paddingVertical: 10 }}>
-            <Text style={{ fontSize: 18, fontWeight: 'bold' }}>编辑提醒</Text>
+          <View style={styles.modalHeader}>
+            <View style={styles.todoModalHeader}>
+              <View style={styles.todoModalIconContainer}>
+                {getActionIcon(currentAction, 24, '#34a853')}
+              </View>
+              <Text style={styles.todoModalTitle}>{currentAction}</Text>
+            </View>
           </View>
         }
       >
-        <View style={{ paddingHorizontal: 20 }}>
-          <Text style={styles.todoModalTitle}>{currentAction}</Text>
+        <View style={{ flex: 1 }}>
+          <View style={{ paddingHorizontal: 20 }}>
+            {/* 提醒频率设置 - 对所有todo都显示 */}
+            <View style={styles.formGroup}>
+              <Text style={styles.inputLabel}>提醒间隔</Text>
+              <View style={styles.recurringRow}>
+                <Text style={styles.inputLabel}>每</Text>
+                <View style={styles.wheelPickerBox}>
+                  <WheelPicker
+                    initialSelectedIndex={todoData.recurringInterval ? parseInt(todoData.recurringInterval) - 1 : 0}
+                    items={recurringIntervals}
+                    onChange={({ index }) => {
+                      setTodoData({ ...todoData, recurringInterval: (index + 1).toString() });
+                    }}
+                  />
+                </View>
+                <View style={styles.wheelPickerBox}>
+                  <WheelPicker
+                    initialSelectedIndex={recurringUnits.findIndex(unit => unit.value === todoData.recurringUnit)}
+                    items={recurringUnits}
+                    onChange={({ index }) => {
+                      setTodoData({ ...todoData, recurringUnit: recurringUnits[index].value });
+                    }}
+                  />
+                </View>
+              </View>
+            </View>
 
-          {/* 提醒频率设置 - 对所有todo都显示 */}
-          <View style={styles.formGroup}>
-            <Text style={styles.inputLabel}>提醒间隔</Text>
-            <View style={styles.recurringRow}>
-              <Text style={styles.inputLabel}>每</Text>
-              <View style={styles.wheelPickerBox}>
-                <WheelPicker
-                  initialSelectedIndex={todoData.recurringInterval ? parseInt(todoData.recurringInterval) - 1 : 0}
-                  items={recurringIntervals}
-                  onChange={({ index }) => {
-                    setTodoData({ ...todoData, recurringInterval: (index + 1).toString() });
-                  }}
-                  // selectedStyle={styles.wheelPicker}
-                />
+            {/* 下次提醒时间预览 */}
+            <View style={styles.formGroup}>
+              <Text style={styles.inputLabel}>下次提醒</Text>
+              <View style={styles.nextRemindBox}>
+                <Text style={styles.nextRemindText}>
+                  将会在 {formatNextRemindTime(todoData.recurringUnit, parseInt(todoData.recurringInterval) || 1)} 提醒
+                </Text>
               </View>
-              <View style={styles.wheelPickerBox}>
-                <WheelPicker
-                  initialSelectedIndex={recurringUnits.findIndex(unit => unit.value === todoData.recurringUnit)}
-                  items={recurringUnits}
-                  onChange={({ index }) => {
-                    setTodoData({ ...todoData, recurringUnit: recurringUnits[index].value });
-                  }}
-                />
-              </View>
+            </View>
+
+            {/* 循环选项 */}
+            <View style={styles.formGroup}>
+              <CheckBox
+                checked={todoData.isRecurring}
+                onChange={checked => setTodoData({ ...todoData, isRecurring: checked })}
+                style={styles.checkbox}
+              >
+                {() => <Text style={styles.checkboxLabel}>循环提醒</Text>}
+              </CheckBox>
+            </View>
+
+            {/* 简介 */}
+            <View style={styles.formGroup}>
+              <Text style={styles.inputLabel}>简介</Text>
+              <Input
+                multiline
+                textStyle={{ minHeight: 60 }}
+                placeholder="添加简介信息..."
+                value={todoData.remark}
+                onChangeText={value => setTodoData({ ...todoData, remark: value })}
+                style={styles.remarkInput}
+              />
             </View>
           </View>
 
-          {/* 下次提醒时间预览 */}
-          <View style={styles.formGroup}>
-            <Text style={styles.inputLabel}>下次提醒</Text>
-            <View style={styles.nextRemindBox}>
-              <Text style={styles.nextRemindText}>
-                将会在 {formatNextRemindTime(todoData.recurringUnit, parseInt(todoData.recurringInterval) || 1)} 提醒
-              </Text>
-            </View>
-          </View>
-
-          {/* 循环选项 */}
-          <View style={styles.formGroup}>
-            <CheckBox
-              checked={todoData.isRecurring}
-              onChange={checked => setTodoData({ ...todoData, isRecurring: checked })}
-              style={styles.checkbox}
-            >
-              {() => <Text style={styles.checkboxLabel}>循环提醒</Text>}
-            </CheckBox>
-          </View>
-
-          {/* 简介 */}
-          <View style={styles.formGroup}>
-            <Text style={styles.inputLabel}>简介</Text>
-            <Input
-              multiline
-              textStyle={{ minHeight: 80 }}
-              placeholder="添加简介信息..."
-              value={todoData.remark}
-              onChangeText={value => setTodoData({ ...todoData, remark: value })}
-              style={styles.remarkInput}
-            />
-          </View>
-
-          {/* 保存按钮 */}
-          <View style={styles.buttonGroup}>
+          {/* 保存按钮 - 固定在底部 */}
+          <View style={[styles.buttonGroup, { paddingHorizontal: 20, paddingVertical: 16, backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#eee' }]}>
             <TouchableOpacity
               style={styles.deleteBtn}
               onPress={deleteTodo}
@@ -739,6 +768,11 @@ const PlantDetail = observer(() => {
 });
 
 const styles = StyleSheet.create({
+  modalHeader: {
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   container: {
     flex: 1,
     backgroundColor: '#f7f7f7',
@@ -1074,15 +1108,27 @@ const styles = StyleSheet.create({
   },
 
   // Todo Modal Styles
+  todoModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  todoModalIconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#e6f4ea',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+  },
   todoModalTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: 'bold',
     color: '#333',
-    marginBottom: 20,
-    textAlign: 'center',
   },
   formGroup: {
-    marginBottom: 20,
+    marginBottom: 16,
   },
   inputLabel: {
     fontSize: 16,
@@ -1100,15 +1146,15 @@ const styles = StyleSheet.create({
   recurringRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 8,
   },
   wheelPickerBox: {
     flex: 1,
-    marginHorizontal: 10,
+    marginHorizontal: 8,
     backgroundColor: '#fff',
     borderRadius: 8,
     overflow: 'hidden',
-    height: 120,
+    height: 100,
     justifyContent: 'center',
   },
   wheelPicker: {
@@ -1120,12 +1166,12 @@ const styles = StyleSheet.create({
   },
   nextRemindBox: {
     backgroundColor: '#f1f8f5',
-    padding: 12,
+    padding: 10,
     borderRadius: 8,
   },
   nextRemindText: {
     color: '#34a853',
-    fontSize: 16,
+    fontSize: 14,
   },
   buttonGroup: {
     flexDirection: 'row',

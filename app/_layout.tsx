@@ -39,6 +39,7 @@ const ThemedApp = () => {
                 <Stack.Screen name="action-type-management" options={{ headerShown: false }} />
                 <Stack.Screen name="cemetery" options={{ headerShown: false }} />
                 <Stack.Screen name="plant/[id]/page" options={{ headerShown: false }} />
+                <Stack.Screen name="logs" options={{ headerShown: false }} />
               </Stack>
             <FloatingButtonWrapper />
             <ActionCompletionPanel />
@@ -65,6 +66,7 @@ const FloatingButtonWrapper = () => {
     '/plantsPage',
     '/todoPage',
     '/timelinePage',
+    '/logs',
   ];
 
   const shouldShow = showOnRoutes.some(route =>

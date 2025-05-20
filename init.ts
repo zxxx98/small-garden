@@ -1,6 +1,7 @@
 import { DatabaseInstance } from "./models/sqlite/database";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { rootStore } from './stores/RootStore';
+import './utils/errorHandler';  // 导入错误处理器
 
 export default async function init() {
     try {
