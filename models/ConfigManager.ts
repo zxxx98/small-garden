@@ -26,6 +26,7 @@ const defaultActionTypes: ActionType[] = [
     { name: "换盆", iconName: "pot", color: theme["color-success-500"], pack: "materialCommunityIcons", useCustomImage: false },
     { name: "修剪", iconName: "scissors", color: theme["color-success-500"], pack: "feather", useCustomImage: false },
     { name: "除虫", iconName: "bug-sharp", color: theme["color-success-500"], pack: "ionicons", useCustomImage: false },
+    { name: "拍照", iconName: "camera-outline", color: theme["color-success-500"], pack: undefined, useCustomImage: false },
 ];
 
 // Default areas

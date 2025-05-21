@@ -7,19 +7,8 @@ export default async function init() {
     try {
         // Initialize the database
         await DatabaseInstance.init();
-
-        // Check if this is first run after update
-        const lastVersion = await AsyncStorage.getItem('app_last_version');
-        const currentVersion = '1.0.1'; // Update this when making database schema changes
-
-        if (lastVersion !== currentVersion) {
-            console.log(`Version change detected: ${lastVersion} -> ${currentVersion}`);
-            // Reset schema to fix any database structure issues
-            await DatabaseInstance.resetSchema();
-            // Save the current version
-            await AsyncStorage.setItem('app_last_version', currentVersion);
-            console.log('Database schema reset due to version change');
-        }
+        // 如果数据库版本发生变化，则重置数据库
+        // await DatabaseInstance.resetSchema();
         await rootStore.init();
         return Promise.resolve();
     } catch (error) {

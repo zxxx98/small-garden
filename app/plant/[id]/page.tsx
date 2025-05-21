@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Image, TouchableOpacity, ScrollView, StyleSheet, Dimensions, FlatList, Linking } from 'react-native';
 import Timeline from '../../../components/Timeline';
 import PageHeader from '../../../components/PageHeader';
@@ -6,7 +6,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { observer } from 'mobx-react-lite';
 import { rootStore } from '../../../stores/RootStore';
 import { IPlantModel, ITodoModel } from '../../../stores/PlantStore';
-import { Icon, Text, Input, CheckBox, Select, SelectItem, Button, Card, Modal } from '@ui-kitten/components';
+import { Icon, Text, Input, CheckBox, Select, SelectItem, Button, Card, Modal, IndexPath } from '@ui-kitten/components';
 import SlideUpModal from '../../../components/SlideUpModal';
 import { format, addDays, addWeeks, addMonths } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
@@ -23,6 +23,7 @@ import { showMessage } from 'react-native-flash-message';
 const tabs = [
   { id: 'timeline', label: '时间线' },
   { id: 'actions', label: '行为' },
+  { id: 'gallery', label: '图库' },
   { id: 'notes', label: '简介' },
 ];
 
@@ -394,6 +395,114 @@ const NotesTab = observer(({
   );
 });
 
+// 图库组件
+const GalleryTab = observer(({
+  plant,
+  onImagePress,
+}: {
+  plant: IPlantModel;
+  onImagePress: (images: string[], index: number) => void;
+}) => {
+  const availableActions = rootStore.settingStore.actionTypes;
+  //默认全选
+  const [selectedActionTypeIndex, setSelectedActionTypeIndex] = React.useState<IndexPath[]>(availableActions.map((action, index) => new IndexPath(index)));
+
+  const selectedActionTypes = useMemo(() => {
+    return selectedActionTypeIndex.map(index => availableActions[index.row].name);
+  }, [selectedActionTypeIndex]);
+
+  // 获取所有图片
+  const getAllImages = () => {
+    const images: { url: string; actionName: string; time: number }[] = [];
+    plant.actions.forEach(action => {
+      if (action.imgs && action.imgs.length > 0) {
+        action.imgs.forEach(img => {
+          images.push({
+            url: img,
+            actionName: action.name,
+            time: action.time
+          });
+        });
+      }
+    });
+    return images;
+  };
+
+  // 过滤图片
+  const filteredImages = React.useMemo(() => {
+    const allImages = getAllImages();
+    if (selectedActionTypes.length === 0) {
+      return allImages;
+    }
+    return allImages.filter(img => selectedActionTypes.includes(img.actionName));
+  }, [selectedActionTypes, plant.actions]);
+
+  return (
+    <View style={styles.galleryContainer}>
+      {/* 行为类型过滤器 */}
+      <View style={styles.filterContainer}>
+        <View style={styles.filterHeader}>
+          <Text style={styles.filterTitle}>选择行为类型</Text>
+          {selectedActionTypeIndex.length > 0 && (
+            <TouchableOpacity
+              onPress={() => setSelectedActionTypeIndex(availableActions.map((action, index) => new IndexPath(index)))}
+              style={styles.filterReset}
+            >
+              <Text style={styles.filterResetText}>重置</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+        <Select style={{ marginLeft: 16, marginRight: 16 }} selectedIndex={selectedActionTypeIndex} value={selectedActionTypes.join(',')} multiSelect onSelect={(indexs) => {
+          if (typeof indexs === 'object') {
+            setSelectedActionTypeIndex((indexs as IndexPath[]));
+          } else {
+            setSelectedActionTypeIndex([indexs]);
+          }
+        }}>
+          {availableActions.map(action => (
+            <SelectItem key={action.name} title={action.name} accessoryRight={getActionIcon(action.name, 16, selectedActionTypes.includes(action.name) ? '#fff' : '#34a853') as any} />
+          ))}
+        </Select>
+      </View>
+      {filteredImages.length === 0 ?
+        <View style={styles.emptyGalleryContainer}>
+          <Icon name="image-outline" style={styles.emptyGalleryIcon} fill="#34a853" />
+          <Text style={styles.emptyGalleryTitle}>暂无图片</Text>
+          <Text style={styles.emptyGalleryText}>
+            完成行为并添加图片后，将在这里显示
+          </Text>
+        </View> :
+        <FlatList
+          data={filteredImages}
+          numColumns={3}
+          keyExtractor={(item, index) => `${item.url}-${index}`}
+          contentContainerStyle={styles.galleryGrid}
+          renderItem={({ item, index }) => (
+            <TouchableOpacity
+              style={styles.galleryItem}
+              onPress={() => onImagePress(filteredImages.map(img => img.url), index)}
+            >
+              <Image
+                source={{ uri: item.url }}
+                style={styles.galleryImage}
+                resizeMode="cover"
+              />
+              <View style={styles.galleryItemOverlay}>
+                <Text style={styles.galleryItemAction} numberOfLines={1}>
+                  {item.actionName}
+                </Text>
+                <Text style={styles.galleryItemTime}>
+                  {format(new Date(item.time), 'MM-dd', { locale: zhCN })}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          )}
+        />
+      }
+    </View>
+  );
+});
+
 const PlantDetail = observer(() => {
   const [activeTab, setActiveTab] = React.useState('timeline');
   const [isNoteModalVisible, setIsNoteModalVisible] = React.useState(false);
@@ -618,6 +727,12 @@ const PlantDetail = observer(() => {
           <ActionsTab
             plant={plant}
             onTodoPress={openTodoModal}
+          />
+        )}
+        {activeTab === 'gallery' && (
+          <GalleryTab
+            plant={plant}
+            onImagePress={handleImagePress}
           />
         )}
         {activeTab === 'notes' && (
@@ -1340,6 +1455,120 @@ const styles = StyleSheet.create({
   linkText: {
     color: '#34a853',
     textDecorationLine: 'underline',
+  },
+  galleryContainer: {
+    flex: 1,
+    backgroundColor: '#f7f7f7',
+  },
+  filterContainer: {
+    backgroundColor: '#fff',
+    paddingVertical: 12,
+    marginBottom: 8,
+  },
+  filterHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    marginBottom: 12,
+  },
+  filterTitle: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#333',
+  },
+  filterReset: {
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+  },
+  filterResetText: {
+    fontSize: 14,
+    color: '#34a853',
+  },
+  filterScrollContent: {
+    paddingHorizontal: 16,
+  },
+  filterChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: '#f1f8f5',
+    marginRight: 8,
+    borderWidth: 1,
+    borderColor: '#e6f4ea',
+  },
+  filterChipActive: {
+    backgroundColor: '#34a853',
+    borderColor: '#34a853',
+  },
+  filterChipContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  filterChipText: {
+    marginLeft: 4,
+    fontSize: 14,
+    color: '#34a853',
+  },
+  filterChipTextActive: {
+    color: '#fff',
+  },
+  galleryGrid: {
+    padding: 4,
+  },
+  galleryItem: {
+    flex: 1 / 3,
+    aspectRatio: 1,
+    padding: 4,
+  },
+  galleryImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 8,
+  },
+  galleryItemOverlay: {
+    position: 'absolute',
+    bottom: 4,
+    left: 4,
+    right: 4,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    padding: 8,
+    borderBottomLeftRadius: 8,
+    borderBottomRightRadius: 8,
+  },
+  galleryItemAction: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  galleryItemTime: {
+    color: '#fff',
+    fontSize: 10,
+    marginTop: 2,
+  },
+  emptyGalleryContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  emptyGalleryIcon: {
+    width: 60,
+    height: 60,
+    marginBottom: 16,
+  },
+  emptyGalleryTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 8,
+  },
+  emptyGalleryText: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 24,
+    lineHeight: 20,
   },
 });
 

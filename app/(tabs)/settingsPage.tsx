@@ -277,7 +277,7 @@ const SettingsPage = () => {
         <Text category="h6" style={styles.sectionTitle}>关于</Text>
         <Layout style={styles.aboutContent}>
           <Text category="s1" style={styles.appName}>小花园应用</Text>
-          <Text appearance="hint" category="p2">版本 1.0.3</Text>
+          <Text appearance="hint" category="p2">版本 1.0.4</Text>
           <Text appearance="hint" category="p2" style={styles.copyright}>© 2023 小花园团队</Text>
         </Layout>
       </Layout>
