@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { View, Image, TouchableOpacity, ScrollView, StyleSheet, Dimensions, FlatList, Linking } from 'react-native';
+import { View, Image, TouchableOpacity, ScrollView, StyleSheet, Dimensions, FlatList, Linking, Platform } from 'react-native';
 import Timeline from '../../../components/Timeline';
 import PageHeader from '../../../components/PageHeader';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -19,6 +19,8 @@ import WheelPicker from 'react-native-wheel-picker-expo';
 import * as ImagePicker from 'expo-image-picker';
 import { FileManager } from '@/models/FileManager';
 import { showMessage } from 'react-native-flash-message';
+import * as FileSystem from 'expo-file-system';
+import * as MediaLibrary from 'expo-media-library';
 
 const tabs = [
   { id: 'timeline', label: '时间线' },
@@ -404,8 +406,8 @@ const GalleryTab = observer(({
   onImagePress: (images: string[], index: number) => void;
 }) => {
   const availableActions = rootStore.settingStore.actionTypes;
-  //默认全选
   const [selectedActionTypeIndex, setSelectedActionTypeIndex] = React.useState<IndexPath[]>(availableActions.map((action, index) => new IndexPath(index)));
+  const [isDownloading, setIsDownloading] = React.useState(false);
 
   const selectedActionTypes = useMemo(() => {
     return selectedActionTypeIndex.map(index => availableActions[index.row].name);
@@ -437,6 +439,98 @@ const GalleryTab = observer(({
     return allImages.filter(img => selectedActionTypes.includes(img.actionName));
   }, [selectedActionTypes, plant.actions]);
 
+  // 下载图片
+  const downloadImages = async () => {
+    if (filteredImages.length === 0) {
+      showMessage({
+        message: '没有可下载的图片',
+        type: 'warning',
+      });
+      return;
+    }
+
+    try {
+      setIsDownloading(true);
+
+      // 请求权限
+      const { status } = await MediaLibrary.requestPermissionsAsync();
+      if (status !== 'granted') {
+        showMessage({
+          message: '需要相册权限才能保存图片',
+          type: 'warning',
+        });
+        return;
+      }
+
+      // 创建文件夹
+      const folderName = `${plant.name}_${format(new Date(), 'yyyyMMdd')}`;
+      const folderPath = `${FileSystem.documentDirectory}${folderName}`;
+      await FileSystem.makeDirectoryAsync(folderPath, { intermediates: true });
+
+      // 下载进度
+      let completedCount = 0;
+      const totalCount = filteredImages.length;
+
+      // 批量下载
+      const downloadPromises = filteredImages.map(async (image, index) => {
+        try {
+          const fileName = `${image.actionName}_${format(new Date(image.time), 'yyyyMMdd_HHmmss')}.jpg`;
+          const filePath = `${folderPath}/${fileName}`;
+          
+          // 检查 URL 格式并处理
+          let imageUrl = image.url;
+          if (imageUrl.startsWith('file://')) {
+            // 如果是本地文件，复制到filePath
+            await FileSystem.copyAsync({ from: imageUrl, to: filePath });
+            const fileInfo = await FileSystem.getInfoAsync(filePath);
+          } else {
+            // 如果是网络图片，下载
+            await FileSystem.downloadAsync(imageUrl, filePath);
+          }
+          
+          // 保存到相册
+          const asset = await MediaLibrary.createAssetAsync(filePath);
+          console.log('asset', asset);
+          await MediaLibrary.createAlbumAsync(folderName, asset, false);
+          
+          completedCount++;
+          showMessage({
+            message: `下载进度: ${completedCount}/${totalCount}`,
+            type: 'info',
+            duration: 1000,
+          });
+        } catch (error) {
+          console.error('下载图片失败:', error);
+          showMessage({
+            message: `下载第 ${index + 1} 张图片失败`,
+            type: 'warning',
+            duration: 1000,
+          });
+        }
+      });
+
+      await Promise.all(downloadPromises);
+
+      // 清理临时文件
+      await FileSystem.deleteAsync(folderPath, { idempotent: true });
+
+      showMessage({
+        message: '下载完成',
+        description: `已保存 ${completedCount} 张图片到相册`,
+        type: 'success',
+      });
+    } catch (error) {
+      console.error('下载过程出错:', error);
+      showMessage({
+        message: '下载失败',
+        description: '请检查网络连接和存储空间',
+        type: 'danger',
+      });
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
   return (
     <View style={styles.galleryContainer}>
       {/* 行为类型过滤器 */}
@@ -452,26 +546,56 @@ const GalleryTab = observer(({
             </TouchableOpacity>
           )}
         </View>
-        <Select style={{ marginLeft: 16, marginRight: 16 }} selectedIndex={selectedActionTypeIndex} value={selectedActionTypes.join(',')} multiSelect onSelect={(indexs) => {
-          if (typeof indexs === 'object') {
-            setSelectedActionTypeIndex((indexs as IndexPath[]));
-          } else {
-            setSelectedActionTypeIndex([indexs]);
-          }
-        }}>
+        <Select 
+          style={{ marginLeft: 16, marginRight: 16 }} 
+          selectedIndex={selectedActionTypeIndex} 
+          value={selectedActionTypes.join(',')} 
+          multiSelect 
+          onSelect={(indexs) => {
+            if (typeof indexs === 'object') {
+              setSelectedActionTypeIndex((indexs as IndexPath[]));
+            } else {
+              setSelectedActionTypeIndex([indexs]);
+            }
+          }}
+        >
           {availableActions.map(action => (
-            <SelectItem key={action.name} title={action.name} accessoryRight={getActionIcon(action.name, 16, selectedActionTypes.includes(action.name) ? '#fff' : '#34a853') as any} />
+            <SelectItem 
+              key={action.name} 
+              title={action.name} 
+              accessoryRight={getActionIcon(action.name, 16, selectedActionTypes.includes(action.name) ? '#fff' : '#34a853') as any} 
+            />
           ))}
         </Select>
+
+        {/* 下载按钮 */}
+        {filteredImages.length > 0 && (
+          <TouchableOpacity
+            style={[styles.downloadButton, isDownloading && styles.downloadButtonDisabled]}
+            onPress={downloadImages}
+            disabled={isDownloading}
+          >
+            <Icon
+              name={isDownloading ? 'loader-outline' : 'download-outline'}
+              style={styles.downloadIcon}
+              fill="#fff"
+            />
+            <Text style={styles.downloadButtonText}>
+              {isDownloading ? '下载中...' : '下载图片'}
+            </Text>
+          </TouchableOpacity>
+        )}
       </View>
-      {filteredImages.length === 0 ?
+
+      {filteredImages.length === 0 ? (
         <View style={styles.emptyGalleryContainer}>
           <Icon name="image-outline" style={styles.emptyGalleryIcon} fill="#34a853" />
           <Text style={styles.emptyGalleryTitle}>暂无图片</Text>
           <Text style={styles.emptyGalleryText}>
             完成行为并添加图片后，将在这里显示
           </Text>
-        </View> :
+        </View>
+      ) : (
         <FlatList
           data={filteredImages}
           numColumns={3}
@@ -498,7 +622,7 @@ const GalleryTab = observer(({
             </TouchableOpacity>
           )}
         />
-      }
+      )}
     </View>
   );
 });
@@ -1569,6 +1693,29 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 24,
     lineHeight: 20,
+  },
+  downloadButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#34a853',
+    marginHorizontal: 16,
+    marginTop: 12,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  downloadButtonDisabled: {
+    opacity: 0.7,
+  },
+  downloadIcon: {
+    width: 20,
+    height: 20,
+    marginRight: 8,
+  },
+  downloadButtonText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '500',
   },
 });
 
