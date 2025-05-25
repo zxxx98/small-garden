@@ -406,10 +406,13 @@ const GalleryTab = observer(({
   onImagePress: (images: string[], index: number) => void;
 }) => {
   const availableActions = rootStore.settingStore.actionTypes;
-  const [selectedActionTypeIndex, setSelectedActionTypeIndex] = React.useState<IndexPath[]>(availableActions.map((action, index) => new IndexPath(index)));
+  const [selectedActionTypeIndex, setSelectedActionTypeIndex] = React.useState<IndexPath[]>([]);
   const [isDownloading, setIsDownloading] = React.useState(false);
 
   const selectedActionTypes = useMemo(() => {
+    if(selectedActionTypeIndex.length === 0) {
+      return availableActions.map(action => action.name);
+    }
     return selectedActionTypeIndex.map(index => availableActions[index.row].name);
   }, [selectedActionTypeIndex]);
 
@@ -535,21 +538,11 @@ const GalleryTab = observer(({
     <View style={styles.galleryContainer}>
       {/* 行为类型过滤器 */}
       <View style={styles.filterContainer}>
-        <View style={styles.filterHeader}>
-          <Text style={styles.filterTitle}>选择行为类型</Text>
-          {selectedActionTypeIndex.length > 0 && (
-            <TouchableOpacity
-              onPress={() => setSelectedActionTypeIndex(availableActions.map((action, index) => new IndexPath(index)))}
-              style={styles.filterReset}
-            >
-              <Text style={styles.filterResetText}>重置</Text>
-            </TouchableOpacity>
-          )}
-        </View>
+        <View style={{flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginRight: 16}}>
         <Select 
-          style={{ marginLeft: 16, marginRight: 16 }} 
+          style={{ marginLeft: 16,  flex: 1 }} 
           selectedIndex={selectedActionTypeIndex} 
-          value={selectedActionTypes.join(',')} 
+          value={selectedActionTypeIndex.length === 0? "选择行为类型筛选图片" : selectedActionTypes.join(',')} 
           multiSelect 
           onSelect={(indexs) => {
             if (typeof indexs === 'object') {
@@ -567,7 +560,15 @@ const GalleryTab = observer(({
             />
           ))}
         </Select>
-
+        {selectedActionTypeIndex.length > 0 && (
+            <TouchableOpacity
+              onPress={() => setSelectedActionTypeIndex([])}
+              style={styles.filterReset}
+            >
+              <Text style={styles.filterResetText}>重置</Text>
+            </TouchableOpacity>
+          )}
+        </View>
         {/* 下载按钮 */}
         {filteredImages.length > 0 && (
           <TouchableOpacity

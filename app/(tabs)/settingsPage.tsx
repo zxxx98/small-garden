@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { StyleSheet, TouchableOpacity, ScrollView, Alert, Dimensions } from 'react-native';
+import { StyleSheet, TouchableOpacity, ScrollView, Alert, Dimensions, Image } from 'react-native';
 import {
   Layout,
   Text,
@@ -58,6 +58,8 @@ const SettingsPage = () => {
   // PlantNet API key state
   const [plantNetApiKey, setPlantNetApiKey] = React.useState<string>('');
   const [plantNetApiKeyModalVisible, setPlantNetApiKeyModalVisible] = React.useState(false);
+  // 打赏模态框状态
+  const [donateModalVisible, setDonateModalVisible] = React.useState(false);
   // 自定义提醒时间
   const [reminderTime, setReminderTime] = React.useState<Date>(new Date(0, 0, 0, 9, 0));
   const [showTimePicker, setShowTimePicker] = React.useState(false);
@@ -608,9 +610,49 @@ const SettingsPage = () => {
           <Text category="s1" style={styles.appName}>小花园应用</Text>
           <Text appearance="hint" category="p2">版本 1.0.5</Text>
           <Text appearance="hint" category="p2" style={styles.copyright}>© 2023 小花园团队</Text>
+          
+          <TouchableOpacity
+            style={styles.donateButton}
+            onPress={() => setDonateModalVisible(true)}
+          >
+            <Icon name="heart" fill="#FF2D55" style={styles.donateIcon} />
+            <Text category="s1" style={styles.donateButtonText}>打赏支持</Text>
+          </TouchableOpacity>
         </Layout>
       </Layout>
     </ScrollView>
+  );
+
+  // 渲染打赏模态框
+  const renderDonateModal = () => (
+    <Modal
+      visible={donateModalVisible}
+      backdropStyle={styles.backdrop}
+      onBackdropPress={() => setDonateModalVisible(false)}
+    >
+      <Card
+        disabled
+        style={[
+          styles.modalCard,
+          { backgroundColor: themeMode === 'light' ? 'rgba(255, 255, 255, 0.98)' : 'rgba(43, 50, 65, 0.98)' }
+        ]}
+      >
+        <Text category="h6" style={styles.modalTitle}>支持小花园</Text>
+        <Text appearance="hint" category="p2" style={styles.donateText}>
+          如果您觉得小花园对您有帮助，欢迎打赏支持我们的开发工作喏~
+        </Text>
+        <Image
+          source={require('@/assets/images/donate-qr.jpg')}
+          style={styles.qrCode}
+          resizeMode="contain"
+        />
+        <Image
+          source={require('@/assets/images/weixinQR.jpg')} 
+          style={styles.qrCode}
+          resizeMode="contain"
+        />
+      </Card>
+    </Modal>
   );
 
   return (
@@ -627,6 +669,7 @@ const SettingsPage = () => {
       </>
       {renderR2ConfigModal()}
       {renderPlantNetApiKeyModal()}
+      {renderDonateModal()}
     </GradientBackground>
   );
 };
@@ -864,6 +907,37 @@ const styles = StyleSheet.create({
   },
   navigationButton: {
     paddingVertical: 12,
+  },
+  donateButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 45, 85, 0.1)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    marginTop: 16,
+  },
+  donateIcon: {
+    width: 20,
+    height: 20,
+    marginRight: 8,
+  },
+  donateButtonText: {
+    color: '#FF2D55',
+  },
+  donateText: {
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  qrCode: {
+    width: 200,
+    height: 200,
+    alignSelf: 'center',
+    marginVertical: 16,
+  },
+  donateHint: {
+    textAlign: 'center',
+    marginBottom: 8,
   },
 });
 

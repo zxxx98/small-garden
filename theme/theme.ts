@@ -29,4 +29,5 @@ export const theme = {
     'color-purple-200': '#E0B7FE',
     'color-purple-300': '#CB93FC',
     'color-purple-400': '#984cf8',
+    'color-white': '#FFFFFF',
 };

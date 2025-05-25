@@ -12,7 +12,6 @@ interface FloatingActionButtonProps {
 
 const FloatingActionButton = ({ 
   onPress, 
-  icon = 'plus-outline', 
   size = 56 
 }: FloatingActionButtonProps) => {
   const { themeMode } = useTheme();
@@ -33,9 +32,9 @@ const FloatingActionButton = ({
         activeOpacity={0.8}
       >
         <Icon
-          name={icon}
-          style={{ width: size / 2, height: size / 2 }}
-          fill="#FFFFFF"
+          name={"checkmark"}
+          pack='ionicons'
+          style={{ width: size / 2, height: size / 2, color: themeMode === 'light' ? theme['color-white'] : theme['color-white'] }}
         />
       </TouchableOpacity>
     </View>
