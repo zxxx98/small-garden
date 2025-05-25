@@ -37,6 +37,9 @@ const defaultAreas: Area[] = [
     { id: '3', name: '书房' },
 ];
 
+const ReminderHourKey = 'reminderHour';
+const ReminderMinuteKey = 'reminderMinute';
+
 export class ConfigManager
 {
     private static instance: ConfigManager;
@@ -338,6 +341,42 @@ export class ConfigManager
         } catch (error) {
             console.error('Error deleting area:', error);
             throw error;
+        }
+    }
+
+    public async getReminderHour(): Promise<number> {
+        try {
+            const value = await AsyncStorage.getItem(ReminderHourKey);
+            return value ? parseInt(value, 10) : 9;
+        } catch (error) {
+            console.error('Failed to get reminder hour:', error);
+            return 9;
+        }
+    }
+
+    public async setReminderHour(hour: number): Promise<void> {
+        try {
+            await AsyncStorage.setItem(ReminderHourKey, hour.toString());
+        } catch (error) {
+            console.error('Failed to set reminder hour:', error);
+        }
+    }
+
+    public async getReminderMinute(): Promise<number> {
+        try {
+            const value = await AsyncStorage.getItem(ReminderMinuteKey);
+            return value ? parseInt(value, 10) : 0;
+        } catch (error) {
+            console.error('Failed to get reminder minute:', error);
+            return 0;
+        }
+    }
+
+    public async setReminderMinute(minute: number): Promise<void> {
+        try {
+            await AsyncStorage.setItem(ReminderMinuteKey, minute.toString());
+        } catch (error) {
+            console.error('Failed to set reminder minute:', error);
         }
     }
 }

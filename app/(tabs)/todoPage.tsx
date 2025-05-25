@@ -14,6 +14,8 @@ import { rootStore } from '@/stores/RootStore';
 import { ITodoModel } from '@/stores/PlantStore';
 import { observer } from 'mobx-react-lite';
 import { useActionCompletion } from '@/context/ActionCompletionContext';
+import { NotificationManager } from '@/models/NotificationManager';
+import { TodoManager } from '@/models/TodoManager';
 
 
 // 待办事项列表项渲染组件 - 显示单个待办事项
@@ -364,12 +366,26 @@ const TodoPage = observer(() => {
     // 滚动视图引用，用于监听滚动事件
     const scrollViewRef = React.useRef<ScrollView>(null);
 
+    // 监听今日待办变化并安排通知
+    React.useEffect(() => {
+        const notificationManager = NotificationManager.getInstance();
+        const todayItems = rootStore.plantStore.separateTodoItems.todayItems;
+        todayItems.forEach(todo => {
+            notificationManager.scheduleTodoNotification(todo);
+        });
+    }, [rootStore.plantStore.separateTodoItems.todayItems.length]);
+
+    // 检查过期待办
+    React.useEffect(() => {
+        const todoManager = TodoManager.getInstance();
+        const allTodos = rootStore.plantStore.plants.flatMap(plant => plant.todos);
+        todoManager.checkExpiredTodos(allTodos as ITodoModel[]);
+    }, []);
 
     // 处理任务点击事件
     const handleTaskPress = async (todo: ITodoModel) => {
         show(todo);
     };
-
 
     // 渲染分区标题
     const renderSectionHeader = (title: string) => (

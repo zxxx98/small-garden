@@ -1,7 +1,7 @@
 {
   "name": "small-garden",
   "main": "expo-router/entry",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "scripts": {
     "start": "expo start",
     "reset-project": "node ./scripts/reset-project.js",
@@ -22,6 +22,7 @@
     "@eva-design/eva": "^2.2.0",
     "@expo/vector-icons": "^14.0.2",
     "@react-native-async-storage/async-storage": "^1.23.1",
+    "@react-native-community/datetimepicker": "8.2.0",
     "@react-navigation/native": "^7.0.14",
     "@ui-kitten/components": "^5.3.1",
     "@ui-kitten/eva-icons": "^5.3.1",
@@ -39,6 +40,7 @@
     "expo-linear-gradient": "~14.0.2",
     "expo-linking": "~7.0.5",
     "expo-media-library": "~17.0.6",
+    "expo-notifications": "~0.29.14",
     "expo-router": "~4.0.20",
     "expo-splash-screen": "~0.29.22",
     "expo-sqlite": "~15.1.4",

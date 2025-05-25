@@ -21,6 +21,7 @@ import LoadingModal from '@/components/LoadingModal';
 import { CloudflareR2Manager } from '@/models/CloudflareR2Manager';
 import { useRouter } from 'expo-router';
 import GradientBackground from '@/components/GradientBackground';
+import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 
 // Icons
 const CategoryIcon = (props: IconProps) => <Icon {...props} name="folder-outline" />;
@@ -57,6 +58,9 @@ const SettingsPage = () => {
   // PlantNet API key state
   const [plantNetApiKey, setPlantNetApiKey] = React.useState<string>('');
   const [plantNetApiKeyModalVisible, setPlantNetApiKeyModalVisible] = React.useState(false);
+  // 自定义提醒时间
+  const [reminderTime, setReminderTime] = React.useState<Date>(new Date(0, 0, 0, 9, 0));
+  const [showTimePicker, setShowTimePicker] = React.useState(false);
 
   // Load PlantNet API key
   const loadPlantNetApiKey = async () => {
@@ -81,213 +85,7 @@ const SettingsPage = () => {
   React.useEffect(() => {
     loadR2Config();
     loadPlantNetApiKey();
-  }, []);
-
-  // Render main settings section
-  const renderMainSection = () => (
-    <ScrollView style={styles.container}>
-      <Layout style={styles.section}>
-        <Text category="h6" style={styles.sectionTitle}>外观</Text>
-        <Layout style={styles.settingItem}>
-          <Text>暗色模式</Text>
-          <Toggle checked={themeMode === 'dark'} onChange={toggleTheme} />
-        </Layout>
-      </Layout>
-
-      <Layout style={styles.section}>
-        <Text category="h6" style={styles.sectionTitle}>数据管理</Text>
-        <TouchableOpacity
-          style={styles.navItem}
-          onPress={() => router.push('/category-management')}
-        >
-          <Layout style={styles.navItemInner}>
-            <CategoryIcon fill="#3366FF" style={styles.navItemIcon} />
-            <Layout style={styles.navItemContent}>
-              <Text category="s1">植物类别管理</Text>
-              <Text appearance="hint" category="p2">添加、编辑或删除植物类别</Text>
-            </Layout>
-            <Icon name="chevron-right-outline" fill="#8F9BB3" width={24} height={24} />
-          </Layout>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.navItem}
-          onPress={() => router.push('/area-management')}
-        >
-          <Layout style={styles.navItemInner}>
-            <AreaIcon fill="#3366FF" style={styles.navItemIcon} />
-            <Layout style={styles.navItemContent}>
-              <Text category="s1">植物区域管理</Text>
-              <Text appearance="hint" category="p2">添加、编辑或删除植物区域</Text>
-            </Layout>
-            <Icon name="chevron-right-outline" fill="#8F9BB3" width={24} height={24} />
-          </Layout>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.navItem}
-          onPress={() => router.push('/action-type-management')}
-        >
-          <Layout style={styles.navItemInner}>
-            <ActionTypeIcon fill="#3366FF" style={styles.navItemIcon} />
-            <Layout style={styles.navItemContent}>
-              <Text category="s1">行为类型管理</Text>
-              <Text appearance="hint" category="p2">添加、编辑或删除自定义行为类型</Text>
-            </Layout>
-            <Icon name="chevron-right-outline" fill="#8F9BB3" width={24} height={24} />
-          </Layout>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.navItem}
-          onPress={() => router.push('/cemetery')}
-        >
-          <Layout style={styles.navItemInner}>
-            <CemeteryIcon fill="#3366FF" style={styles.navItemIcon} />
-            <Layout style={styles.navItemContent}>
-              <Text category="s1">植物墓地</Text>
-              <Text appearance="hint" category="p2">管理已标记为死亡的植物</Text>
-            </Layout>
-            <Icon name="chevron-right-outline" fill="#8F9BB3" width={24} height={24} />
-          </Layout>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.navItem}
-          onPress={() => router.push('/logs')}
-        >
-          <Layout style={styles.navItemInner}>
-            <LogIcon fill="#3366FF" style={styles.navItemIcon} />
-            <Layout style={styles.navItemContent}>
-              <Text category="s1">系统日志</Text>
-              <Text appearance="hint" category="p2">查看应用操作记录和系统日志</Text>
-            </Layout>
-            <Icon name="chevron-right-outline" fill="#8F9BB3" width={24} height={24} />
-          </Layout>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.navItem}
-          onPress={handleClearCache}
-        >
-          <Layout style={styles.navItemInner}>
-            <TrashIcon2 fill="#3366FF" style={styles.navItemIcon} />
-            <Layout style={styles.navItemContent}>
-              <Text category="s1">清理图片缓存</Text>
-              <Text appearance="hint" category="p2">清理所有已缓存的图片，释放存储空间</Text>
-            </Layout>
-            <Icon name="chevron-right-outline" fill="#8F9BB3" width={24} height={24} />
-          </Layout>
-        </TouchableOpacity>
-
-        <Button
-          appearance="ghost"
-          status="danger"
-          accessoryLeft={(props) => <Icon {...props} name="refresh-outline" />}
-          onPress={() => {
-            Alert.alert(
-              '重置数据库',
-              '确定要重置数据库结构吗？这可能会修复一些应用错误，但不会删除您的数据。',
-              [
-                { text: '取消', style: 'cancel' },
-                {
-                  text: '确定',
-                  style: 'destructive',
-                  onPress: async () => {
-                    try {
-                      LoadingModal.show("重置中...");
-                      await DatabaseInstance.resetSchema();
-                      LoadingModal.hide();
-                      showMessage({
-                        message: '数据库结构已重置',
-                        duration: 1000,
-                        type: "success"
-                      });
-                    } catch (error) {
-                      LoadingModal.hide();
-                      showMessage({
-                        message: '重置失败',
-                        duration: 1000,
-                        type: "danger"
-                      });
-                      console.error("Reset schema error:", error);
-                    }
-                  }
-                }
-              ]
-            );
-          }}
-          style={styles.navigationButton}
-        >
-          修复数据库
-        </Button>
-      </Layout>
-
-      <Layout style={styles.section}>
-        <Text category="h6" style={styles.sectionTitle}>云存储</Text>
-        <Layout style={styles.settingRow}>
-          <Layout style={styles.settingInfo}>
-            <Text category="s1">使用Cloudflare R2存储</Text>
-            <Text appearance="hint" category="p2">将图片保存到云端而非本地设备</Text>
-          </Layout>
-          <Toggle
-            checked={useR2Storage}
-            onChange={toggleR2Storage}
-            status="primary"
-          />
-        </Layout>
-
-        <TouchableOpacity
-          style={styles.navItem}
-          onPress={() => setR2ConfigModalVisible(true)}
-        >
-          <Layout style={styles.navItemInner}>
-            <CloudIcon fill="#3366FF" style={styles.navItemIcon} />
-            <Layout style={styles.navItemContent}>
-              <Text category="s1">Cloudflare R2配置</Text>
-              <Text appearance="hint" category="p2">设置R2账户信息和访问凭证</Text>
-            </Layout>
-            <Icon name="chevron-right-outline" fill="#8F9BB3" width={24} height={24} />
-          </Layout>
-        </TouchableOpacity>
-      </Layout>
-
-      <Divider />
-
-      <Layout style={styles.section}>
-        <Text category="h6" style={styles.sectionTitle}>API配置</Text>
-        <TouchableOpacity
-          style={styles.navItem}
-          onPress={() => setPlantNetApiKeyModalVisible(true)}
-        >
-          <Layout style={styles.navItemInner}>
-            <FlowerIcon fill="#00C781" style={styles.navItemIcon} />
-            <Layout style={styles.navItemContent}>
-              <Text category="s1">PlantNet API Key</Text>
-              <Text appearance="hint" category="p2">设置用于植物识别的API密钥</Text>
-            </Layout>
-            <Icon name="chevron-right-outline" fill="#8F9BB3" width={24} height={24} />
-          </Layout>
-        </TouchableOpacity>
-      </Layout>
-
-      <Divider />
-
-      <Layout style={styles.section}>
-        <Text category="h6" style={styles.sectionTitle}>关于</Text>
-        <Layout style={styles.aboutContent}>
-          <Text category="s1" style={styles.appName}>小花园应用</Text>
-          <Text appearance="hint" category="p2">版本 1.0.4</Text>
-          <Text appearance="hint" category="p2" style={styles.copyright}>© 2023 小花园团队</Text>
-        </Layout>
-      </Layout>
-    </ScrollView>
-  );
-
-  // Load R2 configuration when the component mounts
-  React.useEffect(() => {
-    loadR2Config();
-    loadPlantNetApiKey();
+    loadReminderTime();
   }, []);
 
   // Load R2 configuration
@@ -562,6 +360,258 @@ const SettingsPage = () => {
       });
     }
   };
+
+  // 加载自定义提醒时间
+  const loadReminderTime = async () => {
+    const configManager = ConfigManager.getInstance();
+    const hour = await configManager.getReminderHour();
+    const minute = await configManager.getReminderMinute();
+    setReminderTime(new Date(0, 0, 0, hour, minute));
+  };
+
+  // 保存自定义提醒时间
+  const saveReminderTime = async (date: Date) => {
+    setReminderTime(date);
+    await ConfigManager.getInstance().setReminderHour(date.getHours());
+    await ConfigManager.getInstance().setReminderMinute(date.getMinutes());
+    showMessage({
+      message: '提醒时间已保存',
+      duration: 1000,
+      type: 'success',
+    });
+  };
+
+  // Render main settings section
+  const renderMainSection = () => (
+    <ScrollView style={styles.container}>
+      <Layout style={styles.section}>
+        <Text category="h6" style={styles.sectionTitle}>外观</Text>
+        <Layout style={styles.settingItem}>
+          <Text>暗色模式</Text>
+          <Toggle checked={themeMode === 'dark'} onChange={toggleTheme} />
+        </Layout>
+      </Layout>
+
+      <Layout style={styles.section}>
+        <Text category="h6" style={styles.sectionTitle}>数据管理</Text>
+        <TouchableOpacity
+          style={styles.navItem}
+          onPress={() => router.push('/category-management')}
+        >
+          <Layout style={styles.navItemInner}>
+            <CategoryIcon fill="#3366FF" style={styles.navItemIcon} />
+            <Layout style={styles.navItemContent}>
+              <Text category="s1">植物类别管理</Text>
+              <Text appearance="hint" category="p2">添加、编辑或删除植物类别</Text>
+            </Layout>
+            <Icon name="chevron-right-outline" fill="#8F9BB3" width={24} height={24} />
+          </Layout>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.navItem}
+          onPress={() => router.push('/area-management')}
+        >
+          <Layout style={styles.navItemInner}>
+            <AreaIcon fill="#3366FF" style={styles.navItemIcon} />
+            <Layout style={styles.navItemContent}>
+              <Text category="s1">植物区域管理</Text>
+              <Text appearance="hint" category="p2">添加、编辑或删除植物区域</Text>
+            </Layout>
+            <Icon name="chevron-right-outline" fill="#8F9BB3" width={24} height={24} />
+          </Layout>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.navItem}
+          onPress={() => router.push('/action-type-management')}
+        >
+          <Layout style={styles.navItemInner}>
+            <ActionTypeIcon fill="#3366FF" style={styles.navItemIcon} />
+            <Layout style={styles.navItemContent}>
+              <Text category="s1">行为类型管理</Text>
+              <Text appearance="hint" category="p2">添加、编辑或删除自定义行为类型</Text>
+            </Layout>
+            <Icon name="chevron-right-outline" fill="#8F9BB3" width={24} height={24} />
+          </Layout>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.navItem}
+          onPress={() => router.push('/cemetery')}
+        >
+          <Layout style={styles.navItemInner}>
+            <CemeteryIcon fill="#3366FF" style={styles.navItemIcon} />
+            <Layout style={styles.navItemContent}>
+              <Text category="s1">植物墓地</Text>
+              <Text appearance="hint" category="p2">管理已标记为死亡的植物</Text>
+            </Layout>
+            <Icon name="chevron-right-outline" fill="#8F9BB3" width={24} height={24} />
+          </Layout>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.navItem}
+          onPress={() => router.push('/logs')}
+        >
+          <Layout style={styles.navItemInner}>
+            <LogIcon fill="#3366FF" style={styles.navItemIcon} />
+            <Layout style={styles.navItemContent}>
+              <Text category="s1">系统日志</Text>
+              <Text appearance="hint" category="p2">查看应用操作记录和系统日志</Text>
+            </Layout>
+            <Icon name="chevron-right-outline" fill="#8F9BB3" width={24} height={24} />
+          </Layout>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.navItem}
+          onPress={handleClearCache}
+        >
+          <Layout style={styles.navItemInner}>
+            <TrashIcon2 fill="#3366FF" style={styles.navItemIcon} />
+            <Layout style={styles.navItemContent}>
+              <Text category="s1">清理图片缓存</Text>
+              <Text appearance="hint" category="p2">清理所有已缓存的图片，释放存储空间</Text>
+            </Layout>
+            <Icon name="chevron-right-outline" fill="#8F9BB3" width={24} height={24} />
+          </Layout>
+        </TouchableOpacity>
+
+        <Button
+          appearance="ghost"
+          status="danger"
+          accessoryLeft={(props) => <Icon {...props} name="refresh-outline" />}
+          onPress={() => {
+            Alert.alert(
+              '重置数据库',
+              '确定要重置数据库结构吗？这可能会修复一些应用错误，但不会删除您的数据。',
+              [
+                { text: '取消', style: 'cancel' },
+                {
+                  text: '确定',
+                  style: 'destructive',
+                  onPress: async () => {
+                    try {
+                      LoadingModal.show("重置中...");
+                      await DatabaseInstance.resetSchema();
+                      LoadingModal.hide();
+                      showMessage({
+                        message: '数据库结构已重置',
+                        duration: 1000,
+                        type: "success"
+                      });
+                    } catch (error) {
+                      LoadingModal.hide();
+                      showMessage({
+                        message: '重置失败',
+                        duration: 1000,
+                        type: "danger"
+                      });
+                      console.error("Reset schema error:", error);
+                    }
+                  }
+                }
+              ]
+            );
+          }}
+          style={styles.navigationButton}
+        >
+          修复数据库
+        </Button>
+      </Layout>
+
+      <Layout style={styles.section}>
+        <Text category="h6" style={styles.sectionTitle}>云存储</Text>
+        <Layout style={styles.settingRow}>
+          <Layout style={styles.settingInfo}>
+            <Text category="s1">使用Cloudflare R2存储</Text>
+            <Text appearance="hint" category="p2">将图片保存到云端而非本地设备</Text>
+          </Layout>
+          <Toggle
+            checked={useR2Storage}
+            onChange={toggleR2Storage}
+            status="primary"
+          />
+        </Layout>
+
+        <TouchableOpacity
+          style={styles.navItem}
+          onPress={() => setR2ConfigModalVisible(true)}
+        >
+          <Layout style={styles.navItemInner}>
+            <CloudIcon fill="#3366FF" style={styles.navItemIcon} />
+            <Layout style={styles.navItemContent}>
+              <Text category="s1">Cloudflare R2配置</Text>
+              <Text appearance="hint" category="p2">设置R2账户信息和访问凭证</Text>
+            </Layout>
+            <Icon name="chevron-right-outline" fill="#8F9BB3" width={24} height={24} />
+          </Layout>
+        </TouchableOpacity>
+      </Layout>
+
+      <Divider />
+
+      <Layout style={styles.section}>
+        <Text category="h6" style={styles.sectionTitle}>API配置</Text>
+        <TouchableOpacity
+          style={styles.navItem}
+          onPress={() => setPlantNetApiKeyModalVisible(true)}
+        >
+          <Layout style={styles.navItemInner}>
+            <FlowerIcon fill="#00C781" style={styles.navItemIcon} />
+            <Layout style={styles.navItemContent}>
+              <Text category="s1">PlantNet API Key</Text>
+              <Text appearance="hint" category="p2">设置用于植物识别的API密钥</Text>
+            </Layout>
+            <Icon name="chevron-right-outline" fill="#8F9BB3" width={24} height={24} />
+          </Layout>
+        </TouchableOpacity>
+      </Layout>
+
+      <Divider />
+
+      <Layout style={styles.section}>
+        <Text category="h6" style={styles.sectionTitle}>提醒设置</Text>
+        <TouchableOpacity
+          style={styles.settingItem}
+          onPress={() => setShowTimePicker(true)}
+        >
+          <Text>每日提醒时间</Text>
+          <Text>
+            {reminderTime.getHours().toString().padStart(2, '0')}
+            :
+            {reminderTime.getMinutes().toString().padStart(2, '0')}
+          </Text>
+        </TouchableOpacity>
+        {showTimePicker && (
+          <DateTimePicker
+            value={reminderTime}
+            mode="time"
+            is24Hour={true}
+            display="default"
+            onChange={(event: DateTimePickerEvent, selectedDate?: Date) => {
+              setShowTimePicker(false);
+              if (selectedDate) {
+                saveReminderTime(selectedDate);
+              }
+            }}
+          />
+        )}
+      </Layout>
+
+      <Divider />
+
+      <Layout style={styles.section}>
+        <Text category="h6" style={styles.sectionTitle}>关于</Text>
+        <Layout style={styles.aboutContent}>
+          <Text category="s1" style={styles.appName}>小花园应用</Text>
+          <Text appearance="hint" category="p2">版本 1.0.5</Text>
+          <Text appearance="hint" category="p2" style={styles.copyright}>© 2023 小花园团队</Text>
+        </Layout>
+      </Layout>
+    </ScrollView>
+  );
 
   return (
     <GradientBackground
