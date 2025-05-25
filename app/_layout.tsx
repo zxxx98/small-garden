@@ -65,8 +65,6 @@ const FloatingButtonWrapper = () => {
   const showOnRoutes = [
     '/plantsPage',
     '/todoPage',
-    '/timelinePage',
-    '/logs',
   ];
 
   const shouldShow = showOnRoutes.some(route =>
